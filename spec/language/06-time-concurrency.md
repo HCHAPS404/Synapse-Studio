@@ -136,7 +136,8 @@ fsm Door every 10 ms:
 - `after D` is relative to entry into the current state.
 - `do:` runs on every evaluation while in the state.
 - The verifier checks reachability, absence of deadlock (a state with no exit that
-  is not declared `final`) and user properties (08).
+  is not declared `final` and whose entry or `do` does not raise `fault`; a fault state
+  is terminal by design) and user properties (08, 15).
 
 ## 6.9 Sequences (GRAFCET / SFC)
 

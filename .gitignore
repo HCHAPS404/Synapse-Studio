@@ -46,6 +46,7 @@ Thumbs.db
 # Backups of damaged local data made by tools/repair-git.ps1 and tools/rebuild-venv.ps1
 /.git-broken-*/
 .venv-broken-*/
+/services/core-broken-*/
 
 # Build output of generated artifacts and local logs
 /out/

@@ -59,6 +59,7 @@ error[NE0201]: cannot add a length to a duration
 | NE0105 | private item used outside its module |
 | NE0106 | import breaks the standard-library layering |
 | NE0107 | `neuron.lock` is stale or its content hash does not match |
+| NE0108 | invalid `neuron.toml` |
 | NE0201 | incompatible dimensions |
 | NE0202 | unit expected / unit not allowed here |
 | NE0203 | invalid operation on an affine unit |
@@ -67,16 +68,27 @@ error[NE0201]: cannot add a length to a duration
 | NE0206 | unknown unit |
 | NE0207 | arithmetic overflow proven at compile time |
 | NE0208 | type mismatch |
+| NE0209 | wrong, missing, repeated or surplus arguments in a call |
+| NE0210 | assignment to something that is not mutable |
+| NE0211 | class does not implement an interface method, or a value does not satisfy an interface |
+| NE0212 | no such field, method or variant |
+| NE0214 | `break`, `continue` or `return` outside the construct that allows it |
+| NE0215 | `mut` marker missing or unexpected at a call site |
+| NE0216 | constant index out of bounds |
+| NE0217 | function does not return on every path |
 | NE0301 | activity accesses a resource it declared it does not use |
 | NE0302 | recursion not allowed in this dialect |
 | NE0303 | `mut` argument aliases another argument or a global |
 | NE0304 | `var` shared across cores; use a channel or signal |
 | NE0305 | reference escapes its call |
+| NE0306 | signal written by more than one activity |
 | NE0401 | period is not a multiple of the base tick |
 | NE0402 | task can miss its deadline |
 | NE0403 | loop without a static bound in a real-time dialect |
 | NE0404 | blocking operation in a task or interrupt |
 | NE0405 | hard deadline requested on a soft real-time target |
+| NE0406 | deadline longer than the period |
+| NE0407 | duration or integer attribute is not a constant |
 | NE0501 | construct not allowed in this dialect |
 | NE0502 | combinational loop in `hdl` |
 | NE0601 | hardware resource bound twice |
@@ -97,6 +109,7 @@ error[NE0201]: cannot add a length to a duration
 | NE0901 | verification property violated (counterexample attached) |
 | NE0902 | state unreachable |
 | NE0903 | deadlock: state or step without outgoing transition |
+| NE0904 | state machine without exactly one `initial` state |
 
 ## 10.3 Initial lints
 
@@ -108,5 +121,7 @@ error[NE0201]: cannot add a length to a duration
 | NL0203 | software floating point cost |
 | NL0301 | bare number carries a physical quantity in a public signature |
 | NL0402 | WCET analysis unavailable for this target |
+| NL0403 | interrupt without `@min_interval`; left out of the response-time analysis |
 | NL0501 | large value copy |
 | NL0601 | interrupt nesting not supported; priorities flattened |
+| NL0901 | verification inconclusive (inputs only, limits reached, or coarse time) |

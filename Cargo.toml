@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
   "crates/neuron-syntax",
+  "crates/neuron-sema",
   "crates/neuron-cli",
 ]
 

@@ -6,3 +6,4 @@ header robot name=pick target=-
   10 io vacuum kind=gpio.output at=dout(3)
   11 io holding kind=gpio.input at=din(5)
   13 sequence pick_and_place params=1 items=7
+  23 safety - members=1

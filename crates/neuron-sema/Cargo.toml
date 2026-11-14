@@ -1,0 +1,16 @@
+[package]
+name = "neuron-sema"
+description = "Semantic analysis for Neuron: names, types and units, dialect rules, time, safety"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+neuron-syntax = { path = "../neuron-syntax" }
+
+[dev-dependencies]
+proptest = { workspace = true }

@@ -496,6 +496,7 @@ cd Synapse-Studio
 # Rust workspace (language and CLI)
 cargo test --workspace
 cargo run -p neuron-cli -- --version
+cargo run -p neuron-cli -- check examples --report --cpu-hz 16000000 --ram 2048
 
 # Core API
 cd services/core
@@ -532,9 +533,12 @@ SYNAPSE Studio is built spec-first with [Kiro](https://kiro.dev). Everything is 
 | Repository, license, governance, CI (compliance, Rust, Python) | ✅ |
 | Kiro steering and hooks | ✅ |
 | Core API skeleton with `/health` | ✅ |
-| Neuron language specification (edition 2026) | 🚧 draft |
-| Lexer, parser, formatter | 📋 |
-| Type system with units, SRP, WCET | 📋 |
+| Neuron language specification (edition 2026) | 🚧 draft v0.3 (15 chapters) |
+| Lexer, parser | ✅ |
+| Formatter | 📋 |
+| Names, modules and packages; types and units; dialect rules | ✅ (`neuron check`) |
+| SRP ceilings, response-time analysis, memory budget | ✅ (abstract cost model; target timing in B1) |
+| Safe-state checks and model checking of state machines and sequences | ✅ (counterexample traces) |
 | IR, interpreter, conformance vectors | 📋 |
 | Device manifests, resource solver, topologies | 📋 |
 | C backend and runtime, LLVM IR, native backends (RV32, Thumb-2, AVR, MSP430) | 📋 |

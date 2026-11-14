@@ -38,6 +38,7 @@ platform runtime), never from the grammar.
 | Standard library | 12 |
 | Formatter (P-FMT) | 13 |
 | Models of computation, cell time, translation refinement | 14 |
+| Semantic analysis (names, types, dialect rules, time, safety) | 15 |
 
 ## Key decisions (ADR summary)
 

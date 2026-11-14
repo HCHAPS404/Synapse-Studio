@@ -83,3 +83,23 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   mismatched meanings (a latency error reusing a clock-crossing code), fixed before
   the freeze. Windows App Control intermittently blocks freshly built test
   executables (os error 4551); `tools/test-retry.ps1` rebuilds and retries.
+
+## 2026-11-14 · Tasks A4 to A8 (semantic analysis)
+- **Kiro features:** spec-driven development (new spec `.kiro/specs/neuron-sema` and
+  chapter 15 of the language specification written before the code), steering
+  (`rust-style`: typed `NE####` diagnostics, deterministic output, no `unwrap`),
+  property-based testing (`proptest`) for UNIT-1, SRP ceilings and blocking, MEM-1 sums
+  and shortest counterexamples.
+- **Produced:** the `neuron-sema` crate: name resolution and packages (A4), exact unit
+  algebra, type checker, generics, classes, match exhaustiveness (A5), dialect rules and
+  effects (A6), activities, SRP ceilings, WCET model, response-time analysis and memory
+  budget (A7), safe-state checks and an explicit-state model checker for state machines
+  and sequences with counterexample traces (A8); `neuron check` now analyzes files and
+  packages (`--cpu-hz`, `--ram`, `--report`); `examples/` became a package; error
+  catalogue `docs/errors/analysis.md`.
+- **Lessons:** writing the analysis against the existing examples exposed spec gaps that
+  were fixed in the spec first: `use self.x` did not parse, fault states looked like
+  deadlocks, and a robot example had a loop without a static bound. Silent corruption of
+  four tracked files and of the `services/core` directory entry on drive E: was found by
+  comparing file hashes with git (`tools/verify-worktree.ps1`) and repaired from git;
+  the damaged directory was kept as `services/core-broken-20261114`.

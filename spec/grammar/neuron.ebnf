@@ -23,7 +23,7 @@ file            = module_file | cell_file ;
 module_file     = module_header NEWLINE { item } EOF ;
 (* A cell file has its items indented under the header (NE0005 if they are
    not) and nothing may follow the cell block (NE0013). *)
-cell_file       = cell_header ":" NEWLINE INDENT { item } DEDENT EOF ;
+cell_file       = cell_header NEWLINE INDENT { item } DEDENT EOF ;
 module_header   = "module" path [ "for" dialect ] [ "on" path ] ;
 cell_header     = "cell" IDENT ;
 dialect         = "core" | "mcu" | "plc" | "hdl" | "robot" | "ui" | "host" ;

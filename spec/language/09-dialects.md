@@ -154,8 +154,10 @@ io suction: gpio.output @ dout(3)
 io part_ok: gpio.input  @ din(5)
 
 point home = joints(0, -20, 70, 0, 40, 0) deg
+const rows = 3
+const cols = 4
 
-sequence stack(rows: u8, cols: u8):
+sequence stack():
   move ptp to home speed 60 %
   for r in 0..rows:
     for c in 0..cols:

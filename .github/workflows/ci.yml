@@ -40,6 +40,8 @@ jobs:
       - run: cargo fmt --all -- --check
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo test --workspace
+      - name: Analyze the examples package
+        run: cargo run --quiet -p neuron-cli -- check examples
 
   core:
     name: Core API (Python)

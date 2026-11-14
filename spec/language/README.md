@@ -1,6 +1,6 @@
 # The Neuron Language Specification — Edition 2026
 
-Status: **v0.2 draft** (2026-11-14). Normative once frozen at gate G1.
+Status: **v0.3 draft** (2026-11-14). Normative once frozen at gate G1.
 Owner: Hell. Reviewers: Martin, `spec-reviewer` agent.
 
 Neuron is a programming language for automation and hardware. One language, one
@@ -23,6 +23,7 @@ interchange standard so that programs, devices and third-party languages can mee
 | [12 Standard library](12-stdlib.md) | Library layers, design rules, HAL interfaces, display stack, quality bar, scope for the submission |
 | [13 Canonical formatting](13-formatting.md) | Formatter rules, line breaking, formatting properties, command line |
 | [14 Models of computation](14-computation-models.md) | Formal semantics per model, cell time model, equivalence and refinement for translation |
+| [15 Semantic analysis](15-analysis.md) | Names and modules, types and units, dialect rules, time and concurrency, safe state and model checking |
 | [Grammar](../grammar/neuron.ebnf) | Complete EBNF grammar |
 
 ## Conventions used in this specification
@@ -49,6 +50,22 @@ interchange standard so that programs, devices and third-party languages can mee
 | Hardware bindings | One keyword for every peripheral: `io name: kind(config) @ location` |
 | Parameter passing | Read-only by default; `mut` for exclusive in-out, marked at the call site |
 | Errors | `Result<T, E>` and `T?` (Option) with `?` propagation; `fault` for safe-state entry; no exceptions |
+
+## Changes from v0.2 to v0.3
+
+Found while implementing tasks A4 to A8:
+
+- **New chapter 15** defines the semantic analysis. Chapter 10 gains the codes
+  `NE0108`, `NE0209` to `NE0212`, `NE0214` to `NE0217`, `NE0306`, `NE0406`, `NE0407`,
+  `NE0502`, `NE0904`, `NL0301`, `NL0403` and `NL0901`.
+- **`use self.module`** parses: `self` is the package root.
+- **Loops in `core`.** `core` code is checked like device code for loop bounds and
+  recursion, because it must be usable from every device dialect.
+- **Fault states.** A state whose entry or `do` raises `fault` is terminal and does not
+  need `final` (chapter 6 §6.8).
+- **Robot example.** The palletizing example in chapter 9 uses constants for its loop
+  bounds, as `NE0403` requires.
+- **`examples/` is a package** (`examples/neuron.toml`) and is analyzed in CI.
 
 ## Changes from v0.1 to v0.2
 

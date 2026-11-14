@@ -849,7 +849,17 @@ impl<'a> Parser<'a> {
     fn use_decl(&mut self) -> PResult<ItemKind> {
         self.bump();
         let start = self.span().start;
-        let mut segments = vec![self.ident()?];
+        // `use self.module`: `self` is the package root (spec 04 §4.7).
+        let first = if self.at_kw(Kw::SelfValue) {
+            let t = self.bump();
+            Ident {
+                name: "self".into(),
+                span: t.span,
+            }
+        } else {
+            self.ident()?
+        };
+        let mut segments = vec![first];
         let mut names = Vec::new();
         while self.eat_p(P::Dot) {
             if self.eat_p(P::LBrace) {

@@ -19,3 +19,7 @@ sequence pick_and_place(dest: point):
   move linear to dest speed 300 mm/s
   step Fault:
     fault PickFailed
+
+safety:
+  safe_state:
+    vacuum.write(false)
