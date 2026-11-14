@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="520" viewBox="0 0 1100 520" role="img" aria-labelledby="t d">
+  <title id="t">Neuron as a translation hub</title>
+  <desc id="d">Importers on the left convert existing languages into Neuron; emitters on the right generate native code for each device family. N importers plus M emitters replace N times M translators.</desc>
+  <defs>
+    <linearGradient id="core" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#39ff9c"/><stop offset="1" stop-color="#8a5cff"/>
+    </linearGradient>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0L10 5L0 10z" fill="#5d6f94"/>
+    </marker>
+  </defs>
+  <rect width="1100" height="520" rx="18" fill="#0b1020"/>
+  <g font-family="Segoe UI, Inter, Helvetica, Arial, sans-serif">
+    <text x="40" y="44" font-size="15" fill="#6f7f9f" letter-spacing="2">IMPORT (to Neuron)</text>
+    <text x="1060" y="44" font-size="15" fill="#6f7f9f" letter-spacing="2" text-anchor="end">EMIT (from Neuron)</text>
+
+    <g font-size="15" fill="#d7e2f7">
+      <g transform="translate(40,70)">
+        <rect width="230" height="38" rx="8" fill="#131b31" stroke="#24314f"/><text x="14" y="25">IEC 61131-3: ST · SCL · IL</text>
+        <rect y="50" width="230" height="38" rx="8" fill="#131b31" stroke="#24314f"/><text x="14" y="75">Ladder · FBD · SFC / GRAFCET</text>
+        <rect y="100" width="230" height="38" rx="8" fill="#131b31" stroke="#24314f"/><text x="14" y="125">Robot: SPEL+ · URScript · RAPID</text>
+        <rect y="150" width="230" height="38" rx="8" fill="#131b31" stroke="#24314f"/><text x="14" y="175">C / C++ · Python</text>
+        <rect y="200" width="230" height="38" rx="8" fill="#131b31" stroke="#24314f"/><text x="14" y="225">Verilog · VHDL</text>
+        <rect y="250" width="230" height="38" rx="8" fill="#131b31" stroke="#24314f"/><text x="14" y="275">Assembly (subset) · G-code</text>
+        <rect y="300" width="230" height="38" rx="8" fill="#131b31" stroke="#24314f"/><text x="14" y="325">Visual blocks · natural language</text>
+      </g>
+      <g transform="translate(830,70)">
+        <rect width="230" height="38" rx="8" fill="#131b31" stroke="#24314f"/><text x="14" y="25">Bare-metal MCU: native ELF</text>
+        <rect y="50" width="230" height="38" rx="8" fill="#131b31" stroke="#24314f"/><text x="14" y="75">C / LLVM IR · assembly</text>
+        <rect y="100" width="230" height="38" rx="8" fill="#131b31" stroke="#24314f"/><text x="14" y="125">PLC: ST · SCL · PLCopen XML</text>
+        <rect y="150" width="230" height="38" rx="8" fill="#131b31" stroke="#24314f"/><text x="14" y="175">Robot programs (SPEL+ ...)</text>
+        <rect y="200" width="230" height="38" rx="8" fill="#131b31" stroke="#24314f"/><text x="14" y="225">FPGA: Verilog + constraints</text>
+        <rect y="250" width="230" height="38" rx="8" fill="#131b31" stroke="#24314f"/><text x="14" y="275">Edge: Python · ROS 2 nodes</text>
+        <rect y="300" width="230" height="38" rx="8" fill="#131b31" stroke="#24314f"/><text x="14" y="325">Glue logic for every link</text>
+      </g>
+    </g>
+
+    <g stroke="#5d6f94" stroke-width="1.6" fill="none" marker-end="url(#a)">
+      <path d="M270 89 C 360 89, 380 230, 452 240"/>
+      <path d="M270 139 C 360 139, 380 240, 452 248"/>
+      <path d="M270 189 C 360 189, 380 250, 452 254"/>
+      <path d="M270 239 C 360 239, 390 258, 452 260"/>
+      <path d="M270 289 C 360 289, 390 268, 452 266"/>
+      <path d="M270 339 C 360 339, 380 278, 452 272"/>
+      <path d="M270 389 C 360 389, 380 288, 452 280"/>
+      <path d="M648 240 C 720 230, 740 89, 828 89"/>
+      <path d="M648 248 C 720 240, 740 139, 828 139"/>
+      <path d="M648 254 C 720 250, 740 189, 828 189"/>
+      <path d="M648 260 C 720 260, 740 239, 828 239"/>
+      <path d="M648 266 C 720 270, 740 289, 828 289"/>
+      <path d="M648 272 C 720 280, 740 339, 828 339"/>
+      <path d="M648 280 C 720 290, 740 389, 828 389"/>
+    </g>
+
+    <circle cx="550" cy="260" r="98" fill="none" stroke="url(#core)" stroke-width="3"/>
+    <circle cx="550" cy="260" r="86" fill="#101a33"/>
+    <text x="550" y="252" font-size="34" font-weight="800" fill="#e8f1ff" text-anchor="middle">NEURON</text>
+    <text x="550" y="278" font-size="13" fill="#a9b8d6" text-anchor="middle">language + IR</text>
+    <text x="550" y="298" font-size="12" fill="#39ff9c" text-anchor="middle">verify · partition · time</text>
+
+    <text x="550" y="470" font-size="16" fill="#a9b8d6" text-anchor="middle">N importers + M emitters instead of N × M point-to-point translators</text>
+    <text x="550" y="494" font-size="13" fill="#6f7f9f" text-anchor="middle">Every translation produces a fidelity report: exact · equivalent · modeled · unsupported</text>
+  </g>
+</svg>

@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="320" viewBox="0 0 1200 320" role="img" aria-labelledby="t d">
+  <title id="t">SYNAPSE Studio</title>
+  <desc id="d">Banner: a network of synapses connecting machines, with the text SYNAPSE Studio, powered by the Neuron language.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#07090f"/>
+      <stop offset="0.55" stop-color="#0d1424"/>
+      <stop offset="1" stop-color="#160b20"/>
+    </linearGradient>
+    <linearGradient id="spark" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#39ff9c"/>
+      <stop offset="1" stop-color="#8a5cff"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#39ff9c" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#39ff9c" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="soft"><feGaussianBlur stdDeviation="2"/></filter>
+  </defs>
+  <rect width="1200" height="320" fill="url(#bg)"/>
+  <g stroke="#1e2a44" stroke-width="1">
+    <path d="M0 80H1200M0 160H1200M0 240H1200"/>
+    <path d="M150 0V320M300 0V320M450 0V320M600 0V320M750 0V320M900 0V320M1050 0V320"/>
+  </g>
+  <g fill="none" stroke="url(#spark)" stroke-width="2.2" opacity="0.85">
+    <path d="M70 250 C 180 200, 220 120, 330 110"/>
+    <path d="M70 70 C 170 90, 230 150, 330 110"/>
+    <path d="M330 110 C 420 100, 470 60, 560 64"/>
+    <path d="M870 240 C 960 230, 1010 170, 1120 160"/>
+    <path d="M870 240 C 950 270, 1030 280, 1130 262"/>
+    <path d="M870 240 C 900 160, 980 90, 1110 70"/>
+  </g>
+  <g>
+    <circle cx="330" cy="110" r="22" fill="url(#glow)"/>
+    <circle cx="870" cy="240" r="22" fill="url(#glow)"/>
+    <g fill="#39ff9c">
+      <circle cx="70" cy="250" r="6"/><circle cx="70" cy="70" r="6"/>
+      <circle cx="330" cy="110" r="8"/><circle cx="560" cy="64" r="5"/>
+      <circle cx="870" cy="240" r="8"/><circle cx="1120" cy="160" r="6"/>
+      <circle cx="1130" cy="262" r="6"/><circle cx="1110" cy="70" r="6"/>
+    </g>
+  </g>
+  <g font-family="Segoe UI, Inter, Helvetica, Arial, sans-serif" text-anchor="middle">
+    <text x="600" y="172" font-size="76" font-weight="800" fill="#e8f1ff" letter-spacing="6">SYNAPSE<tspan fill="#39ff9c"> STUDIO</tspan></text>
+    <text x="600" y="218" font-size="24" fill="#a9b8d6">One language. Every machine. Powered by <tspan fill="#c4a8ff" font-weight="700">Neuron</tspan>.</text>
+    <text x="600" y="262" font-size="16" fill="#6f7f9f" letter-spacing="3">DESIGN ONCE · SIMULATE IN 3D · COMPILE TO ANY MACHINE</text>
+  </g>
+</svg>
