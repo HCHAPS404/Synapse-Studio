@@ -1,17 +1,33 @@
-## Bottling cell: PLC + SCARA arm + FPGA (draft syntax, edition 2026).
-## Device type names are generic profiles; vendor mapping lives in device manifests.
+## Bottling cell: controller MCU + PLC + SCARA arm + FPGA (Neuron edition 2026).
+## Device types are generic profiles; vendor mapping lives in device manifests.
 cell BottlingLine
-  device plc:  s7_1200      @ ip(192.168.0.10)
-  device arm:  scara_t3     @ ip(192.168.0.20)
-  device fpga: artix7_board @ uart(COM4, 115200)
+  device ctl:  nucleo_f446re          @ usb
+  device plc:  generic_s7_1200        @ ip(192.168.0.10)
+  device arm:  generic_scara          @ ip(192.168.0.20)
+  device fpga: generic_artix7_board   @ uart(COM4, 115200 Bd)
 
-  link fpga.pulse   -> plc.in_sensor  via zero_hop(gpio) within 50 us
-  link plc.cap_done -> arm.pick_start via modbus_tcp every 10 ms within 25 ms
+  place thermostat on ctl
+  place conveyor on plc
 
-  zone press: box(x: 100..220 mm, y: -40..40 mm, z: 0..120 mm)
-  mutex press between arm, press_cylinder
+  event bottle_seen: timestamp, encoder: u32 from fpga
+
+  link fpga.bottle  -> plc.sensor  via zero_hop(gpio, opto_24v) within 15 ms
+  link plc.cap_done -> arm.pick    via modbus_tcp every 10 ms within 25 ms
+
+  tag line_speed: f32 mm/s @ plc.%MD20, ctl.speed
+
+  zone press: box(x: 100..220, y: -40..40, z: 0..120) mm
+  mutex press between arm, plc.press_cylinder
 
   sequence Cycle on plc:
-    step Idle:  until sensor.rising
-    step Cap:   run capper.cycle(); until done or timeout 3 s -> Fault
-    step Move:  arm.pick_and_place(from: station_a, to: press)
+    initial step Idle:
+      until plc.sensor.rising
+    step Cap:
+      run plc.capper.cycle()
+      until plc.capper.done timeout 3 s -> Fault
+    step Move:
+      run arm.pick_and_place(from: conveyor_track(bottle_seen), to: press)
+      until arm.done timeout 5 s -> Fault
+      -> Idle
+    step Fault:
+      fault CycleFault

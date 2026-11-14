@@ -1,0 +1,245 @@
+(* =========================================================================
+   Neuron language grammar — Edition 2026, draft v0.1
+   Notation: ISO-style EBNF.  x? optional, x* zero or more, x+ one or more,
+   ( ) grouping, | alternative, "t" terminal.  UPPERCASE names are tokens
+   produced by the lexer (spec/language/02-lexical.md).
+   NEWLINE, INDENT and DEDENT come from the indentation rules (02 §2.2).
+   Dialect restrictions (spec/language/09-dialects.md) are applied after
+   parsing; this grammar accepts the union of all dialects.
+   ========================================================================= *)
+
+(* ---------- Tokens (summary) -------------------------------------------- *)
+(* IDENT  INT  REAL  STRING  RAW_STRING  BYTE_STRING  CHAR
+   IEC_ADDR      e.g. %I0.0  %QW4  %MD10  %DB1.DBX0.0
+   BITS_LIT      e.g. 8'b1010_0000  16'hBEEF  4'd9
+   ASM_LINE      raw line inside an asm block
+   NEWLINE INDENT DEDENT EOF                                                *)
+
+(* ---------- Files ------------------------------------------------------- *)
+file            = header NEWLINE { item } EOF ;
+header          = module_header | cell_header ;
+module_header   = "module" path [ "for" dialect ] [ "on" path ] ;
+cell_header     = "cell" IDENT ;
+dialect         = "core" | "mcu" | "plc" | "hdl" | "robot" | "ui" | "host" ;
+path            = IDENT { "." IDENT } ;
+
+(* ---------- Items ------------------------------------------------------- *)
+item            = { attribute } [ "pub" ] item_body ;
+attribute       = "@" IDENT [ "(" [ arg_list ] ")" ] NEWLINE ;
+item_body       = use_decl | const_decl | var_decl | signal_decl | unit_decl
+                | type_decl | fn_decl | task_decl | interrupt_decl | rule
+                | fsm_decl | sequence_decl | safety_decl | verify_decl
+                | test_decl | event_decl
+                | io_decl | clocks_decl | uses_decl | extern_decl
+                | plc_item | hdl_item | robot_item | ui_item | cell_item ;
+
+use_decl        = "use" path [ "." "{" IDENT { "," IDENT } "}" ] [ "as" IDENT ] NEWLINE ;
+const_decl      = "const" IDENT [ ":" type ] "=" expr NEWLINE ;
+var_decl        = [ "retain" ] "var" IDENT ":" type [ "=" expr ] [ "@" expr ] NEWLINE ;
+signal_decl     = "signal" IDENT ":" type [ "=" expr ] NEWLINE ;
+unit_decl       = "unit" IDENT "=" unit_expr NEWLINE ;
+event_decl      = "event" IDENT [ ":" field_list ] [ "from" IDENT ] NEWLINE ;
+field_list      = event_field { "," event_field } ;
+event_field     = "timestamp" | IDENT ":" type ;
+
+(* ---------- Types ------------------------------------------------------- *)
+type            = type_core [ unit_expr ] [ "?" ] ;
+type_core       = path [ "<" type_arg { "," type_arg } ">" ]
+                | "[" type ";" expr "]"
+                | "[" type "]"                          (* slice, parameters only *)
+                | "(" type "," type { "," type } ")" ;
+type_arg        = type | expr ;
+unit_expr       = unit_atom { ( "*" | "/" ) unit_atom } ;
+unit_atom       = IDENT [ "^" [ "-" ] INT ] | "%" ;
+
+type_decl       = struct_decl | enum_decl | class_decl | interface_decl | alias_decl ;
+generics        = "<" generic_param { "," generic_param } ">" ;
+generic_param   = IDENT [ ":" path { "+" path } ] | "const" IDENT ":" type ;
+
+struct_decl     = "struct" IDENT [ generics ] ":" NEWLINE INDENT { field } DEDENT ;
+field           = IDENT ":" type [ "=" expr ] NEWLINE ;
+
+enum_decl       = "enum" IDENT [ generics ] [ ":" type ] ":" NEWLINE INDENT { variant } DEDENT ;
+variant         = IDENT [ "(" type { "," type } ")" ] [ "=" expr ] NEWLINE ;
+
+class_decl      = "class" IDENT [ generics ] [ "is" path { "," path } ] ":"
+                  NEWLINE INDENT { class_member } DEDENT ;
+class_member    = { attribute } [ "pub" ] ( member_var | fn_decl | contract_line ) ;
+member_var      = ( "let" | "var" ) IDENT ":" type [ "=" expr ] NEWLINE ;
+
+interface_decl  = "interface" IDENT [ generics ] ":" NEWLINE INDENT { fn_sig NEWLINE } DEDENT ;
+alias_decl      = "type" IDENT [ generics ] "=" type NEWLINE ;
+
+(* ---------- Functions --------------------------------------------------- *)
+fn_sig          = "fn" IDENT [ generics ] "(" [ params ] ")" [ "->" type ] ;
+fn_decl         = fn_sig ( ":" block | "=" expr NEWLINE ) ;
+params          = param { "," param } ;
+param           = [ "mut" ] ( IDENT ":" type [ "=" expr ] | "self" ) ;
+contract_line   = ( "requires" | "ensures" | "invariant" ) expr NEWLINE ;
+
+(* ---------- Blocks and statements -------------------------------------- *)
+block           = NEWLINE INDENT { contract_line } stmt { stmt } DEDENT
+                | simple_stmt { ";" simple_stmt } NEWLINE ;
+stmt            = simple_stmt { ";" simple_stmt } NEWLINE | compound_stmt ;
+simple_stmt     = binding | assignment | expr | "pass"
+                | "return" [ expr ] | "break" | "continue"
+                | "fault" path [ "(" [ arg_list ] ")" ]
+                | "assert" expr [ "," STRING ]
+                | "emit" path [ "(" [ arg_list ] ")" ]
+                | coil_stmt | wait_stmt | until_stmt | jump | move_stmt ;
+binding         = ( "let" | "var" ) pattern [ ":" type ] "=" expr ;
+assignment      = place assign_op expr [ "when" expr ] ;
+assign_op       = "=" | "+=" | "-=" | "*=" | "/=" | "%=" | "&=" | "|=" | "^=" | "<<=" | ">>=" ;
+place           = postfix_expr ;
+
+compound_stmt   = if_stmt | match_stmt | for_stmt | while_stmt | loop_stmt
+                | atomic_stmt | rule | asm_stmt ;
+if_stmt         = "if" expr ":" block { "elif" expr ":" block } [ "else" ":" block ] ;
+match_stmt      = "match" expr ":" NEWLINE INDENT arm { arm } DEDENT ;
+arm             = pattern [ "if" expr ] "=>" ( simple_stmt NEWLINE | block ) ;
+for_stmt        = "for" pattern "in" expr ":" block ;
+while_stmt      = "while" ( expr | "let" pattern "=" expr ) [ "max" expr ] ":" block ;
+loop_stmt       = "loop" [ "max" expr ] ":" block ;
+atomic_stmt     = "atomic" ":" block ;
+asm_stmt        = "trusted" "asm" IDENT "(" [ asm_operands ] ")" ":"
+                  NEWLINE INDENT ASM_LINE { ASM_LINE } DEDENT ;
+asm_operands    = asm_operand { "," asm_operand } ;
+asm_operand     = ( "in" | "out" ) IDENT ":" type "=" IDENT | "clobber" ":" "[" IDENT { "," IDENT } "]" ;
+
+(* ---------- Patterns ---------------------------------------------------- *)
+pattern         = pattern_atom { "|" pattern_atom } ;
+pattern_atom    = "_" | literal | range_pat | IDENT
+                | path "(" [ pattern { "," pattern } ] ")"          (* enum variant *)
+                | path "(" IDENT ":" pattern { "," IDENT ":" pattern } ")"   (* struct *)
+                | "(" pattern "," pattern { "," pattern } ")" ;
+range_pat       = literal ( ".." | "..=" ) literal ;
+
+(* ---------- Expressions (precedence: spec/language/04 §4.6) ------------- *)
+expr            = pipe_expr ;
+pipe_expr       = cond_expr { "|>" postfix_expr } ;
+cond_expr       = "if" expr "then" expr "else" expr | coalesce_expr ;
+coalesce_expr   = or_expr [ "??" coalesce_expr ] ;
+or_expr         = and_expr { "or" and_expr } ;
+and_expr        = not_expr { "and" not_expr } ;
+not_expr        = "not" not_expr | cmp_expr ;
+cmp_expr        = range_expr { cmp_op range_expr } ;
+cmp_op          = "==" | "!=" | "<" | "<=" | ">" | ">=" | "in" ;
+range_expr      = bor_expr [ ( ".." | "..=" ) bor_expr ] ;
+bor_expr        = bxor_expr { "|" bxor_expr } ;
+bxor_expr       = band_expr { "^" band_expr } ;
+band_expr       = shift_expr { "&" shift_expr } ;
+shift_expr      = add_expr { ( "<<" | ">>" ) add_expr } ;
+add_expr        = mul_expr { ( "+" | "-" | "+%" | "-%" | "+|" | "-|" | "++" ) mul_expr } ;
+mul_expr        = unary_expr { ( "*" | "/" | "%" | "*%" | "*|" ) unary_expr } ;
+unary_expr      = ( "-" | "~" ) unary_expr | pow_expr ;
+pow_expr        = cast_expr [ "**" unary_expr ] ;
+cast_expr       = postfix_expr { "as" type } ;
+postfix_expr    = primary { call_suffix | index_suffix | field_suffix | "?" } ;
+call_suffix     = "(" [ arg_list ] ")" ;
+index_suffix    = "[" expr [ ":" expr ] "]" ;                (* hdl slicing x[7:0] *)
+field_suffix    = "." ( IDENT | INT ) ;
+arg_list        = arg { "," arg } ;
+arg             = [ "mut" ] [ IDENT ":" ] ( map_expr | expr ) ;
+map_expr        = range_expr "->" range_expr ;                (* linear map, args only *)
+
+primary         = literal | quantity | path | "self" | "result"
+                | "(" expr ")" | tuple_lit | array_lit | lambda
+                | "old" "(" expr ")"
+                | "run" postfix_expr ;                       (* async action handle *)
+tuple_lit       = "(" expr "," [ expr { "," expr } ] ")" ;
+array_lit       = "[" [ expr { "," expr } ] "]" | "[" expr ";" expr "]" ;
+lambda          = "fn" "(" [ IDENT { "," IDENT } ] ")" "=>" expr ;
+literal         = INT | REAL | STRING | RAW_STRING | BYTE_STRING | CHAR
+                | "true" | "false" | "none" | IEC_ADDR | BITS_LIT ;
+quantity        = ( INT | REAL | tuple_lit | call_like ) unit_expr ;   (* "5 ms", "xyz(1,2,3) mm" *)
+call_like       = path call_suffix ;
+
+(* ---------- Tasks, interrupts, rules ------------------------------------ *)
+task_decl       = "task" IDENT trigger [ task_attrs ] ":" block ;
+trigger         = "every" expr [ "offset" expr ] | "on" expr ;
+task_attrs      = "(" task_attr { "," task_attr } ")" ;
+task_attr       = "prio" expr | "deadline" expr | "core" expr | "stack" expr
+                | "reads" IDENT { IDENT } | "writes" IDENT { IDENT } ;
+interrupt_decl  = "on" "interrupt" expr [ task_attrs ] ":" block ;
+rule            = "when" expr [ "for" expr ] ":" block ;
+
+(* ---------- State machines --------------------------------------------- *)
+fsm_decl        = "fsm" IDENT [ trigger ] ":" NEWLINE INDENT { fsm_member } DEDENT ;
+fsm_member      = member_var | state_decl ;
+state_decl      = [ "initial" | "final" ] "state" IDENT ":" NEWLINE INDENT { state_member } DEDENT ;
+state_member    = ( "entry" | "exit" | "do" ) ":" block | transition ;
+transition      = "->" IDENT [ "when" expr ] [ [ "or" ] "after" expr ] ( ":" block | NEWLINE ) ;
+(* Disambiguation: inside a transition, "after" is a keyword, so the
+   condition expression stops before "or after". *)
+
+(* ---------- Sequences (GRAFCET / SFC) ---------------------------------- *)
+sequence_decl   = "sequence" IDENT [ "(" [ params ] ")" ] [ "on" IDENT ] ":"
+                  NEWLINE INDENT seq_item { seq_item } DEDENT ;
+seq_item        = step_decl | parallel_decl | stmt ;
+step_decl       = [ "initial" ] "step" IDENT ":" ( block | NEWLINE INDENT seq_item { seq_item } DEDENT ) ;
+parallel_decl   = "parallel" ":" NEWLINE INDENT branch { branch } DEDENT ;
+branch          = "branch" IDENT ":" NEWLINE INDENT seq_item { seq_item } DEDENT ;
+until_stmt      = "until" expr [ "timeout" expr [ "->" IDENT ] ] ;
+wait_stmt       = "wait" expr ;
+jump            = "->" IDENT ;
+
+(* ---------- Safety and verification ------------------------------------ *)
+safety_decl     = "safety" ":" NEWLINE INDENT { safety_member } DEDENT ;
+safety_member   = "rate" expr NEWLINE | "watchdog" expr NEWLINE
+                | "safe_state" ":" block | rule
+                | "on" "fault" [ path ] ":" block
+                | "reset" "when" expr NEWLINE ;
+verify_decl     = "verify" ":" NEWLINE INDENT { property NEWLINE } DEDENT ;
+property        = "never" expr | "always" expr [ "implies" expr ]
+                | "eventually_within" expr "after" expr ":" expr ;
+test_decl       = "test" STRING ":" block ;
+
+(* ---------- Hardware (mcu and shared) ---------------------------------- *)
+io_decl         = "io" IDENT ":" postfix_expr "@" expr NEWLINE ;
+clocks_decl     = "clocks" ":" NEWLINE INDENT { IDENT "=" expr [ "from" expr ] NEWLINE } DEDENT ;
+uses_decl       = "uses" path { "," path } NEWLINE ;
+extern_decl     = "trusted" "extern" STRING ":" NEWLINE INDENT { fn_sig NEWLINE } DEDENT
+                | "extern" STRING fn_decl ;                    (* pub extern "C" fn: export *)
+
+(* ---------- plc --------------------------------------------------------- *)
+plc_item        = "scan" expr NEWLINE
+                | ( "inputs" | "outputs" | "memory" ) ":" NEWLINE INDENT { plc_var } DEDENT
+                | "rung" IDENT ":" block ;
+plc_var         = [ "retain" ] IDENT ":" type [ "=" expr ] [ "@" IEC_ADDR ] NEWLINE ;
+coil_stmt       = ( "set" | "reset" ) place "when" expr ;
+
+(* ---------- hdl --------------------------------------------------------- *)
+hdl_item        = "clock" IDENT ":" expr [ "@" expr ] NEWLINE
+                | circuit_decl
+                | "sync" expr "->" expr "via" expr NEWLINE ;
+circuit_decl    = "circuit" IDENT "(" [ port { "," port } ] ")" [ "on" IDENT ] ":"
+                  NEWLINE INDENT { circuit_member } DEDENT ;
+port            = IDENT ":" ( "in" | "out" | "inout" ) type [ "@" expr ] ;
+circuit_member  = "reg" IDENT ":" type [ "=" expr ] [ "reset" expr ] NEWLINE
+                | "wire" IDENT ":" type NEWLINE
+                | "const" IDENT [ ":" type ] "=" expr NEWLINE
+                | "instance" IDENT "=" postfix_expr NEWLINE
+                | "comb" ":" block
+                | "on" ( "rising" | "falling" ) "(" IDENT ")" ":" block
+                | fsm_decl ;
+
+(* ---------- robot ------------------------------------------------------- *)
+robot_item      = ( "frame" | "tool" | "point" ) IDENT [ ":" type ] "=" expr NEWLINE ;
+move_stmt       = "move" ( "ptp" | "linear" | "arc" ) "to" expr [ "via" expr ] { move_opt } ;
+move_opt        = ( "speed" | "accel" | "blend" | "tool" | "frame" ) expr ;
+
+(* ---------- ui ---------------------------------------------------------- *)
+ui_item         = "display" IDENT ":" postfix_expr NEWLINE
+                | "screen" IDENT [ "on" IDENT ] ":" NEWLINE INDENT { widget } DEDENT
+                | "theme" IDENT ":" block ;
+widget          = IDENT [ IDENT ] [ STRING ] { widget_opt } ( NEWLINE | ":" NEWLINE INDENT { widget | widget_event } DEDENT ) ;
+widget_opt      = ( "at" | "size" | "bind" | "range" | "font" | "color" | "theme" ) expr ;
+widget_event    = "on" IDENT ":" block ;
+
+(* ---------- cell -------------------------------------------------------- *)
+cell_item       = "device" IDENT ":" path [ "@" expr ] NEWLINE
+                | "place" path "on" IDENT NEWLINE
+                | "link" expr "->" expr "via" expr [ "every" expr ] [ "within" expr ] NEWLINE
+                | "tag" IDENT ":" type "@" expr { "," expr } NEWLINE
+                | "zone" IDENT ":" expr NEWLINE
+                | "mutex" IDENT "between" expr { "," expr } NEWLINE ;

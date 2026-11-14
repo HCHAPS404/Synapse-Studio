@@ -1,20 +1,29 @@
-## PID thermostat for a bare-metal MCU (draft syntax, edition 2026).
-module thermostat
+## PID thermostat on a bare-metal microcontroller (Neuron edition 2026).
+module thermostat for mcu on nucleo_f446re
 
 use std.control.{pid, lowpass}
-use std.hal.{adc, pwm}
 
 const target = 60 degC
 
-signal temp:   degC = adc.ch(0) |> scale(0..4095 -> 0..120 degC) |> lowpass(2 Hz)
-signal heater: pwm  = pwm.ch(1, freq: 1 kHz)
+io sensor: adc(resolution: 12)  @ ADC1.in0(PA0)
+io heater: pwm(freq: 1 kHz)     @ TIM2.ch2(PA1)
+io alarm:  gpio.output          @ PA5
 
-let ctl = pid(kp: 2.0, ki: 0.1, out: 0..100 %, antiwindup)
+signal temp: f32 degC
 
-task control every 100 ms (prio 2, deadline 20 ms, reads temp, writes heater):
+let filter = lowpass(cutoff: 2 Hz)
+var ctl = pid(kp: 2.0, ki: 0.1, out: 0..100 %, antiwindup: true)
+
+task measure every 10 ms (prio 3):
+  temp = sensor.read() |> scale(0..4095 -> 0..120 degC) |> filter.step()
+
+task control every 100 ms (prio 2, deadline 20 ms):
   heater.duty = ctl.step(target - temp)
 
 safety:
-  when temp > 90 degC:
+  watchdog 50 ms
+  safe_state:
     heater.duty = 0 %
+    alarm.write(true)
+  when temp > 90 degC:
     fault Overheat
