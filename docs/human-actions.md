@@ -3,14 +3,14 @@
 Agents cannot do these. Tick them as they are completed.
 
 ## Now (before 2026-11-14)
-- [ ] Create the public GitHub repository (suggested name `synapse-studio`) and push
-      `main`. Then create `develop`. Confirm the license shows "Apache-2.0" in About.
-- [ ] Replace `OWNER` in `Cargo.toml` and `@HELL_GITHUB` / `@MARTIN_GITHUB` in
-      `.github/CODEOWNERS` with the real usernames.
-- [ ] Protect `main` and `develop` (require PR, require CI, no force push).
+- [x] Public GitHub repository https://github.com/HCHAPS404/Synapse-Studio with
+      `main` and `develop` pushed; GitHub detects the license as Apache-2.0 (2026-11-14).
+- [x] Repo-local git identity set (hchaps404); `Cargo.toml` and CODEOWNERS updated.
+- [ ] Add Martin's GitHub username to `.github/CODEOWNERS` if he joins.
+- [ ] Add a repository description and topics in GitHub "About" (judges see it first).
+- [ ] Protect `main` and `develop` (require PR, require CI "Hackathon compliance",
+      "Rust workspace" and "Core API (Python)", no force push).
 - [ ] Enable GitHub private vulnerability reporting and secret scanning.
-- [ ] Configure git identity locally (not set on this machine):
-      `git config user.name "..."` and `git config user.email "..."`.
 - [ ] Devpost: register the team, designate Hell as Representative.
 - [ ] Send the three written questions to the hackathon manager (see
       `docs/compliance.md` section "Questions for the administrator").
