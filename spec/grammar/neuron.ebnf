@@ -1,5 +1,5 @@
 (* =========================================================================
-   Neuron language grammar — Edition 2026, draft v0.1
+   Neuron language grammar — Edition 2026, draft v0.2
    Notation: ISO-style EBNF.  x? optional, x* zero or more, x+ one or more,
    ( ) grouping, | alternative, "t" terminal.  UPPERCASE names are tokens
    produced by the lexer (spec/language/02-lexical.md).
@@ -7,6 +7,9 @@
    Dialect restrictions (spec/language/09-dialects.md) are applied after
    parsing; this grammar accepts the union of all dialects.
    ========================================================================= *)
+
+(* Contextual keywords (usable as names elsewhere): max, result, old.
+   "impl" and "Self" are not reserved. See spec/language/02-lexical.md. *)
 
 (* ---------- Tokens (summary) -------------------------------------------- *)
 (* IDENT  INT  REAL  STRING  RAW_STRING  BYTE_STRING  CHAR
@@ -16,8 +19,11 @@
    NEWLINE INDENT DEDENT EOF                                                *)
 
 (* ---------- Files ------------------------------------------------------- *)
-file            = header NEWLINE { item } EOF ;
-header          = module_header | cell_header ;
+file            = module_file | cell_file ;
+module_file     = module_header NEWLINE { item } EOF ;
+(* A cell file has its items indented under the header (NE0005 if they are
+   not) and nothing may follow the cell block (NE0013). *)
+cell_file       = cell_header ":" NEWLINE INDENT { item } DEDENT EOF ;
 module_header   = "module" path [ "for" dialect ] [ "on" path ] ;
 cell_header     = "cell" IDENT ;
 dialect         = "core" | "mcu" | "plc" | "hdl" | "robot" | "ui" | "host" ;
@@ -112,7 +118,8 @@ pattern_atom    = "_" | literal | range_pat | IDENT
                 | path "(" [ pattern { "," pattern } ] ")"          (* enum variant *)
                 | path "(" IDENT ":" pattern { "," IDENT ":" pattern } ")"   (* struct *)
                 | "(" pattern "," pattern { "," pattern } ")" ;
-range_pat       = literal ( ".." | "..=" ) literal ;
+range_pat       = range_bound ( ".." | "..=" ) range_bound ;
+range_bound     = [ "-" ] ( INT | REAL ) | CHAR ;                (* negative bounds allowed *)
 
 (* ---------- Expressions (precedence: spec/language/04 §4.6) ------------- *)
 expr            = pipe_expr ;
@@ -153,6 +160,13 @@ literal         = INT | REAL | STRING | RAW_STRING | BYTE_STRING | CHAR
                 | "true" | "false" | "none" | IEC_ADDR | BITS_LIT ;
 quantity        = ( INT | REAL | tuple_lit | call_like ) unit_expr ;   (* "5 ms", "xyz(1,2,3) mm" *)
 call_like       = path call_suffix ;
+(* A unit after a range applies to both bounds when the lower bound has none:
+   "0..120 degC" is "0 degC..120 degC" (spec 03 §3.3). *)
+range_quantity  = bor_expr ( ".." | "..=" ) ( INT | REAL ) unit_expr ;
+(* The parser accepts a unit after any call; the semantic phase reports NE0202
+   unless the call is a vector constructor (xyz, xy, rpy, joints). The unit is
+   written after exactly one space (NE0014).  "%" is a unit when no operand
+   follows it and a remainder operator when one does. *)
 
 (* ---------- Tasks, interrupts, rules ------------------------------------ *)
 task_decl       = "task" IDENT trigger [ task_attrs ] ":" block ;
@@ -215,7 +229,7 @@ hdl_item        = "clock" IDENT ":" expr [ "@" expr ] NEWLINE
 circuit_decl    = "circuit" IDENT "(" [ port { "," port } ] ")" [ "on" IDENT ] ":"
                   NEWLINE INDENT { circuit_member } DEDENT ;
 port            = IDENT ":" ( "in" | "out" | "inout" ) type [ "@" expr ] ;
-circuit_member  = "reg" IDENT ":" type [ "=" expr ] [ "reset" expr ] NEWLINE
+circuit_member  = "reg" IDENT ":" type [ "=" expr ] NEWLINE       (* "=" is the reset value *)
                 | "wire" IDENT ":" type NEWLINE
                 | "const" IDENT [ ":" type ] "=" expr NEWLINE
                 | "instance" IDENT "=" postfix_expr NEWLINE

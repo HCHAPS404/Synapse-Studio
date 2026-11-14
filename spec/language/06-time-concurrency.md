@@ -190,7 +190,7 @@ The `cell` dialect extends these semantics across devices:
 - `link a -> b via medium every P within L`: the compiler synthesizes the transport,
   computes the worst-case latency of the chain
   (serialization + transport + receiver phase + polling) from device timing profiles,
-  and fails with `NE0702` if `L` cannot be met, proposing alternatives;
+  and fails with `NE0701` if `L` cannot be met, proposing alternatives;
 - fast-to-slow crossings get **Latch + ACK** automatically; asynchronous actions get
   **BUSY / DONE / TIMEOUT**;
 - `event e: timestamp from device` attaches the source timestamp so receivers can

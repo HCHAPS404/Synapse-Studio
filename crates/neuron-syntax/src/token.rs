@@ -38,13 +38,13 @@ keywords! {
     Break => "break", Cell => "cell", Class => "class", Const => "const",
     Continue => "continue", Elif => "elif", Else => "else", Emit => "emit",
     Enum => "enum", Extern => "extern", Fault => "fault", Fn => "fn",
-    For => "for", If => "if", Impl => "impl", In => "in",
+    For => "for", If => "if", In => "in",
     Interface => "interface", Io => "io", Is => "is", Let => "let",
-    Loop => "loop", Match => "match", Max => "max", Module => "module",
+    Loop => "loop", Match => "match", Module => "module",
     Mut => "mut", Not => "not", On => "on", Or => "or",
     Pass => "pass", Pub => "pub", Requires => "requires", Ensures => "ensures",
     Invariant => "invariant", Return => "return", Safety => "safety",
-    SelfValue => "self", SelfType => "Self", Signal => "signal",
+    SelfValue => "self", Signal => "signal",
     Struct => "struct", Task => "task", Test => "test", Then => "then",
     Trusted => "trusted", Type => "type", Use => "use", Var => "var",
     Verify => "verify", When => "when", While => "while", True => "true",
@@ -54,6 +54,9 @@ keywords! {
 /// Words that are keywords only in some dialects or constructs (spec 02 §2.5).
 /// The lexer emits them as identifiers; the parser interprets them in context.
 pub const CONTEXTUAL_KEYWORDS: &[&str] = &[
+    "max",
+    "result",
+    "old",
     "every",
     "offset",
     "prio",

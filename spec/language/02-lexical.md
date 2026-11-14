@@ -4,13 +4,15 @@
 
 - Source files SHALL be UTF-8 with extension `.neuron`. A byte-order mark is
   ignored. Line endings `LF` or `CRLF` are both accepted and normalized to `LF`.
-- Identifiers, keywords and operators are ASCII. Unicode is allowed only in strings,
-  comments and the unit aliases `µ`, `Ω` and `°` (see 2.7).
+- Identifiers, keywords and operators are ASCII. Non-ASCII characters are allowed in
+  strings, comments and unit names only (the unit characters `µ`, `Ω` and `°`, see
+  2.7). Any other use of them in a name is `NE0015`.
 
 ## 2.2 Lines, indentation and blocks
 
 - A **logical line** ends at a newline that is not inside `()`, `[]` or `{}`.
-  Inside brackets, newlines and indentation are ignored (implicit continuation).
+  Inside brackets, newlines and indentation are ignored (implicit continuation). A
+  bracket that is never closed is `NE0011`, reported where it opens.
 - A block is opened by `:` at the end of a logical line followed by a line with
   greater indentation. The lexer emits `INDENT` and `DEDENT` tokens.
 - The indentation unit is **2 spaces**. Tabs in indentation are an error (`NE0001`).
@@ -39,24 +41,26 @@ task t every 10 ms:
 
 Style (lint `NL0001`, not an error): `UpperCamel` for types, states, steps, faults
 and enum variants; `snake_case` for everything else; `SCREAMING_SNAKE` is allowed
-for constants. Hardware location names (`PA5`, `USART2`, `W5`) are identifiers
-resolved in the target's namespace.
+for constants. Hardware location names (`PA5`, `USART2`, `W5`, `D13`) are
+identifiers resolved in the target's namespace.
 
 ## 2.5 Keywords (edition 2026)
 
 Reserved in every dialect:
 
-```
+```text
 and       as        assert    atomic    break     cell      class     const
 continue  elif      else      emit      enum      extern    fault     fn
-for       if        impl      in        interface io        is        let
-loop      match     max       module    mut       not       on        or
-pass      pub       requires  ensures   invariant return    safety    self
-Self      signal    struct    task      test      then      trusted   type
-use       var       verify    when      while     true      false     none
+for       if        in        interface io        is        let       loop
+match     module    mut       not       on        or        pass      pub
+requires  ensures   invariant return    safety    self      signal    struct
+task      test      then      trusted   type      use       var       verify
+when      while     true      false     none
 ```
 
-`pass` is the empty statement.
+`pass` is the empty statement. `max`, `impl` and `Self` are **not** reserved: `max` is
+an ordinary name (and a contextual word after `while` and `loop`); `impl` and `Self`
+are free for later editions.
 
 Contextual keywords (reserved only where their dialect or construct allows them):
 
@@ -66,45 +70,51 @@ Contextual keywords (reserved only where their dialect or construct allows them)
 | state machines and sequences | `fsm`, `state`, `initial`, `final`, `entry`, `exit`, `do`, `sequence`, `step`, `parallel`, `branch`, `run`, `until`, `timeout`, `wait` |
 | safety | `safe_state`, `watchdog`, `rate`, `reset` |
 | `verify` blocks | `never`, `always`, `implies`, `eventually_within` |
+| loops | `max` (`while c max N`, `loop max N`) |
+| contracts | `result`, `old` |
 | packages | `unit` |
 | `mcu` | `clocks`, `from`, `regs`, `uses`, `asm` |
-| `plc` | `scan`, `inputs`, `outputs`, `memory`, `retain`, `rung`, `set`, `reset` |
+| `plc` | `scan`, `inputs`, `outputs`, `memory`, `retain`, `rung`, `set` |
 | `hdl` | `clock`, `circuit`, `reg`, `wire`, `comb`, `rising`, `falling`, `sync`, `via`, `instance`, `out`, `inout` |
 | `robot` | `frame`, `tool`, `point`, `move`, `ptp`, `linear`, `arc`, `to`, `speed`, `accel`, `blend` |
 | `ui` | `display`, `screen`, `bind`, `at`, `size`, `row`, `column`, `grid`, `theme` |
 | `cell` | `device`, `link`, `via`, `within`, `zone`, `mutex`, `between`, `place`, `event`, `tag` |
 
 A contextual keyword can be used as an identifier outside its context; inside its
-context, escape it as `` `step` ``.
+context, escape it with backticks: `` `step` ``.
 
 ## 2.6 Literals
 
 ### Integers
-```
+```text
 42        1_000_000     0x2A      0xFF_FF     0b1010_0000     0o755
 ```
 An integer literal has no intrinsic type; its type comes from context (see 3.6).
 A literal that does not fit the inferred type is an error (`NE0205`).
+Underscores separate digits, one at a time: `1__0`, `1_000_`, `0x_FF` are `NE0006`.
 
 ### Reals
-```
+```text
 3.14      0.5     1e-3     2.5e6     6.022e23
 ```
-A digit is required on both sides of the decimal point (`.5` and `5.` are errors).
+A digit is required on both sides of the decimal point. `.5` and `5.` are `NE0006`
+with the fixes `0.5` and `5.0`. In `t.0.1` and `0..8` the dots are field access and
+range operators, not decimal points.
 
 ### Booleans and none
 `true`, `false`, `none` (the empty value of `T?`).
 
 ### Strings
-```
+```text
 "Hello\n"     "Temp: {temp:.1} degC"     r"C:\raw\no\escapes"
 ```
-- Escapes: `\n \r \t \\ \" \0 \x7F \u{00B5}` and `\{` for a literal brace.
+- Escapes: `\n \r \t \\ \" \0 \xHH \u{HHHH}`, and `\{` and `\}` for literal braces.
 - **Interpolation**: `{expr}` or `{expr:spec}` inside a normal string is formatted
   at compile time into a fixed-size buffer; it never allocates (spec: `.N` decimals,
-  `x` hex, `b` binary, `>N` width).
+  `x` hex, `b` binary, `>N` width). A `{` without its `}`, a nested `{` or a lone
+  `}` is `NE0016`.
 - String literals have type `str` (static, read-only, stored in flash on Harvard
-  targets).
+  targets). Raw strings (`r"..."`) and byte strings (`b"..."`) have no interpolation.
 
 ### Characters and bytes
 `'A'` is a `u8` (ASCII only); `b"\x01\x02"` is a `[u8; N]` byte string.
@@ -112,19 +122,27 @@ A digit is required on both sides of the decimal point (`.5` and `5.` are errors
 ## 2.7 Quantities (numbers with units)
 
 A **quantity literal** is a number followed, on the same line and separated by
-exactly one space, by a **unit expression**:
+**exactly one space**, by a **unit expression**:
 
-```
+```text
 5 ms     500 ms     24 V     3.3 V     120 mm     0.5 mm/s     9.81 m/s^2
 1 kHz    115200 Bd   60 degC  50 %     2 s      15 N*m        1.2 kOhm
 ```
 
 - Grammar: `unit_expr = unit_atom (("*" | "/") unit_atom)*`,
   `unit_atom = unit_name ("^" "-"? digit+)?`.
-- A number immediately followed by an identifier is always a quantity; if the
-  identifier is not a known unit, it is an error (`NE0206`) with suggestions.
+- More than one space (or a tab) between the number and the unit is `NE0014`; the
+  unit is still read, so the program is otherwise checked normally.
+- A number immediately followed by letters is always a mistake (`5ms`): `NE0006`
+  with the fix `5 ms`.
+- A unit suffix may follow a number, a parenthesized tuple, a call (vector
+  constructors such as `xyz(300, 0, 0) mm`, `rpy(0, 0, 0) deg`, `joints(...) deg`
+  apply the unit to every component) and, through the range rule (03 §3.3), a range.
+  For any other call the semantic phase reports `NE0202`: write the unit on the
+  arguments instead, for example `box(x: 100..220 mm)`.
+- **`%`** is a unit when no operand follows it (`50 %`, `0..100 %, antiwindup`) and
+  the remainder operator when one does (`7 % 2`, `f(x) % n`).
 - Unit aliases: `us` and `µs`; `Ohm` and `Ω`; `deg` and `°`; `degC` and `°C`.
-- Tuple shorthand: `xyz(300, 0, 0) mm` applies the unit to every element.
 
 ## 2.8 Hardware literals
 
@@ -136,7 +154,7 @@ exactly one space, by a **unit expression**:
 
 ## 2.9 Operators and punctuation
 
-```
+```text
 +   -   *   /   %   **        arithmetic (trap on overflow by default)
 +%  -%  *%                    wrapping
 +|  -|  *|                    saturating
@@ -158,6 +176,9 @@ and  or  not                  logical (short-circuit)
 `{ }` are used only in import lists (`use std.hal.{gpio, uart}`) and string
 interpolation; they never delimit blocks.
 
+A call or index needs its `(` or `[` **directly** after the callee: `f(x)` is a call,
+`f (x)` is two expressions (this is what lets `task t on ev (prio 1):` work).
+
 ## 2.10 Properties
 
 > **Property LEX-1 (round trip).** For every token sequence produced by the lexer,
@@ -167,3 +188,10 @@ interpolation; they never delimit blocks.
 > **Property LEX-2 (indentation balance).** For every source accepted by the lexer,
 > the number of `INDENT` tokens equals the number of `DEDENT` tokens, and no prefix
 > of the stream has more `DEDENT` than `INDENT`.
+
+## 2.11 Changes from v0.1
+
+`max`, `impl` and `Self` are no longer reserved; `result` and `old` are contextual;
+`.5`, `5.`, `1__0` and `5  ms` are diagnosed; strings validate `{...}`;
+non-ASCII names are rejected; `%` is disambiguated; `in(5)` and `out(3)` in `robot`
+are now `din(5)` and `dout(3)`.

@@ -1,0 +1,14 @@
+header cell name=BottlingLine target=-
+   4 device ctl type=nucleo_f446re at=usb
+   5 device plc type=generic_s7_1200 at=ip(192.168.0.10)
+   6 device arm type=generic_scara at=ip(192.168.0.20)
+   7 device fpga type=generic_artix7_board at=uart(COM4, 115200 Bd)
+   9 place thermostat on=ctl
+  10 place conveyor on=plc
+  12 event bottle_seen fields=2 from=fpga
+  14 link fpga.bottle -> plc.sensor via=zero_hop(gpio, opto_24v) every=- within=15 ms
+  15 link plc.cap_done -> arm.pick via=modbus_tcp every=10 ms within=25 ms
+  17 tag line_speed locations=2
+  19 zone press shape=box(x: 100..220 mm, y: -40..40 mm, z: 0..120 mm)
+  20 mutex press parties=2
+  22 sequence Cycle params=0 items=4

@@ -43,8 +43,9 @@ secrets/
 .DS_Store
 Thumbs.db
 
-# Backups of damaged git metadata made by tools/repair-git.ps1
+# Backups of damaged local data made by tools/repair-git.ps1 and tools/rebuild-venv.ps1
 /.git-broken-*/
+.venv-broken-*/
 
 # Build output of generated artifacts and local logs
 /out/

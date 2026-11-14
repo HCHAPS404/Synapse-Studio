@@ -16,7 +16,7 @@ cell BottlingLine
 
   tag line_speed: f32 mm/s @ plc.%MD20, ctl.speed
 
-  zone press: box(x: 100..220, y: -40..40, z: 0..120) mm
+  zone press: box(x: 100..220 mm, y: -40..40 mm, z: 0..120 mm)
   mutex press between arm, plc.press_cylinder
 
   sequence Cycle on plc:

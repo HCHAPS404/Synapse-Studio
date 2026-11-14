@@ -64,6 +64,26 @@ pub fn parse(src: &str) -> Parsed {
 
 type PResult<T> = Result<T, ()>;
 
+/// `true` for a plain numeric literal, possibly negated (`40`, `-40`, `0.5`).
+fn is_plain_number(e: &Expr) -> bool {
+    match &e.kind {
+        ExprKind::Lit(Lit::Int(_) | Lit::Real(_)) => true,
+        ExprKind::Unary(UnOp::Neg, inner) => is_plain_number(inner),
+        _ => false,
+    }
+}
+
+/// Applies the unit of the upper bound to a unit-less lower bound.
+fn share_unit(lo: Expr, hi: &Expr) -> Expr {
+    match &hi.kind {
+        ExprKind::Quantity(_, unit) if is_plain_number(&lo) => {
+            let span = lo.span;
+            Expr::new(ExprKind::Quantity(Box::new(lo), unit.clone()), span)
+        }
+        _ => lo,
+    }
+}
+
 struct Parser<'a> {
     src: &'a str,
     toks: Vec<Token>,
@@ -107,12 +127,18 @@ impl<'a> Parser<'a> {
         self.tok().span
     }
 
+    /// End offset of the last consumed token that carries source text
+    /// (layout tokens are skipped so spans never include trailing newlines).
     fn prev_end(&self) -> usize {
-        if self.pos == 0 {
-            0
-        } else {
-            self.toks[self.pos - 1].span.end
+        let mut i = self.pos;
+        while i > 0 {
+            i -= 1;
+            let t = self.toks[i];
+            if !matches!(t.kind, K::Newline | K::Indent | K::Dedent | K::Eof) {
+                return t.span.end;
+            }
         }
+        0
     }
 
     fn since(&self, start: usize) -> Span {
@@ -242,6 +268,22 @@ impl<'a> Parser<'a> {
     }
 
     fn ident(&mut self) -> PResult<Ident> {
+        let id = self.unit_ident()?;
+        if !id.name.is_ascii() {
+            self.diags.push(
+                Diagnostic::error(
+                    "NE0015",
+                    format!("`{}` is not a valid name", id.name),
+                    id.span,
+                )
+                .with_help("non-ASCII characters are only allowed inside unit names"),
+            );
+        }
+        Ok(id)
+    }
+
+    /// Identifier that may contain the unit characters (micro, ohm, degree).
+    fn unit_ident(&mut self) -> PResult<Ident> {
         if self.at(K::Ident) {
             let t = self.bump();
             let name = t.span.text(self.src).trim_matches('`').to_string();
@@ -344,16 +386,39 @@ impl<'a> Parser<'a> {
         let header = self.header();
         let cell = header.dialect == Dialect::Cell;
         let mut items = Vec::new();
-        let nested = cell && self.at(K::Indent);
-        if nested {
-            self.bump();
+        if cell {
+            if self.at(K::Indent) {
+                self.bump();
+            } else if !self.at(K::Eof) {
+                let s = self.span();
+                self.diags.push(
+                    Diagnostic::error(
+                        "NE0005",
+                        "expected an indented block after the cell header",
+                        s,
+                    )
+                    .with_help("indent every cell item by 2 spaces"),
+                );
+            }
         }
+        let mut cell_open = cell;
         loop {
             if self.at(K::Eof) {
                 break;
             }
             if self.at(K::Dedent) {
                 self.bump();
+                cell_open = false;
+                continue;
+            }
+            if cell && !cell_open && !self.at(K::Newline) {
+                let s = self.span();
+                self.diags.push(
+                    Diagnostic::error("NE0013", "content after the cell block", s).with_help(
+                        "a cell file holds one `cell` block; put other code in module files",
+                    ),
+                );
+                self.recover_line();
                 continue;
             }
             if self.at(K::Newline) {
@@ -886,11 +951,16 @@ impl<'a> Parser<'a> {
             return Ok(out);
         }
         loop {
+            let gstart = self.span().start;
             if self.eat_kw(Kw::Const) {
                 let name = self.ident()?;
                 self.expect_p(P::Colon)?;
                 let ty = self.ty()?;
-                out.push(GenericParam::Const { name, ty });
+                out.push(GenericParam::Const {
+                    name,
+                    ty,
+                    span: self.since(gstart),
+                });
             } else {
                 let name = self.ident()?;
                 let mut bounds = Vec::new();
@@ -900,7 +970,11 @@ impl<'a> Parser<'a> {
                         bounds.push(self.path()?);
                     }
                 }
-                out.push(GenericParam::Type { name, bounds });
+                out.push(GenericParam::Type {
+                    name,
+                    bounds,
+                    span: self.since(gstart),
+                });
             }
             if !self.eat_p(P::Comma) {
                 break;
@@ -939,6 +1013,21 @@ impl<'a> Parser<'a> {
         Ok(out)
     }
 
+    /// Like [`members`](Self::members) but records the span of every member.
+    fn members_sp<T>(
+        &mut self,
+        mut f: impl FnMut(&mut Self) -> PResult<T>,
+    ) -> PResult<Vec<Spanned<T>>> {
+        self.members(|p| {
+            let start = p.span().start;
+            let node = f(p)?;
+            Ok(Spanned {
+                node,
+                span: p.since(start),
+            })
+        })
+    }
+
     fn eat_dedent(&mut self) {
         if self.at(K::Dedent) {
             self.bump();
@@ -950,6 +1039,7 @@ impl<'a> Parser<'a> {
         let name = self.ident()?;
         let generics = self.generics()?;
         let members = self.members(|p| {
+            let fstart = p.span().start;
             let name = p.ident()?;
             p.expect_p(P::Colon)?;
             let ty = p.ty()?;
@@ -959,7 +1049,12 @@ impl<'a> Parser<'a> {
                 None
             };
             p.expect_newline()?;
-            Ok(Field { name, ty, default })
+            Ok(Field {
+                name,
+                ty,
+                default,
+                span: p.since(fstart),
+            })
         })?;
         Ok(ItemKind::Struct(TypeDef {
             name,
@@ -980,6 +1075,7 @@ impl<'a> Parser<'a> {
             None
         };
         let members = self.members(|p| {
+            let vstart = p.span().start;
             let name = p.ident()?;
             let mut payload = Vec::new();
             if p.eat_p(P::LParen) {
@@ -1001,6 +1097,7 @@ impl<'a> Parser<'a> {
                 name,
                 payload,
                 value,
+                span: p.since(vstart),
             })
         })?;
         Ok(ItemKind::Enum(TypeDef {
@@ -1074,6 +1171,7 @@ impl<'a> Parser<'a> {
         self.expect_p(P::LParen)?;
         let mut params = Vec::new();
         while !self.at_p(P::RParen) {
+            let pstart = self.span().start;
             let mutable = self.eat_kw(Kw::Mut);
             if self.at_kw(Kw::SelfValue) {
                 let t = self.bump();
@@ -1085,6 +1183,7 @@ impl<'a> Parser<'a> {
                     },
                     ty: None,
                     default: None,
+                    span: self.since(pstart),
                 });
             } else {
                 let name = self.ident()?;
@@ -1100,6 +1199,7 @@ impl<'a> Parser<'a> {
                     name,
                     ty,
                     default,
+                    span: self.since(pstart),
                 });
             }
             if !self.eat_p(P::Comma) {
@@ -1132,7 +1232,7 @@ impl<'a> Parser<'a> {
                 body: FnBody::Expr(e),
             });
         }
-        let mut body = self.colon_block()?;
+        let mut body = self.colon_block_with(true)?;
         let contracts = std::mem::take(&mut body.contracts);
         Ok(FnDecl {
             sig,
@@ -1172,12 +1272,13 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn task_attrs(&mut self) -> PResult<Vec<TaskAttr>> {
+    fn task_attrs(&mut self) -> PResult<Vec<Spanned<TaskAttr>>> {
         let mut out = Vec::new();
         if !self.eat_p(P::LParen) {
             return Ok(out);
         }
         while !self.at_p(P::RParen) {
+            let astart = self.span().start;
             let w = self.text();
             if self.kind() != K::Ident {
                 self.error_here(
@@ -1211,7 +1312,10 @@ impl<'a> Parser<'a> {
                     return Err(());
                 }
             };
-            out.push(attr);
+            out.push(Spanned {
+                node: attr,
+                span: self.since(astart),
+            });
             if !self.eat_p(P::Comma) {
                 break;
             }
@@ -1342,6 +1446,7 @@ impl<'a> Parser<'a> {
         let mut params = Vec::new();
         if self.eat_p(P::LParen) {
             while !self.at_p(P::RParen) {
+                let pstart = self.span().start;
                 let mutable = self.eat_kw(Kw::Mut);
                 let n = self.ident()?;
                 self.expect_p(P::Colon)?;
@@ -1356,6 +1461,7 @@ impl<'a> Parser<'a> {
                     name: n,
                     ty,
                     default,
+                    span: self.since(pstart),
                 });
                 if !self.eat_p(P::Comma) {
                     break;
@@ -1368,7 +1474,11 @@ impl<'a> Parser<'a> {
         } else {
             None
         };
-        let items = self.members(|p| p.seq_item())?;
+        let items: Vec<SeqItem> = self
+            .members(|p| p.seq_item())?
+            .into_iter()
+            .flatten()
+            .collect();
         Ok(SequenceDecl {
             name,
             params,
@@ -1377,7 +1487,9 @@ impl<'a> Parser<'a> {
         })
     }
 
-    fn seq_item(&mut self) -> PResult<SeqItem> {
+    /// One logical line of a sequence: a step, a parallel block, or one item per
+    /// `;`-separated statement.
+    fn seq_item(&mut self) -> PResult<Vec<SeqItem>> {
         let start = self.span().start;
         if (self.at_word("initial") && self.nth_text(1) == "step")
             || (self.at_word("step") && self.nth(1) == K::Ident)
@@ -1386,12 +1498,12 @@ impl<'a> Parser<'a> {
             self.expect_word("step")?;
             let name = self.ident()?;
             let body = self.seq_body()?;
-            return Ok(SeqItem::Step {
+            return Ok(vec![SeqItem::Step {
                 initial,
                 name,
                 body,
                 span: self.since(start),
-            });
+            }]);
         }
         if self.at_word("parallel") && self.nth(1) == K::Punct(P::Colon) {
             self.bump();
@@ -1401,26 +1513,12 @@ impl<'a> Parser<'a> {
                 let body = p.seq_body()?;
                 Ok((n, body))
             })?;
-            return Ok(SeqItem::Parallel {
+            return Ok(vec![SeqItem::Parallel {
                 branches,
                 span: self.since(start),
-            });
+            }]);
         }
-        let mut out = self.stmt_line()?;
-        // a statement line may contain several `;`-separated statements
-        if out.len() == 1 {
-            return Ok(SeqItem::Stmt(out.remove(0)));
-        }
-        let span = self.since(start);
-        Ok(SeqItem::Step {
-            initial: false,
-            name: Ident {
-                name: String::new(),
-                span,
-            },
-            body: out.into_iter().map(SeqItem::Stmt).collect(),
-            span,
-        })
+        Ok(self.stmt_line()?.into_iter().map(SeqItem::Stmt).collect())
     }
 
     /// Body of a step or branch: either one line after `:` or an indented list.
@@ -1448,7 +1546,7 @@ impl<'a> Parser<'a> {
                 continue;
             }
             match self.seq_item() {
-                Ok(i) => out.push(i),
+                Ok(i) => out.extend(i),
                 Err(()) => self.recover_line(),
             }
         }
@@ -1458,7 +1556,7 @@ impl<'a> Parser<'a> {
 
     fn safety_decl(&mut self) -> PResult<ItemKind> {
         self.bump();
-        let members = self.members(|p| {
+        let members = self.members_sp(|p| {
             if p.at_kw(Kw::When) {
                 return Ok(SafetyMember::Rule(p.rule()?));
             }
@@ -1511,7 +1609,7 @@ impl<'a> Parser<'a> {
 
     fn verify_decl(&mut self) -> PResult<ItemKind> {
         self.bump();
-        let props = self.members(|p| {
+        let props = self.members_sp(|p| {
             let w = p.text();
             let prop = match w {
                 "never" => {
@@ -1555,6 +1653,7 @@ impl<'a> Parser<'a> {
     fn clocks_decl(&mut self) -> PResult<ItemKind> {
         self.bump();
         let defs = self.members(|p| {
+            let cstart = p.span().start;
             let name = p.ident()?;
             p.expect_p(P::Eq)?;
             let value = p.expr_stop()?;
@@ -1564,7 +1663,12 @@ impl<'a> Parser<'a> {
                 None
             };
             p.expect_newline()?;
-            Ok(ClockDef { name, value, from })
+            Ok(ClockDef {
+                name,
+                value,
+                from,
+                span: p.since(cstart),
+            })
         })?;
         Ok(ItemKind::Clocks(defs))
     }
@@ -1654,6 +1758,7 @@ impl<'a> Parser<'a> {
         self.expect_p(P::LParen)?;
         let mut ports = Vec::new();
         while !self.at_p(P::RParen) {
+            let pstart = self.span().start;
             let pname = self.ident()?;
             self.expect_p(P::Colon)?;
             let dir = if self.eat_kw(Kw::In) {
@@ -1677,6 +1782,7 @@ impl<'a> Parser<'a> {
                 dir,
                 ty,
                 pin,
+                span: self.since(pstart),
             });
             if !self.eat_p(P::Comma) {
                 break;
@@ -1688,7 +1794,7 @@ impl<'a> Parser<'a> {
         } else {
             None
         };
-        let members = self.members(|p| p.circuit_member())?;
+        let members = self.members_sp(|p| p.circuit_member())?;
         Ok(CircuitDecl {
             name,
             ports,
@@ -1900,7 +2006,28 @@ impl<'a> Parser<'a> {
     fn unit_follows(&self) -> bool {
         match self.kind() {
             K::Ident => !STOP_WORDS.contains(&self.text()) && !self.text().starts_with('`'),
-            K::Punct(P::Percent) => true,
+            // `%` is a unit unless an operand follows (`7 % 2` is a remainder).
+            K::Punct(P::Percent) => !self.starts_operand(1),
+            _ => false,
+        }
+    }
+
+    /// `true` if the token `n` positions ahead can start an operand.
+    fn starts_operand(&self, n: usize) -> bool {
+        match self.nth(n) {
+            K::Int
+            | K::Real
+            | K::Str
+            | K::RawStr
+            | K::ByteStr
+            | K::Char
+            | K::IecAddr
+            | K::BitsLit => true,
+            K::Ident => !STOP_WORDS.contains(&self.nth_text(n)),
+            K::Keyword(
+                Kw::True | Kw::False | Kw::NoneLit | Kw::SelfValue | Kw::Not | Kw::Fn | Kw::If,
+            ) => true,
+            K::Punct(P::LParen | P::LBracket | P::Minus | P::Tilde) => true,
             _ => false,
         }
     }
@@ -1917,7 +2044,7 @@ impl<'a> Parser<'a> {
                     span: t.span,
                 }
             } else if self.at(K::Ident) {
-                self.ident()?
+                self.unit_ident()?
             } else {
                 self.error_here("a unit");
                 return Err(());
@@ -1951,6 +2078,12 @@ impl<'a> Parser<'a> {
 
     /// `:` followed by an indented block or by simple statements on the same line.
     fn colon_block(&mut self) -> PResult<Block> {
+        self.colon_block_with(false)
+    }
+
+    /// Like `colon_block`; contracts are accepted only when `allow_contracts` is set
+    /// (function bodies).
+    fn colon_block_with(&mut self, allow_contracts: bool) -> PResult<Block> {
         let start = self.span().start;
         self.expect_p(P::Colon)?;
         if !self.at(K::Newline) {
@@ -1961,11 +2094,11 @@ impl<'a> Parser<'a> {
                 span: self.since(start),
             });
         }
-        self.indented_block(start)
+        self.indented_block(start, allow_contracts)
     }
 
     /// Cursor on NEWLINE: parses the indented block that follows.
-    fn indented_block(&mut self, start: usize) -> PResult<Block> {
+    fn indented_block(&mut self, start: usize, allow_contracts: bool) -> PResult<Block> {
         self.bump();
         if !self.at(K::Indent) {
             let s = self.span();
@@ -1990,12 +2123,41 @@ impl<'a> Parser<'a> {
                 _ => None,
             };
             if let Some(kind) = kind {
+                let cstart = self.span().start;
                 self.bump();
-                match self
-                    .expr()
-                    .and_then(|cond| self.expect_newline().map(|()| cond))
-                {
-                    Ok(cond) => contracts.push(Contract { kind, cond }),
+                let misplaced =
+                    !allow_contracts || !stmts.is_empty() || kind == ContractKind::Invariant;
+                if misplaced {
+                    let (msg, help) = if kind == ContractKind::Invariant {
+                        (
+                            "`invariant` is only allowed in a class body",
+                            "declare it directly inside the class",
+                        )
+                    } else {
+                        (
+                            "contracts are only allowed at the start of a function body",
+                            "move `requires` and `ensures` to the first lines of the function",
+                        )
+                    };
+                    let at = Span {
+                        start: cstart,
+                        end: self.prev_end(),
+                    };
+                    self.diags
+                        .push(Diagnostic::error("NE0012", msg, at).with_help(help));
+                }
+                let parsed = self.expr();
+                let cspan = self.since(cstart);
+                match parsed.and_then(|cond| self.expect_newline().map(|()| cond)) {
+                    Ok(cond) => {
+                        if !misplaced {
+                            contracts.push(Contract {
+                                kind,
+                                cond,
+                                span: cspan,
+                            });
+                        }
+                    }
                     Err(()) => self.recover_line(),
                 }
                 continue;
@@ -2072,7 +2234,7 @@ impl<'a> Parser<'a> {
                     p.expect_p(P::FatArrow)?;
                     let body = if p.at(K::Newline) {
                         let bs = p.span().start;
-                        p.indented_block(bs)?
+                        p.indented_block(bs, false)?
                     } else {
                         let bs = p.span().start;
                         let stmts = p.simple_stmts_line()?;
@@ -2115,7 +2277,7 @@ impl<'a> Parser<'a> {
                     None
                 };
                 let cond = self.expr_stop()?;
-                let max = if self.eat_kw(Kw::Max) {
+                let max = if self.eat_word("max") {
                     Some(self.expr()?)
                 } else {
                     None
@@ -2129,7 +2291,7 @@ impl<'a> Parser<'a> {
             }
             K::Keyword(Kw::Loop) => {
                 self.bump();
-                let max = if self.eat_kw(Kw::Max) {
+                let max = if self.eat_word("max") {
                     Some(self.expr()?)
                 } else {
                     None
@@ -2578,16 +2740,17 @@ impl<'a> Parser<'a> {
         if self.at_p(P::DotDot) || self.at_p(P::DotDotEq) {
             let inclusive = self.bump().kind == K::Punct(P::DotDotEq);
             let hi = self.bor_expr()?;
-            let range = Expr::new(
+            // A unit written after the upper bound applies to both bounds:
+            // `0..120 degC` means `0 degC..120 degC` (spec 03, ranges).
+            let lo = share_unit(lo, &hi);
+            return Ok(Expr::new(
                 ExprKind::Range {
                     lo: Box::new(lo),
                     hi: Box::new(hi),
                     inclusive,
                 },
                 self.since(start),
-            );
-            // unit after a whole range: `0..120 degC` keeps the unit on the end value
-            return Ok(range);
+            ));
         }
         Ok(lo)
     }
@@ -2708,21 +2871,32 @@ impl<'a> Parser<'a> {
                 &e.kind,
                 ExprKind::Call(..) | ExprKind::Tuple(..) | ExprKind::Range { .. }
             );
-        if unit_ok && self.unit_follows() && self.same_line_unit() {
-            let u = self.unit_expr()?.ok_or(())?;
-            return Ok(Expr::new(
-                ExprKind::Quantity(Box::new(e), u),
-                self.since(start),
-            ));
+        if unit_ok && self.unit_follows() {
+            let from = self.prev_end();
+            let gap = self.src.get(from..self.span().start).unwrap_or("");
+            if !gap.is_empty() && gap.chars().all(|c| c == ' ' || c == '\t') {
+                if gap != " " {
+                    let at = Span {
+                        start: from,
+                        end: self.span().start,
+                    };
+                    self.diags.push(
+                        Diagnostic::error(
+                            "NE0014",
+                            "a number and its unit are separated by exactly one space",
+                            at,
+                        )
+                        .with_help("write one space between the number and the unit: `5 ms`"),
+                    );
+                }
+                let u = self.unit_expr()?.ok_or(())?;
+                return Ok(Expr::new(
+                    ExprKind::Quantity(Box::new(e), u),
+                    self.since(start),
+                ));
+            }
         }
         Ok(e)
-    }
-
-    /// Units must follow the number on the same line with a single space.
-    fn same_line_unit(&self) -> bool {
-        let prev = self.prev_end();
-        let here = self.span().start;
-        self.src.get(prev..here) == Some(" ")
     }
 
     fn postfix_expr(&mut self) -> PResult<Expr> {
@@ -2770,6 +2944,7 @@ impl<'a> Parser<'a> {
         self.expect_p(P::LParen)?;
         let mut out = Vec::new();
         while !self.at_p(P::RParen) {
+            let astart = self.span().start;
             let mutable = self.eat_kw(Kw::Mut);
             let name = if matches!(self.kind(), K::Ident | K::Keyword(_))
                 && self.nth(1) == K::Punct(P::Colon)
@@ -2793,6 +2968,7 @@ impl<'a> Parser<'a> {
                 mutable,
                 name,
                 value,
+                span: self.since(astart),
             });
             if !self.eat_p(P::Comma) {
                 break;
@@ -2944,17 +3120,6 @@ impl<'a> Parser<'a> {
                     Ok(Expr::new(ExprKind::Name(id), t.span))
                 }
             },
-            // `in(5)`, `out(3)`: robot I/O locations named like keywords
-            K::Keyword(Kw::In) if self.nth(1) == K::Punct(P::LParen) => {
-                self.bump();
-                Ok(Expr::new(
-                    ExprKind::Name(Ident {
-                        name: text,
-                        span: t.span,
-                    }),
-                    t.span,
-                ))
-            }
             _ => {
                 self.error_here("an expression");
                 Err(())

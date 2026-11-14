@@ -208,7 +208,7 @@ cell BottlingLine
   link fpga.bottle  -> plc.sensor   via zero_hop(gpio, opto_24v) within 15 ms
   link plc.cap_done -> arm.pick     via modbus_tcp every 10 ms within 25 ms
 
-  zone press: box(x: 100..220, y: -40..40, z: 0..120) mm
+  zone press: box(x: 100..220 mm, y: -40..40 mm, z: 0..120 mm)
   mutex press between arm, plc.press_cylinder
 ```
 

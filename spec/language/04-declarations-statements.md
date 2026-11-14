@@ -40,7 +40,8 @@ fn square(x: f32) -> f32 = x * x          # expression body
 
 ### Contracts
 
-Contracts are the first lines of a function body:
+Contracts are the first lines of a function body (anywhere else is `NE0012`;
+`invariant` belongs in class bodies):
 
 ```neuron
 fn set_speed(mut m: Motor, v: f32 mm/s):

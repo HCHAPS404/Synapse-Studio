@@ -1,0 +1,8 @@
+header plc name=conveyor target=-
+   3 scan 10 ms
+   5 plc-section Inputs vars=3
+   9 plc-section Outputs vars=1
+  12 var jam mutable=false retain=false at=-
+  14 rung run_motor stmts=1
+  17 rung detect_jam stmts=1
+  20 safety - members=1

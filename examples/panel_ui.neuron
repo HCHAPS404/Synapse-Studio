@@ -1,0 +1,12 @@
+## Status panel on a 320x240 SPI TFT.
+module panel for ui on esp32_s3_devkit
+display lcd: ili9341(bus: spi1, size: (320, 240), rotation: 90 deg)
+
+signal oven_temp: f32 degC
+
+screen Main on lcd:
+  label title "Bottling line" at (10, 8) font sans_16
+  gauge temp bind oven_temp range 0..120 degC at (20, 40)
+  button start "START" at (20, 180):
+    on press:
+      emit start_requested

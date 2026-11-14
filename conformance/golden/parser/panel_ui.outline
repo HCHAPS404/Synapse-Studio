@@ -1,0 +1,4 @@
+header ui name=panel target=esp32_s3_devkit
+   3 display lcd driver=ili9341(bus: spi1, size: (320, 240), rotation: 90 deg)
+   5 signal oven_temp init=false
+   7 screen Main on=lcd widgets=3

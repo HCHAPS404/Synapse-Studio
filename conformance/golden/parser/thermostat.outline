@@ -1,0 +1,12 @@
+header mcu name=thermostat target=nucleo_f446re
+   4 use std.control names=2 alias=-
+   6 const target typed=false value=60 degC
+   8 io sensor kind=adc(resolution: 12) at=ADC1.in0(PA0)
+   9 io heater kind=pwm(freq: 1 kHz) at=TIM2.ch2(PA1)
+  10 io alarm kind=gpio.output at=PA5
+  12 signal temp init=false
+  14 var filter mutable=false retain=false at=-
+  15 var ctl mutable=true retain=false at=-
+  17 task measure trigger=every 10 ms attrs=1 stmts=1
+  20 task control trigger=every 100 ms attrs=2 stmts=1
+  23 safety - members=3

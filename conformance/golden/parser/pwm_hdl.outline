@@ -1,0 +1,3 @@
+header hdl name=pwm8 target=-
+   3 clock sys freq=100 MHz
+   5 circuit pwm ports=2 members=3

@@ -65,3 +65,21 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   is where it actually protects the repository. Local `.git` and `.venv` files on
   drive E: were found damaged; git was rebuilt from GitHub (backup kept) and the
   virtual environment recreated.
+
+## 2026-11-14 · Task A1-A3 review fixes and chapters 11-14 (spec v0.2)
+- **Kiro features:** spec-driven development (spec first, then lexer, parser and
+  tests), a structured review of the v0.1 spec before freezing it, golden-file tests
+  generated from the parser, and a test that parses every `neuron` code block in the
+  spec chapters.
+- **Produced:** 20 review fixes across spec, grammar, lexer, AST and parser (units on
+  ranges and calls, contextual keywords, literal rules, cell file structure, contract
+  placement, spans on every AST node); the `outline` module and 7 golden files in
+  `conformance/golden/parser/`; 5 new examples (MCU, PLC, robot, UI, HDL); error
+  catalogue `docs/errors/syntax.md`; chapters 11 (interchange), 12 (standard
+  library), 13 (formatting) and 14 (models of computation); `docs/roadmap.md`.
+- **Lessons:** the spec-block test caught an invalid example in chapter 12 on its
+  first run (`f32 / s` is not a valid field type), so code in the spec cannot drift
+  from the grammar. A script that lists every `NE` code used in the chapters found
+  mismatched meanings (a latency error reusing a clock-crossing code), fixed before
+  the freeze. Windows App Control intermittently blocks freshly built test
+  executables (os error 4551); `tools/test-retry.ps1` rebuilds and retries.

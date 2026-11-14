@@ -131,7 +131,7 @@ sync start_async -> start via two_ff
 - `circuit` ports have directions `in`, `out`, `inout` and `bit<N>`/`sbit<N>` or
   struct types of bits. `instance u = tx(data: d, start: s)` instantiates.
 - `reg` declares a register with reset value; `wire` a combinational net.
-- Bit operations: slicing `x[7:0]`, concatenation `++`, replication `x ** 4`
+- Bit operations: slicing `x[7:0]`, concatenation `++`, replication `x.repeat(4)`
   (on bit vectors), reduction `x.any()`, `x.all()`, `x.parity()`.
 - **Clock domain crossing** without `sync` is `NE0702`. `sync a -> b via two_ff |
   latch_ack | fifo<depth>` generates the synchronizer.
@@ -150,8 +150,8 @@ time and are implicit sequence steps.
 module palletize for robot
 frame pallet = frame(origin: xyz(400, -200, 0) mm, rot: rpy(0, 0, 90) deg)
 tool vacuum  = tool(offset: xyz(0, 0, 120) mm, payload: 1.2 kg)
-io suction: gpio.output @ out(3)
-io part_ok: gpio.input  @ in(5)
+io suction: gpio.output @ dout(3)
+io part_ok: gpio.input  @ din(5)
 
 point home = joints(0, -20, 70, 0, 40, 0) deg
 
@@ -214,7 +214,7 @@ gateways, logging, ROS 2 nodes.
 | Placement | `place conveyor on plc` |
 | Link | `link a.x -> b.y via medium [every P] [within L]` |
 | Tag | `tag line_speed: f32 mm/s @ plc.%MD20, ctl.speed, hmi.speed` |
-| Zone | `zone press: box(x: 100..220, y: -40..40, z: 0..120) mm` |
+| Zone | `zone press: box(x: 100..220 mm, y: -40..40 mm, z: 0..120 mm)` |
 | Mutex | `mutex press between arm, plc.press_cylinder` |
 | Event | `event bottle_seen: timestamp, encoder: u32 from fpga` |
 | Sequence | `sequence Cycle on plc:` coordinating devices |

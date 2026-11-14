@@ -1,0 +1,21 @@
+## Pick and place with a six-axis arm and a vacuum gripper.
+module pick for robot
+
+frame table = frame(origin: xyz(300, 0, 0) mm, rot: rpy(0, 0, 0) deg)
+tool gripper = tool(offset: xyz(0, 0, 85) mm, payload: 0.5 kg)
+
+point home = joints(0, -30, 60, 0, 60, 0) deg
+point pick_a = table.xyz(120, 40, 10) mm
+
+io vacuum: gpio.output @ dout(3)
+io holding: gpio.input @ din(5)
+
+sequence pick_and_place(dest: point):
+  move ptp to home speed 50 %
+  move linear to pick_a.above(30 mm) speed 300 mm/s
+  move linear to pick_a speed 50 mm/s
+  vacuum.write(true)
+  until holding timeout 1 s -> Fault
+  move linear to dest speed 300 mm/s
+  step Fault:
+    fault PickFailed

@@ -123,6 +123,18 @@ meaningful): `s min h`, `Hz rpm`, `m mm um in`, `g kg`, `N`, `Pa bar psi`, `J W`
 > numeric precision) as evaluating it in the declared units and converting the
 > result.
 
+### Units on ranges, tuples and calls
+
+- **Ranges.** A unit written after the upper bound applies to both bounds when the
+  lower bound is a plain number: `0..120 degC` is `0 degC..120 degC`, and
+  `-40..40 mm` is `-40 mm..40 mm`. If the lower bound already has a unit it is kept.
+- **Linear maps.** In `scale(0..4095 -> 0..120 degC)` the source range has no unit
+  (raw counts) and the target range carries the unit.
+- **Vector constructors** (`xyz`, `xy`, `rpy`, `joints`): the unit after the call
+  applies to every component.
+- **Other calls** take units on their own arguments (`box(x: 100..220 mm)`); a unit
+  after any other call is `NE0202`.
+
 ## 3.4 Numeric semantics
 
 - Arithmetic on `+ - * /` **traps on overflow** by default: in device dialects a

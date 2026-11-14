@@ -7,6 +7,7 @@ pub mod ast;
 pub mod diag;
 pub mod lexer;
 pub mod line_index;
+pub mod outline;
 pub mod parser;
 pub mod span;
 pub mod token;

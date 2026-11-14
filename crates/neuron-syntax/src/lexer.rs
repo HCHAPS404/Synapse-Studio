@@ -408,6 +408,7 @@ impl<'a> Lexer<'a> {
         let after_dot = self.last_atom == Some(TokenKind::Punct(Punct::Dot));
         let mut kind = TokenKind::Int;
         let mut bad = false;
+        let mut reported = false;
         let rest = self.rest().as_bytes();
         let prefix = if rest.first() == Some(&b'0') {
             rest.get(1).map(u8::to_ascii_lowercase)
@@ -440,6 +441,23 @@ impl<'a> Lexer<'a> {
                     self.pos += 1;
                     self.digits(|c| c.is_ascii_digit());
                     kind = TokenKind::Real;
+                } else if self.peek() == Some('.')
+                    && self.peek_at(1).is_none_or(|c| {
+                        c.is_whitespace() || matches!(c, ')' | ']' | ',' | ':' | ';')
+                    })
+                {
+                    let number = self.src[start..self.pos].to_string();
+                    self.pos += 1;
+                    let end = self.pos;
+                    self.report(
+                        "NE0006",
+                        "a real number needs a digit after the decimal point",
+                        start,
+                        end,
+                        Some(format!("write `{number}.0`")),
+                    );
+                    bad = true;
+                    reported = true;
                 }
                 if matches!(self.peek(), Some('e' | 'E')) {
                     let digit = |c: Option<char>| c.is_some_and(|c| c.is_ascii_digit());
@@ -452,6 +470,18 @@ impl<'a> Lexer<'a> {
                     }
                 }
             }
+        }
+        if !bad && has_bad_underscores(&self.src[start..self.pos]) {
+            let end = self.pos;
+            self.report(
+                "NE0006",
+                "misplaced `_` in numeric literal",
+                start,
+                end,
+                Some("use a single `_` between digits, for example `1_000`".into()),
+            );
+            bad = true;
+            reported = true;
         }
         if self.peek().is_some_and(is_ident_continue) {
             let suffix_start = self.pos;
@@ -468,9 +498,11 @@ impl<'a> Lexer<'a> {
                 None
             };
             let end = self.pos;
-            self.report("NE0006", "invalid numeric literal", start, end, help);
+            if !reported {
+                self.report("NE0006", "invalid numeric literal", start, end, help);
+            }
             bad = true;
-        } else if bad {
+        } else if bad && !reported {
             let end = self.pos;
             self.report(
                 "NE0006",
@@ -495,7 +527,7 @@ impl<'a> Lexer<'a> {
                 self.bump();
                 true
             }
-            Some('{') if !in_char => {
+            Some('{' | '}') if !in_char => {
                 self.bump();
                 true
             }
@@ -539,13 +571,14 @@ impl<'a> Lexer<'a> {
                 "invalid escape sequence",
                 esc_start,
                 end,
-                Some(r#"valid escapes: \n \r \t \\ \" \0 \xHH \u{HHHH} \{"#.into()),
+                Some(r#"valid escapes: \n \r \t \\ \" \0 \xHH \u{HHHH} \{ \}"#.into()),
             );
         }
     }
 
     fn string(&mut self, start: usize, kind: StrKind) {
         self.bump(); // opening quote
+        let mut interp: Option<usize> = None;
         loop {
             match self.peek() {
                 None | Some('\n' | '\r') => {
@@ -561,6 +594,15 @@ impl<'a> Lexer<'a> {
                     return;
                 }
                 Some('"') => {
+                    if let Some(open) = interp {
+                        self.report(
+                            "NE0016",
+                            "unterminated `{` in string interpolation",
+                            open,
+                            open + 1,
+                            Some("close it with `}` or write `\\{` for a literal brace".into()),
+                        );
+                    }
                     self.bump();
                     break;
                 }
@@ -577,6 +619,27 @@ impl<'a> Lexer<'a> {
                             end,
                             None,
                         );
+                    }
+                    if kind == StrKind::Normal {
+                        match (c, interp) {
+                            ('{', None) => interp = Some(at),
+                            ('{', Some(_)) => self.report(
+                                "NE0016",
+                                "nested `{` in string interpolation",
+                                at,
+                                at + 1,
+                                None,
+                            ),
+                            ('}', Some(_)) => interp = None,
+                            ('}', None) => self.report(
+                                "NE0016",
+                                "unmatched `}` in string",
+                                at,
+                                at + 1,
+                                Some("write `\\}` for a literal brace".into()),
+                            ),
+                            _ => {}
+                        }
                     }
                 }
             }
@@ -619,6 +682,30 @@ impl<'a> Lexer<'a> {
     }
 
     fn punct(&mut self, start: usize, c: char) {
+        if c == '.' && self.peek_at(1).is_some_and(|d| d.is_ascii_digit()) {
+            let prev = start
+                .checked_sub(1)
+                .and_then(|i| self.src.as_bytes().get(i))
+                .copied();
+            let after_operand = prev.is_some_and(|b| {
+                b.is_ascii_alphanumeric() || matches!(b, b'_' | b')' | b']' | b'`')
+            });
+            if !after_operand {
+                self.bump();
+                self.digits(|d| d.is_ascii_digit());
+                let end = self.pos;
+                let text = self.src[start..end].to_string();
+                self.report(
+                    "NE0006",
+                    "a real number needs a digit before the decimal point",
+                    start,
+                    end,
+                    Some(format!("write `0{text}`")),
+                );
+                self.push(TokenKind::Error, start);
+                return;
+            }
+        }
         let rest = self.rest();
         if let Some(&p) = Punct::ALL.iter().find(|p| rest.starts_with(p.as_str())) {
             self.pos += p.as_str().len();
@@ -647,6 +734,18 @@ impl<'a> Lexer<'a> {
         );
         self.push(TokenKind::Error, start);
     }
+}
+
+/// `true` if `_` separators are misplaced in a numeric literal.
+fn has_bad_underscores(text: &str) -> bool {
+    let t = text.to_ascii_lowercase();
+    t.contains("__")
+        || t.ends_with('_')
+        || t.contains("_.")
+        || t.contains("._")
+        || ["0x_", "0b_", "0o_", "'b_", "'h_", "'d_", "'o_"]
+            .iter()
+            .any(|p| t.contains(*p))
 }
 
 /// Length in bytes of an IEC 61131-3 direct address at the start of `s`, if any.

@@ -1,11 +1,11 @@
 # The Neuron Language Specification — Edition 2026
 
-Status: **v0.1 draft** (2026-11-14). Normative once frozen at gate G1.
+Status: **v0.2 draft** (2026-11-14). Normative once frozen at gate G1.
 Owner: Hell. Reviewers: Martin, `spec-reviewer` agent.
 
 Neuron is a programming language for automation and hardware. One language, one
-semantic core, six dialects (one per model of computation), and one interchange
-standard so that programs, devices and third-party languages can meet.
+semantic core, eight dialects (one per model of computation or level), and one
+interchange standard so that programs, devices and third-party languages can meet.
 
 | Chapter | Content |
 |---|---|
@@ -19,13 +19,20 @@ standard so that programs, devices and third-party languages can meet.
 | [08 Safety](08-safety.md) | Safe state, faults, watchdogs, overflow policy, trusted code, deployment rules |
 | [09 Dialects](09-dialects.md) | `core`, `mcu`, `plc`, `hdl`, `robot`, `ui`, `host` and `cell`, with their graphical views |
 | [10 Diagnostics](10-diagnostics.md) | Error code families and the initial catalogue |
+| [11 Interchange standard](11-interchange.md) | NIR, tag dictionary, Neuron Wire, fidelity report, source map, deployment package |
+| [12 Standard library](12-stdlib.md) | Library layers, design rules, HAL interfaces, display stack, quality bar, scope for the submission |
+| [13 Canonical formatting](13-formatting.md) | Formatter rules, line breaking, formatting properties, command line |
+| [14 Models of computation](14-computation-models.md) | Formal semantics per model, cell time model, equivalence and refinement for translation |
 | [Grammar](../grammar/neuron.ebnf) | Complete EBNF grammar |
 
 ## Conventions used in this specification
 
 - **SHALL / SHALL NOT / MAY** have their usual normative meaning.
-- Code examples are Neuron unless marked otherwise.
-- `NE####` refers to a diagnostic in chapter 10.
+- Code examples are Neuron unless marked otherwise. Every `neuron` code block that
+  starts with `module` or `cell` is parsed by the test suite, so examples cannot drift
+  from the grammar. Pseudo-code and before/after layouts use `text` fences.
+- `NE####` refers to a diagnostic in chapter 10; each has an entry in
+  [`docs/errors/`](../../docs/errors/).
 - *Property* blocks state correctness properties that the implementation must
   satisfy; each becomes a property-based test.
 
@@ -42,3 +49,27 @@ standard so that programs, devices and third-party languages can meet.
 | Hardware bindings | One keyword for every peripheral: `io name: kind(config) @ location` |
 | Parameter passing | Read-only by default; `mut` for exclusive in-out, marked at the call site |
 | Errors | `Result<T, E>` and `T?` (Option) with `?` propagation; `fault` for safe-state entry; no exceptions |
+
+## Changes from v0.1 to v0.2
+
+Applied after the review of chapters 01 to 10 (20 findings):
+
+- **Units.** A unit after a range applies to both bounds (`0..120 degC`). A unit may
+  follow a number, a tuple, a vector constructor or any call; the semantic phase
+  reports `NE0202` for calls that cannot take one. `%` is a unit when no operand
+  follows it. Number and unit are separated by exactly one space (`NE0014`).
+- **Keywords.** `max`, `result` and `old` are contextual. `impl` and `Self` are not
+  reserved.
+- **Literals.** `.5` and `5.` are errors (`NE0006`); misplaced `_` is an error.
+  Names are ASCII; only the unit characters µ, Ω and ° are accepted outside strings
+  (`NE0015`). String interpolation is validated (`NE0016`).
+- **Structure.** A cell file indents its items under the header (`NE0005`) and has no
+  content after the block (`NE0013`). Contracts are valid only at the start of a
+  function body (`NE0012`).
+- **Library surface.** Robot inputs and outputs are `din(5)` and `dout(3)`. Bit
+  replication is `x.repeat(4)`. The `reg ... reset` clause is gone; the initializer
+  of a `reg` is its reset value.
+- **Tooling.** Every AST node carries a span. An `outline` view backs the golden
+  tests in `conformance/golden/parser/`.
+- **New chapters.** 11 (interchange), 12 (standard library), 13 (formatting) and 14
+  (models of computation).

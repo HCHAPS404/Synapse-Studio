@@ -122,7 +122,7 @@ fn strings_and_escapes() {
 #[test]
 fn reserved_and_contextual_keywords() {
     assert_eq!(kinds("task")[0], K::Keyword(Keyword::Task));
-    assert_eq!(kinds("Self")[0], K::Keyword(Keyword::SelfType));
+    assert_eq!(kinds("Self")[0], K::Ident); // not reserved in edition 2026
     assert_eq!(kinds("none")[0], K::Keyword(Keyword::NoneLit));
     // contextual keywords are identifiers for the lexer
     assert_eq!(kinds("step")[0], K::Ident);

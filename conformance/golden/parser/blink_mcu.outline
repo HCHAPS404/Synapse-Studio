@@ -1,0 +1,7 @@
+header mcu name=blink target=arduino_uno_r3
+   4 io led kind=gpio.output at=D13
+   5 io button kind=gpio.input(pull: up) at=D2
+   7 var presses mutable=true retain=false at=-
+   9 task blink trigger=every 500 ms attrs=1 stmts=1
+  12 interrupt button.falling attrs=1 stmts=1
+  15 safety - members=1

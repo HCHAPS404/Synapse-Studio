@@ -47,11 +47,18 @@ error[NE0201]: cannot add a length to a duration
 | NE0009 | unexpected indentation at top level |
 | NE0010 | unknown dialect in module header |
 | NE0011 | unclosed bracket |
+| NE0012 | contract (`requires`, `ensures`, `invariant`) outside the start of a function body |
+| NE0013 | content after the `cell` block in a cell file |
+| NE0014 | a number and its unit are not separated by exactly one space |
+| NE0015 | non-ASCII character in a name |
+| NE0016 | invalid `{...}` interpolation in a string |
 | NE0101 | unknown name |
 | NE0102 | name already defined in this scope |
 | NE0103 | non-exhaustive `match` |
 | NE0104 | circular import |
 | NE0105 | private item used outside its module |
+| NE0106 | import breaks the standard-library layering |
+| NE0107 | `neuron.lock` is stale or its content hash does not match |
 | NE0201 | incompatible dimensions |
 | NE0202 | unit expected / unit not allowed here |
 | NE0203 | invalid operation on an affine unit |
@@ -71,6 +78,7 @@ error[NE0201]: cannot add a length to a duration
 | NE0404 | blocking operation in a task or interrupt |
 | NE0405 | hard deadline requested on a soft real-time target |
 | NE0501 | construct not allowed in this dialect |
+| NE0502 | combinational loop in `hdl` |
 | NE0601 | hardware resource bound twice |
 | NE0602 | register field access violates its access rights |
 | NE0603 | pin does not support this function |
@@ -98,6 +106,7 @@ error[NE0201]: cannot add a length to a duration
 | NL0201 | unchecked float division in device code |
 | NL0202 | default numeric type used on a target without FPU |
 | NL0203 | software floating point cost |
+| NL0301 | bare number carries a physical quantity in a public signature |
 | NL0402 | WCET analysis unavailable for this target |
 | NL0501 | large value copy |
 | NL0601 | interrupt nesting not supported; priorities flattened |

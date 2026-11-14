@@ -1,0 +1,22 @@
+## Conveyor with jam detection for a PLC (IEC 61131-3 scan semantics).
+module conveyor for plc
+scan 10 ms
+
+inputs:
+  start: bool @ %I0.0
+  stop: bool @ %I0.1
+  sensor: bool @ %I0.2
+outputs:
+  motor: bool @ %Q0.0
+
+let jam = ton(preset: 3 s)
+
+rung run_motor:
+  motor = (start or motor) and stop and not jam.q
+
+rung detect_jam:
+  jam.input = motor and sensor
+
+safety:
+  safe_state:
+    motor = false

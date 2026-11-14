@@ -14,6 +14,15 @@ pub struct Ident {
     pub span: Span,
 }
 
+/// A node together with the source span it was parsed from.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Spanned<T> {
+    /// The node.
+    pub node: T,
+    /// Location.
+    pub span: Span,
+}
+
 /// A dotted path such as `std.control.pid`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Path {
@@ -216,7 +225,7 @@ pub enum ItemKind {
         /// Hardware event.
         source: Expr,
         /// Attributes in parentheses.
-        attrs: Vec<TaskAttr>,
+        attrs: Vec<Spanned<TaskAttr>>,
         /// Body.
         body: Block,
     },
@@ -227,9 +236,9 @@ pub enum ItemKind {
     /// `sequence`
     Sequence(SequenceDecl),
     /// `safety:`
-    Safety(Vec<SafetyMember>),
+    Safety(Vec<Spanned<SafetyMember>>),
     /// `verify:`
-    Verify(Vec<Property>),
+    Verify(Vec<Spanned<Property>>),
     /// `test "name":`
     Test {
         /// Test name.
@@ -429,6 +438,8 @@ pub enum GenericParam {
         name: Ident,
         /// Bounds.
         bounds: Vec<Path>,
+        /// Location.
+        span: Span,
     },
     /// `const N: index`
     Const {
@@ -436,6 +447,8 @@ pub enum GenericParam {
         name: Ident,
         /// Type.
         ty: Type,
+        /// Location.
+        span: Span,
     },
 }
 
@@ -461,6 +474,8 @@ pub struct Field {
     pub ty: Type,
     /// Default.
     pub default: Option<Expr>,
+    /// Location.
+    pub span: Span,
 }
 
 /// Enum variant.
@@ -472,6 +487,8 @@ pub struct Variant {
     pub payload: Vec<Type>,
     /// Explicit discriminant.
     pub value: Option<Expr>,
+    /// Location.
+    pub span: Span,
 }
 
 /// `class`.
@@ -502,6 +519,8 @@ pub struct Param {
     pub ty: Option<Type>,
     /// Default value.
     pub default: Option<Expr>,
+    /// Location.
+    pub span: Span,
 }
 
 /// Function signature.
@@ -546,6 +565,8 @@ pub struct Contract {
     pub kind: ContractKind,
     /// Condition.
     pub cond: Expr,
+    /// Location.
+    pub span: Span,
 }
 
 /// Contract kinds.
@@ -598,7 +619,7 @@ pub struct TaskDecl {
     /// Trigger.
     pub trigger: Trigger,
     /// Attributes.
-    pub attrs: Vec<TaskAttr>,
+    pub attrs: Vec<Spanned<TaskAttr>>,
     /// Body.
     pub body: Block,
 }
@@ -757,6 +778,8 @@ pub struct ClockDef {
     pub value: Expr,
     /// Source (`from hse(8 MHz)`).
     pub from: Option<Expr>,
+    /// Location.
+    pub span: Span,
 }
 
 /// Inline assembly block.
@@ -792,6 +815,8 @@ pub struct Port {
     pub ty: Type,
     /// Pin.
     pub pin: Option<Expr>,
+    /// Location.
+    pub span: Span,
 }
 
 /// hdl `circuit`.
@@ -804,7 +829,7 @@ pub struct CircuitDecl {
     /// Clock domain.
     pub clock: Option<Ident>,
     /// Members.
-    pub members: Vec<CircuitMember>,
+    pub members: Vec<Spanned<CircuitMember>>,
 }
 
 /// Member of a circuit.
@@ -1346,6 +1371,8 @@ pub struct Arg {
     pub name: Option<Ident>,
     /// Value.
     pub value: Expr,
+    /// Location.
+    pub span: Span,
 }
 
 /// An expression.

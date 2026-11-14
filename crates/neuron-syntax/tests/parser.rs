@@ -303,7 +303,7 @@ fn robot_motion() {
 
 #[test]
 fn cell_items() {
-    let src = "cell Line\n  device plc: generic_s7 @ ip(192.168.0.10)\n  place conveyor on plc\n  link a.x -> plc.y via modbus_tcp every 10 ms within 25 ms\n  tag speed: f32 mm/s @ plc.%MD20, ctl.speed\n  zone press: box(x: 0..10) mm\n  mutex press between arm, plc.cyl\n";
+    let src = "cell Line\n  device plc: generic_s7 @ ip(192.168.0.10)\n  place conveyor on plc\n  link a.x -> plc.y via modbus_tcp every 10 ms within 25 ms\n  tag speed: f32 mm/s @ plc.%MD20, ctl.speed\n  zone press: box(x: 0..10 mm)\n  mutex press between arm, plc.cyl\n";
     let f = ok(src);
     assert_eq!(f.items.len(), 6);
     let ItemKind::Link(l) = &f.items[2].kind else {

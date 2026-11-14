@@ -1,0 +1,10 @@
+## 8-bit PWM generator for an FPGA (synchronous, single clock domain).
+module pwm8 for hdl
+clock sys: 100 MHz @ pin(W5)
+
+circuit pwm(duty: in bit<8>, pwm_out: out bit) on sys:
+  reg counter: bit<8> = 0
+  on rising(sys):
+    counter = counter +% 1
+  comb:
+    pwm_out = counter < duty

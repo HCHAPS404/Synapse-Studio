@@ -34,6 +34,10 @@ platform runtime), never from the grammar.
 | R13 IR round trip | 01 §1.6 |
 | R14 safety layers | 08 |
 | R15 architecture-aware compilation | 07 §7.7 |
+| Interchange (NIR, tags, wire, fidelity) | 11 |
+| Standard library | 12 |
+| Formatter (P-FMT) | 13 |
+| Models of computation, cell time, translation refinement | 14 |
 
 ## Key decisions (ADR summary)
 
