@@ -1,0 +1,16 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Guard: .kiro must not be gitignored",
+      "trigger": "PostFileSave",
+      "description": "Runs after saving .gitignore and fails if any .kiro path becomes ignored (Kiroween disqualification risk).",
+      "matcher": "(^|[\\\\/])\\.gitignore$",
+      "action": {
+        "type": "command",
+        "command": "pwsh -NoProfile -File tools/check-kiro-not-ignored.ps1 || powershell -NoProfile -File tools/check-kiro-not-ignored.ps1",
+        "timeout": 30
+      }
+    }
+  ]
+}

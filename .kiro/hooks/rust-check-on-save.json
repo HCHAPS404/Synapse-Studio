@@ -1,0 +1,16 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Rust: cargo check on save",
+      "trigger": "PostFileSave",
+      "description": "Fast type-check of the Rust workspace whenever a Rust file is saved.",
+      "matcher": "\\.rs$",
+      "action": {
+        "type": "command",
+        "command": "cargo check --workspace --quiet",
+        "timeout": 120
+      }
+    }
+  ]
+}

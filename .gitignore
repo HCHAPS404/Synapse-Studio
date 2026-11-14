@@ -1,0 +1,52 @@
+# ---------------------------------------------------------------------------
+# SYNAPSE Studio .gitignore
+# IMPORTANT: never ignore the /.kiro directory. Kiroween 2026 rules require it
+# at the repository root and ignoring it may disqualify the submission.
+# CI verifies this (tools/check-kiro-not-ignored.ps1 and .github/workflows/ci.yml).
+# ---------------------------------------------------------------------------
+
+# Rust
+/target/
+**/*.rs.bk
+
+# Node / web
+node_modules/
+.next/
+.turbo/
+dist/
+coverage/
+*.tsbuildinfo
+.pnpm-store/
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+
+# Environment and secrets (never commit)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+
+# Editors / OS
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+.DS_Store
+Thumbs.db
+
+# Build output of generated artifacts and local logs
+/out/
+/build/
+*.log
+
+# Local concept document (decide later whether to publish it under docs/)
+/SYNAPSE Studio - Documento Maestro de Proyecto.pdf

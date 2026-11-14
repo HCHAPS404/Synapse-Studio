@@ -1,0 +1,25 @@
+[workspace]
+resolver = "2"
+members = [
+  "crates/neuron-syntax",
+  "crates/neuron-cli",
+]
+
+[workspace.package]
+version = "0.0.1"
+edition = "2021"
+license = "Apache-2.0"
+rust-version = "1.80"
+repository = "https://github.com/HCHAPS404/Synapse-Studio"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+missing_docs = "warn"
+
+[workspace.lints.clippy]
+unwrap_used = "warn"
+expect_used = "warn"
+
+[workspace.dependencies]
+proptest = "1"
+thiserror = "1"

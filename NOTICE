@@ -1,0 +1,11 @@
+SYNAPSE Studio and the Neuron language
+Copyright 2026 Hell and Martin (SYNAPSE Studio contributors)
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+Third-party components are used under their own licenses. The authoritative,
+machine-generated list lives in docs/third-party/ (SBOM and license report,
+produced in CI). Vendor and product names that may appear in the project
+(for example PLC, robot, FPGA or microcontroller brands) are trademarks of
+their respective owners and are used only to describe compatibility. This
+project is not affiliated with, endorsed by, or sponsored by those owners.

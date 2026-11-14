@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop, "release/**"]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compliance:
+    name: Hackathon compliance
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: .kiro present and not gitignored
+        shell: pwsh
+        run: ./tools/check-kiro-not-ignored.ps1
+      - name: Apache-2.0 license file present
+        run: grep -q "Apache License" LICENSE && grep -q "Version 2.0" LICENSE
+      - name: Secret scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  rust:
+    name: Rust workspace
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+      - run: cargo test --workspace
+
+  core:
+    name: Core API (Python)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/core
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --locked
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run pytest -q

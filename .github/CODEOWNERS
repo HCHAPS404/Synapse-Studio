@@ -1,0 +1,11 @@
+# Hell (@HCHAPS404): language, compiler, backends, std, verification, core, daemon, AI, infra.
+# Martin: engine, web, mobile; desktop shared. Add Martin's GitHub username to the
+# engine/web/mobile/desktop lines when he joins.
+
+*                         @HCHAPS404
+/crates/neuron-*          @HCHAPS404
+/lib/                     @HCHAPS404
+/services/                @HCHAPS404
+/crates/synapse-engine-*  @HCHAPS404
+/apps/                    @HCHAPS404
+/.kiro/                   @HCHAPS404

@@ -1,0 +1,17 @@
+## Bottling cell: PLC + SCARA arm + FPGA (draft syntax, edition 2026).
+## Device type names are generic profiles; vendor mapping lives in device manifests.
+cell BottlingLine
+  device plc:  s7_1200      @ ip(192.168.0.10)
+  device arm:  scara_t3     @ ip(192.168.0.20)
+  device fpga: artix7_board @ uart(COM4, 115200)
+
+  link fpga.pulse   -> plc.in_sensor  via zero_hop(gpio) within 50 us
+  link plc.cap_done -> arm.pick_start via modbus_tcp every 10 ms within 25 ms
+
+  zone press: box(x: 100..220 mm, y: -40..40 mm, z: 0..120 mm)
+  mutex press between arm, press_cylinder
+
+  sequence Cycle on plc:
+    step Idle:  until sensor.rising
+    step Cap:   run capper.cycle(); until done or timeout 3 s -> Fault
+    step Move:  arm.pick_and_place(from: station_a, to: press)

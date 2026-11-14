@@ -1,0 +1,21 @@
+# Normalize line endings in the repository; generated vendor files override this
+# per target (some vendor tools require CRLF). See docs/adr/0001.
+* text=auto eol=lf
+
+*.ps1   text eol=crlf
+*.bat   text eol=crlf
+*.cmd   text eol=crlf
+
+# Binary assets
+*.png   binary
+*.jpg   binary
+*.glb   binary
+*.gltf  text
+*.pdf   binary
+*.ttf   binary
+*.woff2 binary
+
+# Golden files for emitters that must keep exact bytes (per-target line endings)
+conformance/golden/**/*.scl  -text
+conformance/golden/**/*.prg  -text
+conformance/golden/**/*.st   -text

@@ -1,0 +1,17 @@
+[package]
+name = "neuron-cli"
+description = "The `neuron` command line tool (scaffold)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "neuron"
+path = "src/main.rs"
+
+[dependencies]
+neuron-syntax = { path = "../neuron-syntax" }

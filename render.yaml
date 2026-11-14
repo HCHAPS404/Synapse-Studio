@@ -1,0 +1,22 @@
+# Render Blueprint for the Core API.
+# Plan: paid "starter" (always on). Free instances spin down after 15 minutes of
+# inactivity and take about one minute to wake up, which is not acceptable for
+# judges (judging period: 2026-12-16 to 2027-01-29).
+# Secrets (SYNAPSE_DATABASE_URL from Neon) are set in the Render dashboard, never here.
+services:
+  - type: web
+    name: synapse-core
+    runtime: python
+    plan: starter
+    rootDir: services/core
+    buildCommand: pip install uv && uv sync --locked --no-dev
+    startCommand: uv run --no-dev uvicorn synapse_core.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: SYNAPSE_ENVIRONMENT
+        value: production
+      - key: SYNAPSE_DATABASE_URL
+        sync: false
+      - key: SYNAPSE_CORS_ORIGINS
+        value: '["https://synapse-studio.vercel.app"]'

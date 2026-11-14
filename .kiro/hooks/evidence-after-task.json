@@ -1,0 +1,14 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Record Kiro evidence after each spec task",
+      "trigger": "PostTaskExec",
+      "description": "Keeps the Kiro usage evidence log current for the hackathon write-up.",
+      "action": {
+        "type": "agent",
+        "prompt": "A spec task just completed. Append a concise entry to docs/kiro-log.md with: date, task id and title, which Kiro features were used (spec, steering, hook, MCP, agent, powers, PBT, IDE/CLI/Crew), what was produced, and any surprise or lesson. Keep it factual and in English. Do not change anything else."
+      }
+    }
+  ]
+}

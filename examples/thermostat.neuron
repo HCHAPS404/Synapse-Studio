@@ -1,0 +1,20 @@
+## PID thermostat for a bare-metal MCU (draft syntax, edition 2026).
+module thermostat
+
+use std.control.{pid, lowpass}
+use std.hal.{adc, pwm}
+
+const target = 60 degC
+
+signal temp:   degC = adc.ch(0) |> scale(0..4095 -> 0..120 degC) |> lowpass(2 Hz)
+signal heater: pwm  = pwm.ch(1, freq: 1 kHz)
+
+let ctl = pid(kp: 2.0, ki: 0.1, out: 0..100 %, antiwindup)
+
+task control every 100 ms (prio 2, deadline 20 ms, reads temp, writes heater):
+  heater.duty = ctl.step(target - temp)
+
+safety:
+  when temp > 90 degC:
+    heater.duty = 0 %
+    fault Overheat
