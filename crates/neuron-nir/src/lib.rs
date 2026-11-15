@@ -18,7 +18,9 @@ mod model;
 mod print;
 
 pub use model::*;
-pub use print::{expr as print_expr, factors_text, print_module, type_expr as print_type, unit_text};
+pub use print::{
+    expr as print_expr, factors_text, print_module, type_expr as print_type, unit_text,
+};
 
 /// Version of the NIR format written by this crate.
 pub const NIR_VERSION: &str = "1.0";

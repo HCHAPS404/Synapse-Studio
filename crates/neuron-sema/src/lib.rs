@@ -31,9 +31,9 @@ mod ty;
 pub mod units;
 mod visit;
 
+pub use lower::rat_text;
 pub use manifest::Manifest;
 pub use model::{FileDiag, SourceFile};
-pub use lower::rat_text;
 pub use neuron_nir as nir;
 pub use report::{ActivityTiming, Counterexample, MemoryReport, Reports, ResourceInfo, TraceStep};
 

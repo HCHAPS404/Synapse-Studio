@@ -4,6 +4,10 @@
 //! (property P-RT), and adds what the compiler knows: stable ids for every definition,
 //! resolved references, and the type and unit of every expression.
 
+// The model is a plain data tree built and serialized once per compilation; boxing the
+// larger variants would only add noise to every constructor and match.
+#![allow(clippy::large_enum_variant)]
+
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 

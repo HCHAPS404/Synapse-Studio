@@ -46,7 +46,13 @@ pub fn unit_text(u: &UnitRef) -> String {
 pub fn factors_text(f: &[UnitFactor]) -> String {
     let mut s = String::new();
     for (i, fac) in f.iter().enumerate() {
-        let pow = |e: i32| if e == 1 { String::new() } else { format!("^{e}") };
+        let pow = |e: i32| {
+            if e == 1 {
+                String::new()
+            } else {
+                format!("^{e}")
+            }
+        };
         if i == 0 {
             s.push_str(&fac.name);
             s.push_str(&pow(fac.exp));
@@ -174,12 +180,16 @@ impl Printer {
                 self.line(n, &s);
             }
             ItemDef::Const { name, ty, value } => {
-                let t = ty.as_ref().map_or(String::new(), |t| format!(": {}", type_expr(t)));
+                let t = ty
+                    .as_ref()
+                    .map_or(String::new(), |t| format!(": {}", type_expr(t)));
                 self.line(n, &format!("{pubs}const {name}{t} = {}", expr(value)));
             }
             ItemDef::Var { var } => self.line(n, &format!("{pubs}{}", var_decl(var))),
             ItemDef::Signal { name, ty, init } => {
-                let i = init.as_ref().map_or(String::new(), |e| format!(" = {}", expr(e)));
+                let i = init
+                    .as_ref()
+                    .map_or(String::new(), |e| format!(" = {}", expr(e)));
                 self.line(n, &format!("{pubs}signal {name}: {}{i}", type_expr(ty)));
             }
             ItemDef::Unit { name, def } => {
@@ -209,7 +219,10 @@ impl Printer {
             } => {
                 self.line(n, &format!("{pubs}struct {name}{}:", generics(g)));
                 for f in fields {
-                    let d = f.default.as_ref().map_or(String::new(), |e| format!(" = {}", expr(e)));
+                    let d = f
+                        .default
+                        .as_ref()
+                        .map_or(String::new(), |e| format!(" = {}", expr(e)));
                     self.line(n + 1, &format!("{}: {}{d}", f.name, type_expr(&f.ty)));
                 }
             }
@@ -219,7 +232,9 @@ impl Printer {
                 repr,
                 variants,
             } => {
-                let r = repr.as_ref().map_or(String::new(), |t| format!(": {}", type_expr(t)));
+                let r = repr
+                    .as_ref()
+                    .map_or(String::new(), |t| format!(": {}", type_expr(t)));
                 self.line(n, &format!("{pubs}enum {name}{}{r}:", generics(g)));
                 for v in variants {
                     let mut s = v.name.clone();
@@ -271,11 +286,20 @@ impl Printer {
                     self.line(n + 1, &fn_sig(m));
                 }
             }
-            ItemDef::Alias { name, generics: g, ty } => {
-                self.line(n, &format!("{pubs}type {name}{} = {}", generics(g), type_expr(ty)));
+            ItemDef::Alias {
+                name,
+                generics: g,
+                ty,
+            } => {
+                self.line(
+                    n,
+                    &format!("{pubs}type {name}{} = {}", generics(g), type_expr(ty)),
+                );
             }
             ItemDef::Fn { func } => self.fn_decl(func, pubs, "", n),
-            ItemDef::ExternFn { abi, func } => self.fn_decl(func, pubs, &format!("extern {abi} "), n),
+            ItemDef::ExternFn { abi, func } => {
+                self.fn_decl(func, pubs, &format!("extern {abi} "), n)
+            }
             ItemDef::Task {
                 name,
                 trigger,
@@ -283,10 +307,17 @@ impl Printer {
                 body,
             } => {
                 let a = task_attrs(attrs);
-                self.line(n, &format!("{pubs}task {name} {}{a}:", trigger_text(trigger)));
+                self.line(
+                    n,
+                    &format!("{pubs}task {name} {}{a}:", trigger_text(trigger)),
+                );
                 self.block(body, n + 1);
             }
-            ItemDef::Interrupt { source, attrs, body } => {
+            ItemDef::Interrupt {
+                source,
+                attrs,
+                body,
+            } => {
                 let a = task_attrs(attrs);
                 self.line(n, &format!("{pubs}on interrupt {}{a}:", expr(source)));
                 self.block(body, n + 1);
@@ -302,7 +333,10 @@ impl Printer {
                 let p = if params.is_empty() {
                     String::new()
                 } else {
-                    format!("({})", params.iter().map(param).collect::<Vec<_>>().join(", "))
+                    format!(
+                        "({})",
+                        params.iter().map(param).collect::<Vec<_>>().join(", ")
+                    )
                 };
                 let o = on.as_ref().map_or(String::new(), |d| format!(" on {d}"));
                 self.line(n, &format!("{pubs}sequence {name}{p}{o}:"));
@@ -312,7 +346,9 @@ impl Printer {
                 self.line(n, &format!("{pubs}safety:"));
                 for m in members {
                     match &m.def {
-                        SafetyDef::Rate { value } => self.line(n + 1, &format!("rate {}", expr(value))),
+                        SafetyDef::Rate { value } => {
+                            self.line(n + 1, &format!("rate {}", expr(value)))
+                        }
                         SafetyDef::Watchdog { value } => {
                             self.line(n + 1, &format!("watchdog {}", expr(value)));
                         }
@@ -328,7 +364,9 @@ impl Printer {
                             }
                             self.block(body, n + 2);
                         }
-                        SafetyDef::Reset { cond } => self.line(n + 1, &format!("reset when {}", expr(cond))),
+                        SafetyDef::Reset { cond } => {
+                            self.line(n + 1, &format!("reset when {}", expr(cond)))
+                        }
                     }
                 }
             }
@@ -341,7 +379,11 @@ impl Printer {
                             Some(i) => format!("always {} implies {}", expr(cond), expr(i)),
                             None => format!("always {}", expr(cond)),
                         },
-                        PropDef::EventuallyWithin { within, after, goal } => format!(
+                        PropDef::EventuallyWithin {
+                            within,
+                            after,
+                            goal,
+                        } => format!(
                             "eventually_within {} after {}: {}",
                             expr(within),
                             expr(after),
@@ -356,12 +398,18 @@ impl Printer {
                 self.block(body, n + 1);
             }
             ItemDef::Io { name, kind, at } => {
-                self.line(n, &format!("{pubs}io {name}: {} @ {}", expr(kind), expr(at)));
+                self.line(
+                    n,
+                    &format!("{pubs}io {name}: {} @ {}", expr(kind), expr(at)),
+                );
             }
             ItemDef::Clocks { clocks } => {
                 self.line(n, &format!("{pubs}clocks:"));
                 for c in clocks {
-                    let f = c.from.as_ref().map_or(String::new(), |e| format!(" from {}", expr(e)));
+                    let f = c
+                        .from
+                        .as_ref()
+                        .map_or(String::new(), |e| format!(" from {}", expr(e)));
                     self.line(n + 1, &format!("{} = {}{f}", c.name, expr(&c.value)));
                 }
             }
@@ -378,9 +426,16 @@ impl Printer {
                 self.line(n, &format!("{section}:"));
                 for v in vars {
                     let r = if v.retain { "retain " } else { "" };
-                    let t = v.ty.as_ref().map_or(String::new(), |t| format!(": {}", type_expr(t)));
-                    let i = v.init.as_ref().map_or(String::new(), |e| format!(" = {}", expr(e)));
-                    let a = v.at.as_ref().map_or(String::new(), |e| format!(" @ {}", expr(e)));
+                    let t =
+                        v.ty.as_ref()
+                            .map_or(String::new(), |t| format!(": {}", type_expr(t)));
+                    let i = v
+                        .init
+                        .as_ref()
+                        .map_or(String::new(), |e| format!(" = {}", expr(e)));
+                    let a =
+                        v.at.as_ref()
+                            .map_or(String::new(), |e| format!(" @ {}", expr(e)));
                     self.line(n + 1, &format!("{r}{}{t}{i}{a}", v.name));
                 }
             }
@@ -389,15 +444,32 @@ impl Printer {
                 self.block(body, n + 1);
             }
             ItemDef::Clock { name, freq, pin } => {
-                let p = pin.as_ref().map_or(String::new(), |e| format!(" @ {}", expr(e)));
+                let p = pin
+                    .as_ref()
+                    .map_or(String::new(), |e| format!(" @ {}", expr(e)));
                 self.line(n, &format!("{pubs}clock {name}: {}{p}", expr(freq)));
             }
             ItemDef::Circuit { circuit } => self.circuit(circuit, pubs, n),
             ItemDef::Sync { from, to, via } => {
-                self.line(n, &format!("{pubs}sync {} -> {} via {}", expr(from), expr(to), expr(via)));
+                self.line(
+                    n,
+                    &format!(
+                        "{pubs}sync {} -> {} via {}",
+                        expr(from),
+                        expr(to),
+                        expr(via)
+                    ),
+                );
             }
-            ItemDef::Geometry { kind, name, ty, value } => {
-                let t = ty.as_ref().map_or(String::new(), |t| format!(": {}", type_expr(t)));
+            ItemDef::Geometry {
+                kind,
+                name,
+                ty,
+                value,
+            } => {
+                let t = ty
+                    .as_ref()
+                    .map_or(String::new(), |t| format!(": {}", type_expr(t)));
                 self.line(n, &format!("{pubs}{kind} {name}{t} = {}", expr(value)));
             }
             ItemDef::Display { name, driver } => {
@@ -408,7 +480,9 @@ impl Printer {
                 display,
                 widgets,
             } => {
-                let o = display.as_ref().map_or(String::new(), |d| format!(" on {d}"));
+                let o = display
+                    .as_ref()
+                    .map_or(String::new(), |d| format!(" on {d}"));
                 self.line(n, &format!("{pubs}screen {name}{o}:"));
                 for w in widgets {
                     self.widget(w, n + 1);
@@ -419,10 +493,14 @@ impl Printer {
                 self.block(body, n + 1);
             }
             ItemDef::Device { name, ty, address } => {
-                let a = address.as_ref().map_or(String::new(), |e| format!(" @ {}", expr(e)));
+                let a = address
+                    .as_ref()
+                    .map_or(String::new(), |e| format!(" @ {}", expr(e)));
                 self.line(n, &format!("{pubs}device {name}: {ty}{a}"));
             }
-            ItemDef::Place { module, device } => self.line(n, &format!("{pubs}place {module} on {device}")),
+            ItemDef::Place { module, device } => {
+                self.line(n, &format!("{pubs}place {module} on {device}"))
+            }
             ItemDef::Link {
                 from,
                 to,
@@ -430,7 +508,12 @@ impl Printer {
                 every,
                 within,
             } => {
-                let mut s = format!("{pubs}link {} -> {} via {}", expr(from), expr(to), expr(via));
+                let mut s = format!(
+                    "{pubs}link {} -> {} via {}",
+                    expr(from),
+                    expr(to),
+                    expr(via)
+                );
                 if let Some(e) = every {
                     s.push_str(&format!(" every {}", expr(e)));
                 }
@@ -439,11 +522,20 @@ impl Printer {
                 }
                 self.line(n, &s);
             }
-            ItemDef::Tag { name, ty, locations } => {
+            ItemDef::Tag {
+                name,
+                ty,
+                locations,
+            } => {
                 let l: Vec<String> = locations.iter().map(expr).collect();
-                self.line(n, &format!("{pubs}tag {name}: {} @ {}", type_expr(ty), l.join(", ")));
+                self.line(
+                    n,
+                    &format!("{pubs}tag {name}: {} @ {}", type_expr(ty), l.join(", ")),
+                );
             }
-            ItemDef::Zone { name, shape } => self.line(n, &format!("{pubs}zone {name}: {}", expr(shape))),
+            ItemDef::Zone { name, shape } => {
+                self.line(n, &format!("{pubs}zone {name}: {}", expr(shape)))
+            }
             ItemDef::Mutex { zone, parties } => {
                 let p: Vec<String> = parties.iter().map(expr).collect();
                 self.line(n, &format!("{pubs}mutex {zone} between {}", p.join(", ")));
@@ -454,7 +546,10 @@ impl Printer {
     fn fn_decl(&mut self, f: &FnDecl, pubs: &str, prefix: &str, n: usize) {
         match &f.body {
             FnBody::Expr { expr: e } if f.contracts.is_empty() => {
-                self.line(n, &format!("{pubs}{prefix}{} = {}", fn_sig(&f.sig), expr(e)));
+                self.line(
+                    n,
+                    &format!("{pubs}{prefix}{} = {}", fn_sig(&f.sig), expr(e)),
+                );
             }
             FnBody::Expr { expr: e } => {
                 // Contracts need a block body.
@@ -477,13 +572,19 @@ impl Printer {
     }
 
     fn rule(&mut self, r: &Rule, n: usize) {
-        let h = r.hold.as_ref().map_or(String::new(), |e| format!(" for {}", expr(e)));
+        let h = r
+            .hold
+            .as_ref()
+            .map_or(String::new(), |e| format!(" for {}", expr(e)));
         self.line(n, &format!("when {}{h}:", expr(&r.cond)));
         self.block(&r.body, n + 1);
     }
 
     fn fsm(&mut self, f: &Fsm, pubs: &str, n: usize) {
-        let t = f.trigger.as_ref().map_or(String::new(), |t| format!(" {}", trigger_text(t)));
+        let t = f
+            .trigger
+            .as_ref()
+            .map_or(String::new(), |t| format!(" {}", trigger_text(t)));
         self.line(n, &format!("{pubs}fsm {}{t}:", f.name));
         for v in &f.vars {
             self.line(n + 1, &var_decl(v));
@@ -509,7 +610,9 @@ impl Printer {
                 any = true;
                 let mut l = format!("-> {}", t.target);
                 match (&t.when, &t.after) {
-                    (Some(w), Some(a)) => l.push_str(&format!(" when {} or after {}", expr(w), expr(a))),
+                    (Some(w), Some(a)) => {
+                        l.push_str(&format!(" when {} or after {}", expr(w), expr(a)))
+                    }
                     (Some(w), None) => l.push_str(&format!(" when {}", expr(w))),
                     (None, Some(a)) => l.push_str(&format!(" after {}", expr(a))),
                     (None, None) => {}
@@ -534,7 +637,10 @@ impl Printer {
         for it in items {
             match it {
                 SeqItem::Step {
-                    initial, name, body, ..
+                    initial,
+                    name,
+                    body,
+                    ..
                 } => {
                     let i = if *initial { "initial " } else { "" };
                     self.line(n, &format!("{i}step {name}:"));
@@ -557,23 +663,38 @@ impl Printer {
             .ports
             .iter()
             .map(|p| {
-                let pin = p.pin.as_ref().map_or(String::new(), |e| format!(" @ {}", expr(e)));
+                let pin = p
+                    .pin
+                    .as_ref()
+                    .map_or(String::new(), |e| format!(" @ {}", expr(e)));
                 format!("{}: {} {}{pin}", p.name, p.dir, type_expr(&p.ty))
             })
             .collect();
-        let on = c.clock.as_ref().map_or(String::new(), |k| format!(" on {k}"));
-        self.line(n, &format!("{pubs}circuit {}({}){on}:", c.name, ports.join(", ")));
+        let on = c
+            .clock
+            .as_ref()
+            .map_or(String::new(), |k| format!(" on {k}"));
+        self.line(
+            n,
+            &format!("{pubs}circuit {}({}){on}:", c.name, ports.join(", ")),
+        );
         for m in &c.members {
             match &m.def {
                 CircuitDef::Reg { name, ty, init, .. } => {
-                    let i = init.as_ref().map_or(String::new(), |e| format!(" = {}", expr(e)));
+                    let i = init
+                        .as_ref()
+                        .map_or(String::new(), |e| format!(" = {}", expr(e)));
                     self.line(n + 1, &format!("reg {name}: {}{i}", type_expr(ty)));
                 }
                 CircuitDef::Wire { name, ty, .. } => {
                     self.line(n + 1, &format!("wire {name}: {}", type_expr(ty)));
                 }
-                CircuitDef::Const { name, ty, value, .. } => {
-                    let t = ty.as_ref().map_or(String::new(), |t| format!(": {}", type_expr(t)));
+                CircuitDef::Const {
+                    name, ty, value, ..
+                } => {
+                    let t = ty
+                        .as_ref()
+                        .map_or(String::new(), |t| format!(": {}", type_expr(t)));
                     self.line(n + 1, &format!("const {name}{t} = {}", expr(value)));
                 }
                 CircuitDef::Instance { name, of, .. } => {
@@ -583,7 +704,11 @@ impl Printer {
                     self.line(n + 1, "comb:");
                     self.block(body, n + 2);
                 }
-                CircuitDef::OnEdge { rising, clock, body } => {
+                CircuitDef::OnEdge {
+                    rising,
+                    clock,
+                    body,
+                } => {
                     let e = if *rising { "rising" } else { "falling" };
                     self.line(n + 1, &format!("on {e}({clock}):"));
                     self.block(body, n + 2);
@@ -655,7 +780,9 @@ impl Printer {
                 value,
             } => {
                 let kw = if *mutable { "var" } else { "let" };
-                let t = ty.as_ref().map_or(String::new(), |t| format!(": {}", type_expr(t)));
+                let t = ty
+                    .as_ref()
+                    .map_or(String::new(), |t| format!(": {}", type_expr(t)));
                 self.line(n, &format!("{kw} {}{t} = {}", pattern(p), expr(value)));
             }
             StmtKind::Assign {
@@ -664,7 +791,9 @@ impl Printer {
                 value,
                 when,
             } => {
-                let w = when.as_ref().map_or(String::new(), |e| format!(" when {}", expr(e)));
+                let w = when
+                    .as_ref()
+                    .map_or(String::new(), |e| format!(" when {}", expr(e)));
                 self.line(n, &format!("{} {op} {}{w}", expr(place), expr(value)));
             }
             StmtKind::Expr { expr: e } => self.line(n, &expr(e)),
@@ -728,7 +857,10 @@ impl Printer {
                 }
                 self.line(n, &l);
             }
-            StmtKind::If { branches, otherwise } => {
+            StmtKind::If {
+                branches,
+                otherwise,
+            } => {
                 for (i, b) in branches.iter().enumerate() {
                     let kw = if i == 0 { "if" } else { "elif" };
                     self.line(n, &format!("{kw} {}:", expr(&b.cond)));
@@ -742,7 +874,10 @@ impl Printer {
             StmtKind::Match { value, arms } => {
                 self.line(n, &format!("match {}:", expr(value)));
                 for a in arms {
-                    let g = a.guard.as_ref().map_or(String::new(), |e| format!(" if {}", expr(e)));
+                    let g = a
+                        .guard
+                        .as_ref()
+                        .map_or(String::new(), |e| format!(" if {}", expr(e)));
                     self.line(n + 1, &format!("{}{g} =>", pattern(&a.pattern)));
                     self.block(&a.body, n + 2);
                 }
@@ -762,9 +897,13 @@ impl Printer {
                 max,
                 body,
             } => {
-                let m = max.as_ref().map_or(String::new(), |e| format!(" max {}", expr(e)));
+                let m = max
+                    .as_ref()
+                    .map_or(String::new(), |e| format!(" max {}", expr(e)));
                 match p {
-                    Some(p) => self.line(n, &format!("while let {} = {}{m}:", pattern(p), expr(cond))),
+                    Some(p) => {
+                        self.line(n, &format!("while let {} = {}{m}:", pattern(p), expr(cond)))
+                    }
                     None => self.line(n, &format!("while {}{m}:", expr(cond))),
                 }
                 self.block(body, n + 1);
@@ -791,9 +930,16 @@ impl Printer {
 fn var_decl(v: &VarDecl) -> String {
     let r = if v.retain { "retain " } else { "" };
     let kw = if v.mutable { "var" } else { "let" };
-    let t = v.ty.as_ref().map_or(String::new(), |t| format!(": {}", type_expr(t)));
-    let i = v.init.as_ref().map_or(String::new(), |e| format!(" = {}", expr(e)));
-    let a = v.at.as_ref().map_or(String::new(), |e| format!(" @ {}", expr(e)));
+    let t =
+        v.ty.as_ref()
+            .map_or(String::new(), |t| format!(": {}", type_expr(t)));
+    let i = v
+        .init
+        .as_ref()
+        .map_or(String::new(), |e| format!(" = {}", expr(e)));
+    let a =
+        v.at.as_ref()
+            .map_or(String::new(), |e| format!(" @ {}", expr(e)));
     format!("{r}{kw} {}{t}{i}{a}", v.name)
 }
 
@@ -817,7 +963,10 @@ fn param(p: &Param) -> String {
     match &p.ty {
         None => format!("{m}{}", p.name),
         Some(t) => {
-            let d = p.default.as_ref().map_or(String::new(), |e| format!(" = {}", expr(e)));
+            let d = p
+                .default
+                .as_ref()
+                .map_or(String::new(), |e| format!(" = {}", expr(e)));
             format!("{m}{}: {}{d}", p.name, type_expr(t))
         }
     }
@@ -825,8 +974,16 @@ fn param(p: &Param) -> String {
 
 fn fn_sig(s: &FnSig) -> String {
     let ps: Vec<String> = s.params.iter().map(param).collect();
-    let r = s.ret.as_ref().map_or(String::new(), |t| format!(" -> {}", type_expr(t)));
-    format!("fn {}{}({}){r}", s.name, generics(&s.generics), ps.join(", "))
+    let r = s
+        .ret
+        .as_ref()
+        .map_or(String::new(), |t| format!(" -> {}", type_expr(t)));
+    format!(
+        "fn {}{}({}){r}",
+        s.name,
+        generics(&s.generics),
+        ps.join(", ")
+    )
 }
 
 fn trigger_text(t: &Trigger) -> String {
@@ -903,9 +1060,17 @@ fn pattern(p: &Pattern) -> String {
             let op = if *inclusive { "..=" } else { ".." };
             format!("{}{op}{}", expr_at(lo, P_BOR), expr_at(hi, P_BOR))
         }
-        PatternKind::Ctor { path, args: a, fields } => {
+        PatternKind::Ctor {
+            path,
+            args: a,
+            fields,
+        } => {
             let mut parts: Vec<String> = a.iter().map(pattern).collect();
-            parts.extend(fields.iter().map(|f| format!("{}: {}", f.name, pattern(&f.pattern))));
+            parts.extend(
+                fields
+                    .iter()
+                    .map(|f| format!("{}: {}", f.name, pattern(&f.pattern))),
+            );
             format!("{path}({})", parts.join(", "))
         }
         PatternKind::Path { path } => path.clone(),
@@ -966,7 +1131,9 @@ fn expr_at(e: &Expr, min: u8) -> String {
 /// `true` for a numeric literal, possibly negated (`40`, `-40`, `0.5`).
 fn is_plain_number(e: &Expr) -> bool {
     match &e.e {
-        ExprKind::Lit { lit: Lit::Int { .. } | Lit::Real { .. } } => true,
+        ExprKind::Lit {
+            lit: Lit::Int { .. } | Lit::Real { .. },
+        } => true,
         ExprKind::Unary { op, operand } if op == "-" => is_plain_number(operand),
         _ => false,
     }
@@ -977,7 +1144,9 @@ fn expr_raw(e: &Expr) -> String {
         ExprKind::Lit { lit: l } => lit(l),
         ExprKind::Quantity { value, unit, .. } => {
             let v = match &value.e {
-                ExprKind::Tuple { .. } | ExprKind::Call { .. } | ExprKind::Lit { .. } => expr_raw(value),
+                ExprKind::Tuple { .. } | ExprKind::Call { .. } | ExprKind::Lit { .. } => {
+                    expr_raw(value)
+                }
                 _ => expr_at(value, P_POSTFIX),
             };
             format!("{v} {}", unit_text(unit))
@@ -1021,8 +1190,12 @@ fn expr_raw(e: &Expr) -> String {
             // `-40..40 mm`: the parser gives a plain-number lower bound the unit of the
             // upper bound, so print that short form back (it is the only way to write a
             // quantity of a negated literal).
-            if let (ExprKind::Quantity { value, unit: lu, .. }, ExprKind::Quantity { unit: hu, .. }) =
-                (&lo.e, &hi.e)
+            if let (
+                ExprKind::Quantity {
+                    value, unit: lu, ..
+                },
+                ExprKind::Quantity { unit: hu, .. },
+            ) = (&lo.e, &hi.e)
             {
                 if lu.text == hu.text && is_plain_number(value) {
                     return format!("{}{op}{}", expr_raw(value), expr_at(hi, P_BOR));
@@ -1030,19 +1203,36 @@ fn expr_raw(e: &Expr) -> String {
             }
             format!("{}{op}{}", expr_at(lo, P_BOR), expr_at(hi, P_BOR))
         }
-        ExprKind::Map { from, to } => format!("{} -> {}", expr_at(from, P_RANGE), expr_at(to, P_RANGE)),
-        ExprKind::IfElse { cond, then, otherwise } => {
-            format!("if {} then {} else {}", expr(cond), expr(then), expr(otherwise))
+        ExprKind::Map { from, to } => {
+            format!("{} -> {}", expr_at(from, P_RANGE), expr_at(to, P_RANGE))
         }
-        ExprKind::Pipe { lhs, rhs } => format!("{} |> {}", expr_at(lhs, P_PIPE), expr_at(rhs, P_POSTFIX)),
-        ExprKind::Call { callee, args: a, .. } => format!("{}({})", expr_at(callee, P_POSTFIX), args(a)),
+        ExprKind::IfElse {
+            cond,
+            then,
+            otherwise,
+        } => {
+            format!(
+                "if {} then {} else {}",
+                expr(cond),
+                expr(then),
+                expr(otherwise)
+            )
+        }
+        ExprKind::Pipe { lhs, rhs } => {
+            format!("{} |> {}", expr_at(lhs, P_PIPE), expr_at(rhs, P_POSTFIX))
+        }
+        ExprKind::Call {
+            callee, args: a, ..
+        } => format!("{}({})", expr_at(callee, P_POSTFIX), args(a)),
         ExprKind::Index { base, index, end } => match end {
             Some(x) => format!("{}[{}:{}]", expr_at(base, P_POSTFIX), expr(index), expr(x)),
             None => format!("{}[{}]", expr_at(base, P_POSTFIX), expr(index)),
         },
         ExprKind::Field { base, name, .. } => format!("{}.{name}", expr_at(base, P_POSTFIX)),
         ExprKind::Try { operand } => format!("{}?", expr_at(operand, P_POSTFIX)),
-        ExprKind::Cast { operand, to } => format!("{} as {}", expr_at(operand, P_CAST), type_expr(to)),
+        ExprKind::Cast { operand, to } => {
+            format!("{} as {}", expr_at(operand, P_CAST), type_expr(to))
+        }
         ExprKind::Tuple { items } => {
             let v: Vec<String> = items.iter().map(expr).collect();
             if v.len() == 1 {
@@ -1071,7 +1261,10 @@ mod tests {
 
     #[test]
     fn unit_text_keeps_source_order() {
-        let f = |n: &str, e: i32| UnitFactor { name: n.into(), exp: e };
+        let f = |n: &str, e: i32| UnitFactor {
+            name: n.into(),
+            exp: e,
+        };
         assert_eq!(factors_text(&[f("m", 1), f("s", -2)]), "m/s^2");
         assert_eq!(factors_text(&[f("N", 1), f("m", 1)]), "N*m");
         assert_eq!(factors_text(&[f("m", 1), f("s", -1), f("kg", 1)]), "m/s*kg");

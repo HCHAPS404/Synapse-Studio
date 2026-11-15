@@ -163,7 +163,11 @@ impl Lower<'_> {
 
     fn local_ty(&self, id: &ast::Ident) -> nir::Type {
         match self.resolved.res.get(&key(self.mi, id.span)) {
-            Some(Res::Local(i)) => self.checked.local_ty.get(*i).map_or(nir::Type::Unknown, |t| self.ty(t)),
+            Some(Res::Local(i)) => self
+                .checked
+                .local_ty
+                .get(*i)
+                .map_or(nir::Type::Unknown, |t| self.ty(t)),
             _ => nir::Type::Unknown,
         }
     }
@@ -173,13 +177,16 @@ impl Lower<'_> {
         let item = self.prog.files.get(module)?.ast.items.get(sym.item)?;
         Some(match (&sym.kind, &item.kind) {
             (SymKind::PlcVar(_), _) => format!("m{module}.i{}.v{}", sym.item, sym.sub),
-            (SymKind::Clock, ItemKind::Clocks(_)) => format!("m{module}.i{}.c{}", sym.item, sym.sub),
+            (SymKind::Clock, ItemKind::Clocks(_)) => {
+                format!("m{module}.i{}.c{}", sym.item, sym.sub)
+            }
             _ => format!("m{module}.i{}", sym.item),
         })
     }
 
     fn def_id(&self, def: &(usize, String)) -> String {
-        self.item_id(def.0, &def.1).unwrap_or_else(|| format!("m{}.?{}", def.0, def.1))
+        self.item_id(def.0, &def.1)
+            .unwrap_or_else(|| format!("m{}.?{}", def.0, def.1))
     }
 
     fn ty(&self, t: &Ty) -> nir::Type {
@@ -203,7 +210,10 @@ impl Lower<'_> {
             },
             Ty::Instant => nir::Type::Instant,
             Ty::Str(n) => nir::Type::Str { cap: *n },
-            Ty::Array(e, n) => nir::Type::Array { elem: b(e), len: *n },
+            Ty::Array(e, n) => nir::Type::Array {
+                elem: b(e),
+                len: *n,
+            },
             Ty::Slice(e) => nir::Type::Slice { elem: b(e) },
             Ty::Tuple(v) => nir::Type::Tuple {
                 items: v.iter().map(|t| self.ty(t)).collect(),
@@ -211,7 +221,10 @@ impl Lower<'_> {
             Ty::Range(e) => nir::Type::Range { elem: b(e) },
             Ty::Option(e) => nir::Type::Option { inner: b(e) },
             Ty::NoneLit => nir::Type::NoneLit,
-            Ty::Result(a, e) => nir::Type::Result { ok: b(a), err: b(e) },
+            Ty::Result(a, e) => nir::Type::Result {
+                ok: b(a),
+                err: b(e),
+            },
             Ty::Adt { def, args } => nir::Type::Adt {
                 def: self.def_id(def),
                 name: def.1.clone(),
@@ -222,14 +235,22 @@ impl Lower<'_> {
                 name: def.1.clone(),
             },
             Ty::Param(n) => nir::Type::Param { name: n.clone() },
-            Ty::Channel(e, n) => nir::Type::Channel { elem: b(e), cap: *n },
-            Ty::Pool(e, n) => nir::Type::Pool { elem: b(e), cap: *n },
+            Ty::Channel(e, n) => nir::Type::Channel {
+                elem: b(e),
+                cap: *n,
+            },
+            Ty::Pool(e, n) => nir::Type::Pool {
+                elem: b(e),
+                cap: *n,
+            },
             Ty::Handle(e) => nir::Type::Handle { elem: b(e) },
             Ty::Fn(_) => nir::Type::Fn,
             Ty::Io(k) => nir::Type::Io { kind: k.clone() },
             Ty::Opaque(n) => nir::Type::Opaque { name: n.clone() },
             Ty::TypeRef(t) => nir::Type::TypeRef { of: b(t) },
-            Ty::Module(m) => nir::Type::Module { id: format!("m{m}") },
+            Ty::Module(m) => nir::Type::Module {
+                id: format!("m{m}"),
+            },
             Ty::Event => nir::Type::Event,
         }
     }
@@ -346,7 +367,9 @@ impl Lower<'_> {
             ItemKind::Class(c) => {
                 let def = (self.mi, c.name.name.clone());
                 let field_tys: Vec<nir::Type> = match self.checked.defs.get(&def) {
-                    Some(crate::check::DefInfo::Class { fields, .. }) => fields.iter().map(|f| self.ty(&f.ty)).collect(),
+                    Some(crate::check::DefInfo::Class { fields, .. }) => {
+                        fields.iter().map(|f| self.ty(&f.ty)).collect()
+                    }
                     _ => Vec::new(),
                 };
                 let vars = c
@@ -388,14 +411,20 @@ impl Lower<'_> {
                 generics: self.generics(generics),
                 ty: self.type_expr(ty),
             },
-            ItemKind::Fn(f) => D::Fn { func: self.fn_decl(f) },
+            ItemKind::Fn(f) => D::Fn {
+                func: self.fn_decl(f),
+            },
             ItemKind::Task(t) => D::Task {
                 name: t.name.name.clone(),
                 trigger: self.trigger(&t.trigger),
                 attrs: self.task_attrs(&t.attrs),
                 body: self.block(&t.body),
             },
-            ItemKind::Interrupt { source, attrs, body } => D::Interrupt {
+            ItemKind::Interrupt {
+                source,
+                attrs,
+                body,
+            } => D::Interrupt {
                 source: self.expr(source),
                 attrs: self.task_attrs(attrs),
                 body: self.block(body),
@@ -414,15 +443,25 @@ impl Lower<'_> {
                     .map(|m| nir::SafetyMember {
                         span: span(m.span),
                         def: match &m.node {
-                            ast::SafetyMember::Rate(e) => nir::SafetyDef::Rate { value: self.expr(e) },
-                            ast::SafetyMember::Watchdog(e) => nir::SafetyDef::Watchdog { value: self.expr(e) },
-                            ast::SafetyMember::SafeState(b) => nir::SafetyDef::SafeState { body: self.block(b) },
-                            ast::SafetyMember::Rule(r) => nir::SafetyDef::Rule { rule: self.rule(r) },
+                            ast::SafetyMember::Rate(e) => nir::SafetyDef::Rate {
+                                value: self.expr(e),
+                            },
+                            ast::SafetyMember::Watchdog(e) => nir::SafetyDef::Watchdog {
+                                value: self.expr(e),
+                            },
+                            ast::SafetyMember::SafeState(b) => nir::SafetyDef::SafeState {
+                                body: self.block(b),
+                            },
+                            ast::SafetyMember::Rule(r) => {
+                                nir::SafetyDef::Rule { rule: self.rule(r) }
+                            }
                             ast::SafetyMember::OnFault { fault, body } => nir::SafetyDef::OnFault {
                                 fault: fault.as_ref().map(ast::Path::dotted),
                                 body: self.block(body),
                             },
-                            ast::SafetyMember::Reset(e) => nir::SafetyDef::Reset { cond: self.expr(e) },
+                            ast::SafetyMember::Reset(e) => {
+                                nir::SafetyDef::Reset { cond: self.expr(e) }
+                            }
                         },
                     })
                     .collect(),
@@ -438,13 +477,15 @@ impl Lower<'_> {
                                 cond: self.expr(cond),
                                 implies: self.opt_expr(implies),
                             },
-                            ast::Property::EventuallyWithin { within, after, goal } => {
-                                nir::PropDef::EventuallyWithin {
-                                    within: self.expr(within),
-                                    after: self.expr(after),
-                                    goal: self.expr(goal),
-                                }
-                            }
+                            ast::Property::EventuallyWithin {
+                                within,
+                                after,
+                                goal,
+                            } => nir::PropDef::EventuallyWithin {
+                                within: self.expr(within),
+                                after: self.expr(after),
+                                goal: self.expr(goal),
+                            },
                         },
                     })
                     .collect(),
@@ -453,7 +494,11 @@ impl Lower<'_> {
                 name: name.clone(),
                 body: self.block(body),
             },
-            ItemKind::Io { name, kind, location } => D::Io {
+            ItemKind::Io {
+                name,
+                kind,
+                location,
+            } => D::Io {
                 name: name.name.clone(),
                 kind: self.expr(kind),
                 at: self.expr(location),
@@ -483,7 +528,9 @@ impl Lower<'_> {
                 func: self.fn_decl(func),
             },
             ItemKind::Asm(a) => D::Asm { asm: asm(a) },
-            ItemKind::Scan(e) => D::Scan { period: self.expr(e) },
+            ItemKind::Scan(e) => D::Scan {
+                period: self.expr(e),
+            },
             ItemKind::PlcSection { section, vars } => {
                 let section = match section {
                     ast::PlcSection::Inputs => "inputs",
@@ -515,13 +562,20 @@ impl Lower<'_> {
                 freq: self.expr(freq),
                 pin: self.opt_expr(pin),
             },
-            ItemKind::Circuit(c) => D::Circuit { circuit: self.circuit(c) },
+            ItemKind::Circuit(c) => D::Circuit {
+                circuit: self.circuit(c),
+            },
             ItemKind::Sync { from, to, via } => D::Sync {
                 from: self.expr(from),
                 to: self.expr(to),
                 via: self.expr(via),
             },
-            ItemKind::Geometry { kind, name, ty, value } => D::Geometry {
+            ItemKind::Geometry {
+                kind,
+                name,
+                ty,
+                value,
+            } => D::Geometry {
                 kind: match kind {
                     ast::GeometryKind::Frame => "frame",
                     ast::GeometryKind::Tool => "tool",
@@ -536,7 +590,11 @@ impl Lower<'_> {
                 name: name.name.clone(),
                 driver: self.expr(driver),
             },
-            ItemKind::Screen { name, display, widgets } => D::Screen {
+            ItemKind::Screen {
+                name,
+                display,
+                widgets,
+            } => D::Screen {
                 name: name.name.clone(),
                 display: display.as_ref().map(|d| d.name.clone()),
                 widgets: widgets.iter().map(|w| self.widget(w)).collect(),
@@ -561,7 +619,11 @@ impl Lower<'_> {
                 every: self.opt_expr(&l.every),
                 within: self.opt_expr(&l.within),
             },
-            ItemKind::Tag { name, ty, locations } => D::Tag {
+            ItemKind::Tag {
+                name,
+                ty,
+                locations,
+            } => D::Tag {
                 name: name.name.clone(),
                 ty: self.type_expr(ty),
                 locations: locations.iter().map(|e| self.expr(e)).collect(),
@@ -617,7 +679,11 @@ impl Lower<'_> {
         nir::Param {
             mutable: p.mutable,
             name: p.name.name.clone(),
-            id: if is_self { None } else { Some(self.decl_local(&p.name)) },
+            id: if is_self {
+                None
+            } else {
+                Some(self.decl_local(&p.name))
+            },
             ty: self.opt_ty(&p.ty),
             default: self.opt_expr(&p.default),
         }
@@ -638,7 +704,9 @@ impl Lower<'_> {
             sig: self.fn_sig(&f.sig),
             contracts: f.contracts.iter().map(|c| self.contract(c)).collect(),
             body: match &f.body {
-                ast::FnBody::Block(b) => nir::FnBody::Block { block: self.block(b) },
+                ast::FnBody::Block(b) => nir::FnBody::Block {
+                    block: self.block(b),
+                },
                 ast::FnBody::Expr(e) => nir::FnBody::Expr { expr: self.expr(e) },
             },
         }
@@ -663,7 +731,9 @@ impl Lower<'_> {
                 period: self.expr(period),
                 offset: self.opt_expr(offset),
             },
-            ast::Trigger::On(e) => nir::Trigger::On { event: self.expr(e) },
+            ast::Trigger::On(e) => nir::Trigger::On {
+                event: self.expr(e),
+            },
         }
     }
 
@@ -671,10 +741,18 @@ impl Lower<'_> {
         let names = |v: &[ast::Ident]| v.iter().map(|i| i.name.clone()).collect();
         a.iter()
             .map(|x| match &x.node {
-                ast::TaskAttr::Prio(e) => nir::TaskAttr::Prio { value: self.expr(e) },
-                ast::TaskAttr::Deadline(e) => nir::TaskAttr::Deadline { value: self.expr(e) },
-                ast::TaskAttr::Core(e) => nir::TaskAttr::Core { value: self.expr(e) },
-                ast::TaskAttr::Stack(e) => nir::TaskAttr::Stack { value: self.expr(e) },
+                ast::TaskAttr::Prio(e) => nir::TaskAttr::Prio {
+                    value: self.expr(e),
+                },
+                ast::TaskAttr::Deadline(e) => nir::TaskAttr::Deadline {
+                    value: self.expr(e),
+                },
+                ast::TaskAttr::Core(e) => nir::TaskAttr::Core {
+                    value: self.expr(e),
+                },
+                ast::TaskAttr::Stack(e) => nir::TaskAttr::Stack {
+                    value: self.expr(e),
+                },
                 ast::TaskAttr::Reads(v) => nir::TaskAttr::Reads { names: names(v) },
                 ast::TaskAttr::Writes(v) => nir::TaskAttr::Writes { names: names(v) },
             })
@@ -801,8 +879,14 @@ impl Lower<'_> {
                         name: name.name.clone(),
                         of: self.expr(of),
                     },
-                    ast::CircuitMember::Comb(b) => nir::CircuitDef::Comb { body: self.block(b) },
-                    ast::CircuitMember::OnEdge { rising, clock, body } => nir::CircuitDef::OnEdge {
+                    ast::CircuitMember::Comb(b) => nir::CircuitDef::Comb {
+                        body: self.block(b),
+                    },
+                    ast::CircuitMember::OnEdge {
+                        rising,
+                        clock,
+                        body,
+                    } => nir::CircuitDef::OnEdge {
                         rising: *rising,
                         clock: clock.name.clone(),
                         body: self.block(body),
@@ -854,7 +938,9 @@ impl Lower<'_> {
                 args: args
                     .iter()
                     .map(|a| match a {
-                        ast::TypeArg::Type(t) => nir::TypeArg::Type { ty: self.type_expr(t) },
+                        ast::TypeArg::Type(t) => nir::TypeArg::Type {
+                            ty: self.type_expr(t),
+                        },
                         ast::TypeArg::Expr(e) => nir::TypeArg::Expr { expr: self.expr(e) },
                     })
                     .collect(),
@@ -955,7 +1041,9 @@ impl Lower<'_> {
                 place: self.expr(place),
                 when: self.expr(when),
             },
-            K::Wait(e) => N::Wait { duration: self.expr(e) },
+            K::Wait(e) => N::Wait {
+                duration: self.expr(e),
+            },
             K::Until {
                 cond,
                 timeout,
@@ -965,7 +1053,9 @@ impl Lower<'_> {
                 timeout: self.opt_expr(timeout),
                 on_timeout: on_timeout.as_ref().map(|i| i.name.clone()),
             },
-            K::Jump(t) => N::Jump { target: t.name.clone() },
+            K::Jump(t) => N::Jump {
+                target: t.name.clone(),
+            },
             K::Move(m) => N::Move {
                 kind: match m.kind {
                     ast::MoveKind::Ptp => "ptp",
@@ -984,7 +1074,10 @@ impl Lower<'_> {
                     })
                     .collect(),
             },
-            K::If { branches, otherwise } => N::If {
+            K::If {
+                branches,
+                otherwise,
+            } => N::If {
                 branches: branches
                     .iter()
                     .map(|(c, b)| nir::IfBranch {
@@ -1006,11 +1099,20 @@ impl Lower<'_> {
                     })
                     .collect(),
             },
-            K::For { pattern, iter, body } => {
+            K::For {
+                pattern,
+                iter,
+                body,
+            } => {
                 let iter_e = self.expr(iter);
                 N::For {
                     pattern: self.pattern(pattern),
-                    count: self.checked.iter_len.get(&key(self.mi, iter.span)).copied().flatten(),
+                    count: self
+                        .checked
+                        .iter_len
+                        .get(&key(self.mi, iter.span))
+                        .copied()
+                        .flatten(),
                     iter: iter_e,
                     body: self.block(body),
                 }
@@ -1033,7 +1135,9 @@ impl Lower<'_> {
                 max: self.opt_expr(max),
                 body: self.block(body),
             },
-            K::Atomic(b) => N::Atomic { body: self.block(b) },
+            K::Atomic(b) => N::Atomic {
+                body: self.block(b),
+            },
             K::Rule(r) => N::Rule { rule: self.rule(r) },
             K::Asm(a) => N::Asm { asm: asm(a) },
         };
@@ -1053,7 +1157,9 @@ impl Lower<'_> {
                 id: self.decl_local(id),
                 ty: self.local_ty(id),
             },
-            K::Lit(e) => N::Lit { value: self.expr(e) },
+            K::Lit(e) => N::Lit {
+                value: self.expr(e),
+            },
             K::Range { lo, hi, inclusive } => N::Range {
                 lo: self.expr(lo),
                 hi: self.expr(hi),
@@ -1070,7 +1176,9 @@ impl Lower<'_> {
                     })
                     .collect(),
             },
-            K::Path(path) => N::Path { path: path.dotted() },
+            K::Path(path) => N::Path {
+                path: path.dotted(),
+            },
             K::Tuple(ps) => N::Tuple {
                 items: ps.iter().map(|x| self.pattern(x)).collect(),
             },
@@ -1087,7 +1195,10 @@ impl Lower<'_> {
     // ---- expressions ----------------------------------------------------------
 
     fn call_target(&self, t: &CallTarget) -> nir::CallTarget {
-        let fn_id = |k: &FnKey| self.item_id(k.module, &k.name).unwrap_or_else(|| k.name.clone());
+        let fn_id = |k: &FnKey| {
+            self.item_id(k.module, &k.name)
+                .unwrap_or_else(|| k.name.clone())
+        };
         match t {
             CallTarget::Fn(k) => nir::CallTarget::Fn { id: fn_id(k) },
             CallTarget::Method { key: k, mut_self } => nir::CallTarget::Method {
@@ -1099,7 +1210,9 @@ impl Lower<'_> {
                 name: k.name.clone(),
                 mut_self: *mut_self,
             },
-            CallTarget::Ctor(d) => nir::CallTarget::Ctor { def: self.def_id(d) },
+            CallTarget::Ctor(d) => nir::CallTarget::Ctor {
+                def: self.def_id(d),
+            },
             CallTarget::Io { binding, method } => nir::CallTarget::Io {
                 binding: binding.clone(),
                 method: method.clone(),
@@ -1120,14 +1233,18 @@ impl Lower<'_> {
                     id: iid,
                     name: id.name.clone(),
                 },
-                None => nir::ExprKind::Global { name: id.name.clone() },
+                None => nir::ExprKind::Global {
+                    name: id.name.clone(),
+                },
             },
             Some(Res::Module(m)) => nir::ExprKind::Module {
                 id: format!("m{m}"),
                 name: id.name.clone(),
             },
             Some(Res::State { fsm, state }) => nir::ExprKind::State { fsm, state },
-            Some(Res::Foreign(_)) | Some(Res::Prelude(_)) | None => nir::ExprKind::Global { name: id.name.clone() },
+            Some(Res::Foreign(_)) | Some(Res::Prelude(_)) | None => nir::ExprKind::Global {
+                name: id.name.clone(),
+            },
         }
     }
 
@@ -1159,10 +1276,7 @@ impl Lower<'_> {
                 } else {
                     self.bx(inner)
                 };
-                let si = self
-                    .consts
-                    .eval(self.mi, e)
-                    .map(|q| rat_text(q.value));
+                let si = self.consts.eval(self.mi, e).map(|q| rat_text(q.value));
                 nir::ExprKind::Quantity {
                     value,
                     unit: unit_ref(u),
@@ -1245,7 +1359,9 @@ impl Lower<'_> {
                     target,
                 }
             }
-            ExprKind::Try(x) => nir::ExprKind::Try { operand: self.bx(x) },
+            ExprKind::Try(x) => nir::ExprKind::Try {
+                operand: self.bx(x),
+            },
             ExprKind::Cast(x, t) => nir::ExprKind::Cast {
                 operand: self.bx(x),
                 to: self.type_expr(t),
@@ -1270,7 +1386,9 @@ impl Lower<'_> {
                     .collect(),
                 body: self.bx(body),
             },
-            ExprKind::Old(x) => nir::ExprKind::Old { operand: self.bx(x) },
+            ExprKind::Old(x) => nir::ExprKind::Old {
+                operand: self.bx(x),
+            },
             ExprKind::Run(x) => nir::ExprKind::Run { action: self.bx(x) },
             // Programs with errors are never lowered; keep the slot well formed anyway.
             ExprKind::Error => nir::ExprKind::Global {
