@@ -340,7 +340,21 @@ impl Checker<'_> {
         }
     }
 
+    /// Types `e` and records the result in [`super::Checked::expr_ty`].
+    ///
+    /// Expressions typed while `silent` (re-typing for inference) are not recorded, so the
+    /// table holds the type from the expression's own context.
     pub(crate) fn expr(&mut self, e: &Expr, exp: Option<&Ty>) -> Ty {
+        let t = self.expr_inner(e, exp);
+        if self.silent == 0 {
+            self.out
+                .expr_ty
+                .insert(key(self.cur.module, e.span), t.clone());
+        }
+        t
+    }
+
+    fn expr_inner(&mut self, e: &Expr, exp: Option<&Ty>) -> Ty {
         match &e.kind {
             ExprKind::Lit(l) => self.lit(l),
             ExprKind::Quantity(inner, unit) => self.quantity(inner, unit, e),

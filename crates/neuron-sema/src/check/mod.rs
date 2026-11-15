@@ -123,6 +123,9 @@ pub struct Checked {
     pub iter_len: BTreeMap<SpanKey, Option<u64>>,
     /// Call targets found while typing callee expressions (consumed by `call`).
     pub targets: BTreeMap<SpanKey, CallTarget>,
+    /// Type of every expression, by `(file, span)`. When two nested expressions share a
+    /// span (a parenthesized expression), the outer one wins. Used by NIR lowering (A9).
+    pub expr_ty: BTreeMap<SpanKey, Ty>,
 }
 
 /// Per-item checking context.
@@ -777,5 +780,68 @@ pub(crate) fn default_ty(t: &Ty) -> Ty {
         Ty::Tuple(v) => Ty::Tuple(v.iter().map(default_ty).collect()),
         Ty::Range(e) => Ty::Range(Box::new(default_ty(e))),
         other => other.clone(),
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
+mod tests {
+    use super::*;
+    use crate::model::SourceFile;
+    use crate::visit::{each_expr, each_stmt, stmt_exprs};
+
+    fn checked(src: &str) -> (Program, Checked) {
+        let mut diags = Vec::new();
+        let prog = Program::build(
+            vec![SourceFile {
+                path: "t.neuron".into(),
+                text: src.into(),
+            }],
+            None,
+            &mut diags,
+        );
+        let resolved = crate::resolve::resolve_program(&prog, &mut diags);
+        let out = check_program(&prog, &resolved, &mut diags);
+        assert!(diags.iter().all(|d| !d.diag.is_error()), "{diags:?}");
+        (prog, out)
+    }
+
+    #[test]
+    fn every_expression_has_a_type() {
+        let src = "module t\nfn f(a: u16 mV, b: bool) -> u16 mV:\n  let c = if b then a else 2 V\n  return c + 3 V\n";
+        let (prog, out) = checked(src);
+        let ItemKind::Fn(f) = &prog.files[0].ast.items[0].kind else {
+            panic!("expected a function")
+        };
+        let FnBody::Block(b) = &f.body else {
+            panic!("expected a block")
+        };
+        let mut n = 0;
+        let mut stmts = Vec::new();
+        each_stmt(&b.stmts, &mut |s| stmts.push(s));
+        for s in stmts {
+            stmt_exprs(s, &mut |e| {
+                each_expr(e, &mut |x| {
+                    n += 1;
+                    assert!(
+                        out.expr_ty.contains_key(&key(0, x.span)),
+                        "no type for `{}`",
+                        x.span.text(src)
+                    );
+                })
+            });
+        }
+        assert!(n >= 8, "visited {n} expressions");
+        // The returned value is `u16 mV`.
+        let ret = src.find("c + 3 V").unwrap();
+        let span = Span {
+            start: ret,
+            end: ret + "c + 3 V".len(),
+        };
+        let t = out
+            .expr_ty
+            .get(&key(0, span))
+            .expect("type of the return value");
+        assert_eq!(t.display(), "u16 mV");
     }
 }

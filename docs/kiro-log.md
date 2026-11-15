@@ -103,3 +103,18 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   four tracked files and of the `services/core` directory entry on drive E: was found by
   comparing file hashes with git (`tools/verify-worktree.ps1`) and repaired from git;
   the damaged directory was kept as `services/core-broken-20261114`.
+
+## 2026-11-14 · Housekeeping before A9
+- **Kiro features:** agent-run diagnosis (read-only health checks written as scripts),
+  a clean clone on another drive as the reference for byte-by-byte comparison.
+- **Produced:** drive E: repaired with `Repair-Volume` (spot fix, then offline scan and
+  fix; the volume now reports `Healthy`); the damaged local `.git` replaced with a clean
+  copy; every tracked file restored and verified against GitHub. `tools/` reduced from 26
+  to 13 scripts, with `tools/README.md`; `test-retry.ps1` now retries any executable that
+  Windows Smart App Control blocks. A test (`tests/catalogue.rs`) replaces the
+  `check-codes` script: every diagnostic code the compiler emits must be in the catalogue
+  and documented in `docs/errors/`. The checker now records the type of every expression,
+  which NIR lowering (A9) needs.
+- **Lessons:** the failures were a loose USB connection plus file-system errors, not the
+  compiler. Comparing content with a clean clone, instead of trusting timestamps, was the
+  only reliable way to find damaged files.
