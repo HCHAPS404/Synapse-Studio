@@ -1,6 +1,6 @@
 # SYNAPSE Studio · Neuron — Complete roadmap
 
-Version 2026-11-14. Source of truth for phases, assignments, order and status.
+Version 2026-11-15. Source of truth for phases, assignments, order and status.
 Update the **Status** column when a task changes state and note it in
 `docs/kiro-log.md`.
 
@@ -48,7 +48,7 @@ Both   ─ I hardware sessions (17 nov → 1 dec) · J integration (29 nov–1 d
 
 | Contract | Owner | Needed by | Date |
 |---|---|---|---|
-| NIR JSON schema (`spec/schemas/nir.schema.json`) | H | Martin (editors, twin) | 17 nov (draft), 18 nov (v1) |
+| NIR JSON schema (`spec/schemas/nir.schema.json`) | H | Martin (editors, twin) | v1.0 published 15 nov ✅ |
 | Engine WASM API (load scene, step, inject signal, read state) | M | Hell (virtual devices) | 17 nov |
 | `.scene.json` format | M | both | 18 nov |
 | Twin / relay WebSocket protocol | H | Martin (web, mobile) | 20 nov |
@@ -77,7 +77,7 @@ on this phase.
 
 | ID | Task | Deliverable | Acceptance | Depends | Dates | Status |
 |---|---|---|---|---|---|---|
-| A1 | Language specification and grammar | `spec/language/` (14 chapters), `spec/grammar/neuron.ebnf` | Draft v0.2 reviewed by Hell and Martin | — | 14 nov | ✅ v0.2 draft · review pending (You) |
+| A1 | Language specification and grammar | `spec/language/` (16 chapters), `spec/grammar/neuron.ebnf` | Draft reviewed by Hell and Martin | — | 14 nov | ✅ v0.4 draft · review pending (You) |
 | A2 | Lexer | `neuron-syntax::lexer` | Properties LEX-1, LEX-2; all spec blocks lex | A1 | 14 nov | ✅ v0.2 |
 | A3 | AST and parser (8 dialects) | `neuron-syntax::parser`, `outline`, golden files | Every complete spec program parses; error recovery; parser totality property; golden outlines | A2 | 14 nov | ✅ v0.2 |
 | A4 | Name resolution and modules | `neuron-sema` crate: scopes, `use`, `pub`, packages, `neuron.toml` | NE0101–NE0105 with tests; multi-file packages | A3 | 14–15 nov | ✅ |
@@ -85,7 +85,7 @@ on this phase.
 | A6 | Dialect rules and effects | Legal constructs per dialect (NE0501), `mut` aliasing (NE0303), bounded loops (NE0403), no recursion (NE0302), non-blocking bodies (NE0404) | One positive and one negative test per rule | A5 | 16 nov | ✅ |
 | A7 | Time and concurrency analysis | Tasks/interrupts graph, resource ceilings (SRP), `signal` single writer, WCET model and response-time analysis, static memory and stack budget | SRP and MEM-1 properties on the computed model; NE0301, NE0304, NE0306, NE0401, NE0402, NE0604. LET-1 and MEM-2 on the interpreter (A10) | A6 | 16–17 nov | ✅ |
 | A8 | Safety checks | `safe_state` completeness (NE0802), `on fault` restrictions (NE0803), `verify` model checking for `fsm`/`sequence` (NE0901–NE0904) with counterexample traces | Counterexamples are shortest paths. SAFE-1/2 on the interpreter (A10) | A7 | 17 nov | ✅ |
-| A9 | NIR (canonical IR) | Lowering HIR → NIR, JSON Schema, printer NIR → `.neuron`, `neuron emit-nir` | Property P-RT (round trip); schema published for Martin | A5–A8 | 17–18 nov | ⬜ |
+| A9 | NIR (canonical IR) | `neuron-nir` crate, lowering → NIR, JSON Schema (`spec/schemas/nir.schema.json`), printer NIR → `.neuron`, `neuron emit-nir` / `print-nir`, spec chapter 16 | Properties NIR-1 and P-RT (round trip); schema published for Martin | A5–A8 | 15 nov | ✅ |
 | A10 | Reference interpreter | Discrete-event executor with simulated time: tasks, interrupts (simulated), signals, `fsm`, `sequence`, `run`/BUSY/DONE/TIMEOUT, faults; `neuron run`, `neuron test` | Properties LET-1, SAFE-1; all corpus programs run | A9 | 18 nov | ⬜ |
 | A11 | Tooling | Formatter (`neuron fmt`, property P-FMT), `neuron explain NE####`, `docs/errors/`, LSP basics (diagnostics, hover, go to definition) | Formatter idempotent on corpus; LSP works in VS Code/Kiro | A3–A9 | 18–19 nov | ⬜ |
 | A12 | Standard library, base layer | `lib/std`: `core`, `units`, `time`, `logic` (TON/TOF/TP/CTU/CTD/R_TRIG/F_TRIG/SR/RS), `control` (PID with anti-windup, low-pass, moving average, hysteresis, debounce, ramp), `test` | Each module tested in the interpreter | A10 | 18–19 nov | ⬜ |

@@ -11,7 +11,8 @@ $env:CARGO_TERM_COLOR = 'never'
 cargo fmt --all 2>&1 | Out-Null
 if ($Golden) {
   $env:UPDATE_GOLDEN = '1'
-  $g = cargo test -p neuron-syntax --test golden --quiet 2>&1 | Out-String
+  # Parser outlines, NIR of the examples and the NIR JSON Schema.
+  $g = cargo test --workspace --quiet 2>&1 | Out-String
   "==== golden update (exit $LASTEXITCODE) ====`n$g" | Out-File -Append -Encoding utf8 $log
   Remove-Item Env:UPDATE_GOLDEN
 }

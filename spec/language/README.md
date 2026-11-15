@@ -1,6 +1,6 @@
 # The Neuron Language Specification — Edition 2026
 
-Status: **v0.3 draft** (2026-11-14). Normative once frozen at gate G1.
+Status: **v0.4 draft** (2026-11-15). Normative once frozen at gate G1.
 Owner: Hell. Reviewers: Martin, `spec-reviewer` agent.
 
 Neuron is a programming language for automation and hardware. One language, one
@@ -24,6 +24,8 @@ interchange standard so that programs, devices and third-party languages can mee
 | [13 Canonical formatting](13-formatting.md) | Formatter rules, line breaking, formatting properties, command line |
 | [14 Models of computation](14-computation-models.md) | Formal semantics per model, cell time model, equivalence and refinement for translation |
 | [15 Semantic analysis](15-analysis.md) | Names and modules, types and units, dialect rules, time and concurrency, safe state and model checking |
+| [16 NIR](16-nir.md) | Intermediate representation: structure, ids, types and units, exact numbers, canonical JSON, printer and round trip, versioning |
+| [NIR schema](../schemas/nir.schema.json) | JSON Schema of NIR (generated, checked in CI) |
 | [Grammar](../grammar/neuron.ebnf) | Complete EBNF grammar |
 
 ## Conventions used in this specification
@@ -50,6 +52,20 @@ interchange standard so that programs, devices and third-party languages can mee
 | Hardware bindings | One keyword for every peripheral: `io name: kind(config) @ location` |
 | Parameter passing | Read-only by default; `mut` for exclusive in-out, marked at the call site |
 | Errors | `Result<T, E>` and `T?` (Option) with `?` propagation; `fault` for safe-state entry; no exceptions |
+
+## Changes from v0.3 to v0.4
+
+Found while implementing task A9:
+
+- **New chapter 16** defines NIR. Chapter 11 §11.1 now summarizes it and points
+  there; its earlier sketch (separate `io` and `tasks` arrays, durations in
+  nanoseconds) is replaced by a model that mirrors the source, so NIR can be printed
+  back (property P-RT).
+- **NIR-1** is stated without the formatter, which does not exist until A11: the same
+  package always gives the same bytes. The formatter extends it in A11.
+- **IP addresses.** `ip(192.168.0.10)` is still not a token; NIR records it as an `ip`
+  literal (chapter 2 §2.8, chapter 16 §16.5).
+- **JSON Schema** published as `spec/schemas/nir.schema.json`.
 
 ## Changes from v0.2 to v0.3
 

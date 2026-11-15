@@ -94,6 +94,14 @@ fn examples_package_lowers_to_nir() {
 }
 
 #[test]
+fn ip_addresses_are_literals_in_nir() {
+    let n = lower(&examples(), Some(&examples_manifest()));
+    let json = nir::to_json(&n);
+    assert!(json.contains("\"lit\": \"ip\""), "no ip literal in the NIR");
+    assert!(json.contains("\"text\": \"192.168.0.10\""));
+}
+
+#[test]
 fn programs_with_errors_have_no_nir() {
     let a = run("module t\nfn f() -> u8:\n  return nope\n");
     assert!(!a.is_ok());

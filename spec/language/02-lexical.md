@@ -150,7 +150,7 @@ A **quantity literal** is a number followed, on the same line and separated by
 |---|---|---|
 | IEC 61131-3 direct address | `%I0.0`, `%Q0.1`, `%IW64`, `%MD10`, `%DB1.DBX0.0` | `plc`, `cell` |
 | Bit vector (sized) | `8'b1010_0000`, `16'hBEEF`, `4'd9` | `hdl` |
-| IP address | `ip(192.168.0.10)` (a call, not a token) | all |
+| IP address | `ip(192.168.0.10)` (a call, not a token; NIR records an `ip` literal, chapter 16 §16.5) | all |
 
 ## 2.9 Operators and punctuation
 

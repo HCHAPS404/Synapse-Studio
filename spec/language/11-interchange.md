@@ -15,52 +15,25 @@ compiler, simulator, daemon, editor) shares.
 
 ## 11.1 NIR (Neuron Intermediate Representation)
 
-NIR is the program after parsing, name resolution, type and unit checking, and
-lowering of dialect constructs, serialized as JSON.
+NIR is the program after parsing, name resolution and type and unit checking,
+serialized as canonical JSON. It is the contract between the compiler and every other
+tool: editors and graphical views, the digital twin, emitters and importers.
 
-- **Versioning.** `nir_version` is semantic (`1.0`). Minor versions only add optional
-  fields; unknown fields are preserved under `ext`. `edition` names the language
-  edition (`2026`).
-- **Canonical form.** UTF-8, LF, two-space indentation, object keys in schema order,
-  arrays in source order, no trailing whitespace, a final newline. The same program
-  always serializes to the same bytes.
-- **Exact values.** Integers and reals are JSON *strings* of decimal digits, so no
-  precision is lost between languages: `{"v": "60", "u": "degC"}`. Durations are
-  integer nanoseconds in a string.
-- **References** use stable ids (`m0.f3` for function 3 of module 0), never positions.
-- **Positions** (`span`) are byte ranges into the original source; diagram layout lives
-  in `.layout.json`, never in NIR.
+The NIR is defined in **[chapter 16](16-nir.md)**: data model, stable ids, canonical
+form, the encoding of types, units and exact numbers, the printer back to `.neuron`,
+the properties NIR-1 and P-RT, and versioning. The normative JSON Schema is
+[`spec/schemas/nir.schema.json`](../schemas/nir.schema.json), generated from the
+implementation and checked in CI.
 
-```json
-{
-  "nir_version": "1.0",
-  "edition": "2026",
-  "modules": [{
-    "id": "m0",
-    "name": "blink",
-    "dialect": "mcu",
-    "target": "arduino_uno_r3",
-    "io": [{ "id": "m0.io0", "name": "led", "kind": "gpio.output", "at": "D13" }],
-    "tasks": [{
-      "id": "m0.t0", "name": "blink",
-      "trigger": { "every": { "v": "500", "u": "ms" } },
-      "priority": "1",
-      "body": [{ "op": "call", "fn": "gpio.toggle", "args": [{ "ref": "m0.io0" }] }]
-    }],
-    "safety": { "safe_state": [{ "set": { "ref": "m0.io0" }, "value": "false" }] }
-  }]
-}
-```
+In short:
 
-> **Property NIR-1 (canonical).** `print(lower(parse(s)))` and
-> `print(lower(parse(fmt(s))))` are byte-identical.
->
-> **Property P-RT (round trip).** Printing NIR back to `.neuron` and lowering again
-> yields the same NIR.
-
-The normative JSON Schema is published as `spec/schemas/nir.schema.json` when task A9
-completes; until then this chapter is the contract that Martin's editors and the twin
-develop against.
+- `nir_version` is semantic (`1.0`); readers accept any `1.x` and ignore fields they
+  do not know.
+- The same program always serializes to the same bytes.
+- Numbers are JSON strings with their exact value, so no precision is lost between
+  languages.
+- References use stable ids (`m0.i3`), never positions. Diagram layout lives in
+  `.layout.json`, never in NIR.
 
 ## 11.2 Tag dictionary
 

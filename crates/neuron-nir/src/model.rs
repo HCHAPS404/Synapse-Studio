@@ -1673,6 +1673,11 @@ pub enum Lit {
         /// As written.
         text: String,
     },
+    /// IPv4 address in dotted-decimal form (`192.168.0.10`, spec 02 §2.8).
+    Ip {
+        /// As written.
+        text: String,
+    },
 }
 
 /// Comparison in a chain.

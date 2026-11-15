@@ -1,0 +1,5798 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Nir",
+  "description": "A whole package lowered to NIR.",
+  "type": "object",
+  "properties": {
+    "edition": {
+      "description": "Language edition (`2026`).",
+      "type": "string"
+    },
+    "modules": {
+      "description": "One entry per source file.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Module"
+      }
+    },
+    "nir_version": {
+      "description": "Version of this format (`1.0`).",
+      "type": "string"
+    },
+    "package": {
+      "description": "Package name from `neuron.toml`.",
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "required": [
+    "nir_version",
+    "edition",
+    "modules"
+  ],
+  "$defs": {
+    "Arg": {
+      "description": "Call or construction argument.",
+      "type": "object",
+      "properties": {
+        "mutable": {
+          "description": "`mut` at the call site.",
+          "type": "boolean"
+        },
+        "name": {
+          "description": "Name of a named argument.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "value": {
+          "description": "Value.",
+          "$ref": "#/$defs/Expr"
+        }
+      },
+      "required": [
+        "value"
+      ]
+    },
+    "Arm": {
+      "description": "`match` arm.",
+      "type": "object",
+      "properties": {
+        "body": {
+          "description": "Body.",
+          "$ref": "#/$defs/Block"
+        },
+        "guard": {
+          "description": "Guard.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Expr"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "pattern": {
+          "description": "Pattern.",
+          "$ref": "#/$defs/Pattern"
+        },
+        "span": {
+          "description": "Location.",
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "uint",
+            "minimum": 0
+          },
+          "maxItems": 2,
+          "minItems": 2
+        }
+      },
+      "required": [
+        "pattern",
+        "body",
+        "span"
+      ]
+    },
+    "Asm": {
+      "description": "Inline assembly.",
+      "type": "object",
+      "properties": {
+        "arch": {
+          "description": "Architecture.",
+          "type": "string"
+        },
+        "lines": {
+          "description": "Raw lines.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "operands": {
+          "description": "Operand list as written.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "arch",
+        "operands",
+        "lines"
+      ]
+    },
+    "Attr": {
+      "description": "Attribute.",
+      "type": "object",
+      "properties": {
+        "args": {
+          "description": "Arguments.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Arg"
+          }
+        },
+        "name": {
+          "description": "Name without `@`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ]
+    },
+    "Block": {
+      "description": "Block of statements.",
+      "type": "object",
+      "properties": {
+        "contracts": {
+          "description": "Contracts at the start.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Contract"
+          }
+        },
+        "stmts": {
+          "description": "Statements.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Stmt"
+          }
+        }
+      },
+      "required": [
+        "stmts"
+      ]
+    },
+    "CallTarget": {
+      "description": "What a call calls.",
+      "oneOf": [
+        {
+          "description": "A function item.",
+          "type": "object",
+          "properties": {
+            "call": {
+              "type": "string",
+              "const": "fn"
+            },
+            "id": {
+              "description": "Item id.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "call",
+            "id"
+          ]
+        },
+        {
+          "description": "A method of a class.",
+          "type": "object",
+          "properties": {
+            "call": {
+              "type": "string",
+              "const": "method"
+            },
+            "class": {
+              "description": "Item id of the class.",
+              "type": "string"
+            },
+            "mut_self": {
+              "description": "The method takes `mut self`.",
+              "type": "boolean"
+            },
+            "name": {
+              "description": "Method name.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "call",
+            "class",
+            "name"
+          ]
+        },
+        {
+          "description": "A struct, class or enum variant constructor.",
+          "type": "object",
+          "properties": {
+            "call": {
+              "type": "string",
+              "const": "ctor"
+            },
+            "def": {
+              "description": "Item id of the type.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "call",
+            "def"
+          ]
+        },
+        {
+          "description": "An operation on an `io` binding.",
+          "type": "object",
+          "properties": {
+            "binding": {
+              "description": "Binding name.",
+              "type": "string"
+            },
+            "call": {
+              "type": "string",
+              "const": "io"
+            },
+            "method": {
+              "description": "Operation.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "call",
+            "binding",
+            "method"
+          ]
+        },
+        {
+          "description": "A prelude function or function block.",
+          "type": "object",
+          "properties": {
+            "call": {
+              "type": "string",
+              "const": "builtin"
+            },
+            "name": {
+              "description": "Name.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "call",
+            "name"
+          ]
+        },
+        {
+          "description": "External vocabulary.",
+          "type": "object",
+          "properties": {
+            "call": {
+              "type": "string",
+              "const": "foreign"
+            }
+          },
+          "required": [
+            "call"
+          ]
+        }
+      ]
+    },
+    "Circuit": {
+      "description": "hdl circuit.",
+      "type": "object",
+      "properties": {
+        "clock": {
+          "description": "Clock domain.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "members": {
+          "description": "Members.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/CircuitMember"
+          }
+        },
+        "name": {
+          "description": "Name.",
+          "type": "string"
+        },
+        "ports": {
+          "description": "Ports.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Port"
+          }
+        }
+      },
+      "required": [
+        "name",
+        "ports",
+        "members"
+      ]
+    },
+    "CircuitDef": {
+      "description": "Circuit member kinds.",
+      "oneOf": [
+        {
+          "description": "`reg name: T = reset`.",
+          "type": "object",
+          "properties": {
+            "id": {
+              "description": "Local id.",
+              "type": "string"
+            },
+            "init": {
+              "description": "Reset value.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Expr"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "member": {
+              "type": "string",
+              "const": "reg"
+            },
+            "name": {
+              "description": "Name.",
+              "type": "string"
+            },
+            "ty": {
+              "description": "Type.",
+              "$ref": "#/$defs/TypeExpr"
+            }
+          },
+          "required": [
+            "member",
+            "id",
+            "name",
+            "ty"
+          ]
+        },
+        {
+          "description": "`wire name: T`.",
+          "type": "object",
+          "properties": {
+            "id": {
+              "description": "Local id.",
+              "type": "string"
+            },
+            "member": {
+              "type": "string",
+              "const": "wire"
+            },
+            "name": {
+              "description": "Name.",
+              "type": "string"
+            },
+            "ty": {
+              "description": "Type.",
+              "$ref": "#/$defs/TypeExpr"
+            }
+          },
+          "required": [
+            "member",
+            "id",
+            "name",
+            "ty"
+          ]
+        },
+        {
+          "description": "`const`.",
+          "type": "object",
+          "properties": {
+            "id": {
+              "description": "Local id.",
+              "type": "string"
+            },
+            "member": {
+              "type": "string",
+              "const": "const"
+            },
+            "name": {
+              "description": "Name.",
+              "type": "string"
+            },
+            "ty": {
+              "description": "Type.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/TypeExpr"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "value": {
+              "description": "Value.",
+              "$ref": "#/$defs/Expr"
+            }
+          },
+          "required": [
+            "member",
+            "id",
+            "name",
+            "value"
+          ]
+        },
+        {
+          "description": "`instance u = circuit(args)`.",
+          "type": "object",
+          "properties": {
+            "id": {
+              "description": "Local id.",
+              "type": "string"
+            },
+            "member": {
+              "type": "string",
+              "const": "instance"
+            },
+            "name": {
+              "description": "Name.",
+              "type": "string"
+            },
+            "of": {
+              "description": "Instantiation.",
+              "$ref": "#/$defs/Expr"
+            }
+          },
+          "required": [
+            "member",
+            "id",
+            "name",
+            "of"
+          ]
+        },
+        {
+          "description": "`comb:`.",
+          "type": "object",
+          "properties": {
+            "body": {
+              "description": "Body.",
+              "$ref": "#/$defs/Block"
+            },
+            "member": {
+              "type": "string",
+              "const": "comb"
+            }
+          },
+          "required": [
+            "member",
+            "body"
+          ]
+        },
+        {
+          "description": "`on rising(clk):` / `on falling(clk):`.",
+          "type": "object",
+          "properties": {
+            "body": {
+              "description": "Body.",
+              "$ref": "#/$defs/Block"
+            },
+            "clock": {
+              "description": "Clock.",
+              "type": "string"
+            },
+            "member": {
+              "type": "string",
+              "const": "on_edge"
+            },
+            "rising": {
+              "description": "Rising edge.",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "member",
+            "rising",
+            "clock",
+            "body"
+          ]
+        },
+        {
+          "description": "Nested state machine.",
+          "type": "object",
+          "properties": {
+            "fsm": {
+              "description": "The state machine.",
+              "$ref": "#/$defs/Fsm"
+            },
+            "member": {
+              "type": "string",
+              "const": "fsm"
+            }
+          },
+          "required": [
+            "member",
+            "fsm"
+          ]
+        }
+      ]
+    },
+    "CircuitMember": {
+      "description": "Member of a circuit.",
+      "type": "object",
+      "properties": {
+        "def": {
+          "description": "The member.",
+          "$ref": "#/$defs/CircuitDef"
+        },
+        "span": {
+          "description": "Location.",
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "uint",
+            "minimum": 0
+          },
+          "maxItems": 2,
+          "minItems": 2
+        }
+      },
+      "required": [
+        "span",
+        "def"
+      ]
+    },
+    "ClockDef": {
+      "description": "One line of `clocks:`.",
+      "type": "object",
+      "properties": {
+        "from": {
+          "description": "Source.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Expr"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "id": {
+          "description": "Stable id.",
+          "type": "string"
+        },
+        "name": {
+          "description": "Name.",
+          "type": "string"
+        },
+        "span": {
+          "description": "Location.",
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "uint",
+            "minimum": 0
+          },
+          "maxItems": 2,
+          "minItems": 2
+        },
+        "value": {
+          "description": "Requested frequency or derivation.",
+          "$ref": "#/$defs/Expr"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "value",
+        "span"
+      ]
+    },
+    "CmpRest": {
+      "description": "Comparison in a chain.",
+      "type": "object",
+      "properties": {
+        "op": {
+          "description": "Operator.",
+          "type": "string"
+        },
+        "rhs": {
+          "description": "Right operand.",
+          "$ref": "#/$defs/Expr"
+        }
+      },
+      "required": [
+        "op",
+        "rhs"
+      ]
+    },
+    "Contract": {
+      "description": "Contract clause.",
+      "type": "object",
+      "properties": {
+        "cond": {
+          "description": "Condition.",
+          "$ref": "#/$defs/Expr"
+        },
+        "kind": {
+          "description": "`requires`, `ensures` or `invariant`.",
+          "type": "string"
+        },
+        "span": {
+          "description": "Location.",
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "uint",
+            "minimum": 0
+          },
+          "maxItems": 2,
+          "minItems": 2
+        }
+      },
+      "required": [
+        "kind",
+        "cond",
+        "span"
+      ]
+    },
+    "EventField": {
+      "description": "Event payload field.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "Name (`timestamp` has no type).",
+          "type": "string"
+        },
+        "ty": {
+          "description": "Type.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TypeExpr"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "name"
+      ]
+    },
+    "Expr": {
+      "description": "An expression with its type.",
+      "type": "object",
+      "properties": {
+        "e": {
+          "description": "Kind.",
+          "$ref": "#/$defs/ExprKind"
+        },
+        "span": {
+          "description": "Location.",
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "uint",
+            "minimum": 0
+          },
+          "maxItems": 2,
+          "minItems": 2
+        },
+        "ty": {
+          "description": "Type and unit.",
+          "$ref": "#/$defs/Type"
+        }
+      },
+      "required": [
+        "span",
+        "ty",
+        "e"
+      ]
+    },
+    "ExprKind": {
+      "description": "Expression kinds.",
+      "oneOf": [
+        {
+          "description": "Literal.",
+          "type": "object",
+          "properties": {
+            "e": {
+              "type": "string",
+              "const": "lit"
+            },
+            "lit": {
+              "description": "The literal.",
+              "$ref": "#/$defs/Lit"
+            }
+          },
+          "required": [
+            "e",
+            "lit"
+          ]
+        },
+        {
+          "description": "Number with a unit.",
+          "type": "object",
+          "properties": {
+            "e": {
+              "type": "string",
+              "const": "quantity"
+            },
+            "si": {
+              "description": "Exact value in base SI units, when the quantity is a constant.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "unit": {
+              "description": "Unit.",
+              "$ref": "#/$defs/UnitRef"
+            },
+            "value": {
+              "description": "Number, tuple or call.",
+              "$ref": "#/$defs/Expr"
+            }
+          },
+          "required": [
+            "e",
+            "value",
+            "unit"
+          ]
+        },
+        {
+          "description": "Reference to a module-level definition.",
+          "type": "object",
+          "properties": {
+            "e": {
+              "type": "string",
+              "const": "ref"
+            },
+            "id": {
+              "description": "Item id.",
+              "type": "string"
+            },
+            "name": {
+              "description": "Name as written.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "e",
+            "id",
+            "name"
+          ]
+        },
+        {
+          "description": "Reference to a local binding.",
+          "type": "object",
+          "properties": {
+            "e": {
+              "type": "string",
+              "const": "local"
+            },
+            "id": {
+              "description": "Local id.",
+              "type": "string"
+            },
+            "name": {
+              "description": "Name as written.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "e",
+            "id",
+            "name"
+          ]
+        },
+        {
+          "description": "Name from the standard library, a dependency or a device description.",
+          "type": "object",
+          "properties": {
+            "e": {
+              "type": "string",
+              "const": "global"
+            },
+            "name": {
+              "description": "Name or dotted path.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "e",
+            "name"
+          ]
+        },
+        {
+          "description": "A package module.",
+          "type": "object",
+          "properties": {
+            "e": {
+              "type": "string",
+              "const": "module"
+            },
+            "id": {
+              "description": "Module id.",
+              "type": "string"
+            },
+            "name": {
+              "description": "Name as written.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "e",
+            "id",
+            "name"
+          ]
+        },
+        {
+          "description": "A state of a state machine (in `verify`).",
+          "type": "object",
+          "properties": {
+            "e": {
+              "type": "string",
+              "const": "state"
+            },
+            "fsm": {
+              "description": "State machine.",
+              "type": "string"
+            },
+            "state": {
+              "description": "State.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "e",
+            "fsm",
+            "state"
+          ]
+        },
+        {
+          "description": "`self`.",
+          "type": "object",
+          "properties": {
+            "e": {
+              "type": "string",
+              "const": "self_value"
+            }
+          },
+          "required": [
+            "e"
+          ]
+        },
+        {
+          "description": "`result`.",
+          "type": "object",
+          "properties": {
+            "e": {
+              "type": "string",
+              "const": "result"
+            }
+          },
+          "required": [
+            "e"
+          ]
+        },
+        {
+          "description": "Binary operation.",
+          "type": "object",
+          "properties": {
+            "e": {
+              "type": "string",
+              "const": "binary"
+            },
+            "lhs": {
+              "description": "Left operand.",
+              "$ref": "#/$defs/Expr"
+            },
+            "op": {
+              "description": "Operator as written.",
+              "type": "string"
+            },
+            "rhs": {
+              "description": "Right operand.",
+              "$ref": "#/$defs/Expr"
+            }
+          },
+          "required": [
+            "e",
+            "op",
+            "lhs",
+            "rhs"
+          ]
+        },
+        {
+          "description": "Chained comparison.",
+          "type": "object",
+          "properties": {
+            "e": {
+              "type": "string",
+              "const": "compare"
+            },
+            "first": {
+              "description": "First operand.",
+              "$ref": "#/$defs/Expr"
+            },
+            "rest": {
+              "description": "Following comparisons.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/CmpRest"
+              }
+            }
+          },
+          "required": [
+            "e",
+            "first",
+            "rest"
+          ]
+        },
+        {
+          "description": "Unary operation (`-`, `~`, `not`).",
+          "type": "object",
+          "properties": {
+            "e": {
+              "type": "string",
+              "const": "unary"
+            },
+            "op": {
+              "description": "Operator.",
+              "type": "string"
+            },
+            "operand": {
+              "description": "Operand.",
+              "$ref": "#/$defs/Expr"
+            }
+          },
+          "required": [
+            "e",
+            "op",
+            "operand"
+          ]
+        },
+        {
+          "description": "`a..b` / `a..=b`.",
+          "type": "object",
+          "properties": {
+            "e": {
+              "type": "string",
+              "const": "range"
+            },
+            "hi": {
+              "description": "End.",
+              "$ref": "#/$defs/Expr"
+            },
+            "inclusive": {
+              "description": "`..=`.",
+              "type": "boolean"
+            },
+            "lo": {
+              "description": "Start.",
+              "$ref": "#/$defs/Expr"
+            }
+          },
+          "required": [
+            "e",
+            "lo",
+            "hi",
+            "inclusive"
+          ]
+        },
+        {
+          "description": "Linear map `a..b -> c..d`.",
+          "type": "object",
+          "properties": {
+            "e": {
+              "type": "string",
+              "const": "map"
+            },
+            "from": {
+              "description": "Source range.",
+              "$ref": "#/$defs/Expr"
+            },
+            "to": {
+              "description": "Target range.",
+              "$ref": "#/$defs/Expr"
+            }
+          },
+          "required": [
+            "e",
+            "from",
+            "to"
+          ]
+        },
+        {
+          "description": "`if c then a else b`.",
+          "type": "object",
+          "properties": {
+            "cond": {
+              "description": "Condition.",
+              "$ref": "#/$defs/Expr"
+            },
+            "e": {
+              "type": "string",
+              "const": "if_else"
+            },
+            "else": {
+              "description": "Value when false.",
+              "$ref": "#/$defs/Expr"
+            },
+            "then": {
+              "description": "Value when true.",
+              "$ref": "#/$defs/Expr"
+            }
+          },
+          "required": [
+            "e",
+            "cond",
+            "then",
+            "else"
+          ]
+        },
+        {
+          "description": "`x |> f(a)`.",
+          "type": "object",
+          "properties": {
+            "e": {
+              "type": "string",
+              "const": "pipe"
+            },
+            "lhs": {
+              "description": "Value.",
+              "$ref": "#/$defs/Expr"
+            },
+            "rhs": {
+              "description": "Function.",
+              "$ref": "#/$defs/Expr"
+            }
+          },
+          "required": [
+            "e",
+            "lhs",
+            "rhs"
+          ]
+        },
+        {
+          "description": "Call or construction.",
+          "type": "object",
+          "properties": {
+            "args": {
+              "description": "Arguments.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Arg"
+              }
+            },
+            "callee": {
+              "description": "Callee.",
+              "$ref": "#/$defs/Expr"
+            },
+            "e": {
+              "type": "string",
+              "const": "call"
+            },
+            "target": {
+              "description": "Resolved target.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/CallTarget"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "e",
+            "callee"
+          ]
+        },
+        {
+          "description": "`x[i]` or `x[hi:lo]`.",
+          "type": "object",
+          "properties": {
+            "base": {
+              "description": "Indexed value.",
+              "$ref": "#/$defs/Expr"
+            },
+            "e": {
+              "type": "string",
+              "const": "index"
+            },
+            "end": {
+              "description": "Lower bit of a slice.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Expr"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "index": {
+              "description": "Index (or upper bit).",
+              "$ref": "#/$defs/Expr"
+            }
+          },
+          "required": [
+            "e",
+            "base",
+            "index"
+          ]
+        },
+        {
+          "description": "`x.name`.",
+          "type": "object",
+          "properties": {
+            "base": {
+              "description": "Value.",
+              "$ref": "#/$defs/Expr"
+            },
+            "e": {
+              "type": "string",
+              "const": "field"
+            },
+            "name": {
+              "description": "Field, method or member name.",
+              "type": "string"
+            },
+            "target": {
+              "description": "Item id when the field names a module item, `state:Fsm.State` for states.",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "e",
+            "base",
+            "name"
+          ]
+        },
+        {
+          "description": "`x?`.",
+          "type": "object",
+          "properties": {
+            "e": {
+              "type": "string",
+              "const": "try"
+            },
+            "operand": {
+              "description": "Operand.",
+              "$ref": "#/$defs/Expr"
+            }
+          },
+          "required": [
+            "e",
+            "operand"
+          ]
+        },
+        {
+          "description": "`x as T`.",
+          "type": "object",
+          "properties": {
+            "e": {
+              "type": "string",
+              "const": "cast"
+            },
+            "operand": {
+              "description": "Operand.",
+              "$ref": "#/$defs/Expr"
+            },
+            "to": {
+              "description": "Target type as written.",
+              "$ref": "#/$defs/TypeExpr"
+            }
+          },
+          "required": [
+            "e",
+            "operand",
+            "to"
+          ]
+        },
+        {
+          "description": "`(a, b)`.",
+          "type": "object",
+          "properties": {
+            "e": {
+              "type": "string",
+              "const": "tuple"
+            },
+            "items": {
+              "description": "Elements.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Expr"
+              }
+            }
+          },
+          "required": [
+            "e",
+            "items"
+          ]
+        },
+        {
+          "description": "`[a, b]`.",
+          "type": "object",
+          "properties": {
+            "e": {
+              "type": "string",
+              "const": "array"
+            },
+            "items": {
+              "description": "Elements.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Expr"
+              }
+            }
+          },
+          "required": [
+            "e",
+            "items"
+          ]
+        },
+        {
+          "description": "`[v; n]`.",
+          "type": "object",
+          "properties": {
+            "count": {
+              "description": "Count.",
+              "$ref": "#/$defs/Expr"
+            },
+            "e": {
+              "type": "string",
+              "const": "array_repeat"
+            },
+            "value": {
+              "description": "Value.",
+              "$ref": "#/$defs/Expr"
+            }
+          },
+          "required": [
+            "e",
+            "value",
+            "count"
+          ]
+        },
+        {
+          "description": "`fn(x) => body`.",
+          "type": "object",
+          "properties": {
+            "body": {
+              "description": "Body.",
+              "$ref": "#/$defs/Expr"
+            },
+            "e": {
+              "type": "string",
+              "const": "lambda"
+            },
+            "params": {
+              "description": "Parameters.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/LambdaParam"
+              }
+            }
+          },
+          "required": [
+            "e",
+            "params",
+            "body"
+          ]
+        },
+        {
+          "description": "`old(x)`.",
+          "type": "object",
+          "properties": {
+            "e": {
+              "type": "string",
+              "const": "old"
+            },
+            "operand": {
+              "description": "Operand.",
+              "$ref": "#/$defs/Expr"
+            }
+          },
+          "required": [
+            "e",
+            "operand"
+          ]
+        },
+        {
+          "description": "`run action`.",
+          "type": "object",
+          "properties": {
+            "action": {
+              "description": "Action.",
+              "$ref": "#/$defs/Expr"
+            },
+            "e": {
+              "type": "string",
+              "const": "run"
+            }
+          },
+          "required": [
+            "e",
+            "action"
+          ]
+        }
+      ]
+    },
+    "Field": {
+      "description": "Struct field.",
+      "type": "object",
+      "properties": {
+        "default": {
+          "description": "Default value.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Expr"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "name": {
+          "description": "Name.",
+          "type": "string"
+        },
+        "span": {
+          "description": "Location.",
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "uint",
+            "minimum": 0
+          },
+          "maxItems": 2,
+          "minItems": 2
+        },
+        "ty": {
+          "description": "Type.",
+          "$ref": "#/$defs/TypeExpr"
+        }
+      },
+      "required": [
+        "name",
+        "ty",
+        "span"
+      ]
+    },
+    "FieldPattern": {
+      "description": "Named sub-pattern `field: pattern`.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "Field.",
+          "type": "string"
+        },
+        "pattern": {
+          "description": "Pattern.",
+          "$ref": "#/$defs/Pattern"
+        }
+      },
+      "required": [
+        "name",
+        "pattern"
+      ]
+    },
+    "FnBody": {
+      "description": "Function body.",
+      "oneOf": [
+        {
+          "description": "Indented block.",
+          "type": "object",
+          "properties": {
+            "block": {
+              "description": "The block.",
+              "$ref": "#/$defs/Block"
+            },
+            "body": {
+              "type": "string",
+              "const": "block"
+            }
+          },
+          "required": [
+            "body",
+            "block"
+          ]
+        },
+        {
+          "description": "`= expr`.",
+          "type": "object",
+          "properties": {
+            "body": {
+              "type": "string",
+              "const": "expr"
+            },
+            "expr": {
+              "description": "The expression.",
+              "$ref": "#/$defs/Expr"
+            }
+          },
+          "required": [
+            "body",
+            "expr"
+          ]
+        }
+      ]
+    },
+    "FnDecl": {
+      "description": "Function declaration.",
+      "type": "object",
+      "properties": {
+        "body": {
+          "description": "Body.",
+          "$ref": "#/$defs/FnBody"
+        },
+        "contracts": {
+          "description": "`requires` / `ensures` clauses.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Contract"
+          }
+        },
+        "sig": {
+          "description": "Signature.",
+          "$ref": "#/$defs/FnSig"
+        }
+      },
+      "required": [
+        "sig",
+        "body"
+      ]
+    },
+    "FnSig": {
+      "description": "Function signature.",
+      "type": "object",
+      "properties": {
+        "generics": {
+          "description": "Generic parameters.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Generic"
+          }
+        },
+        "name": {
+          "description": "Name.",
+          "type": "string"
+        },
+        "params": {
+          "description": "Parameters.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Param"
+          }
+        },
+        "ret": {
+          "description": "Return type.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TypeExpr"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "span": {
+          "description": "Location.",
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "uint",
+            "minimum": 0
+          },
+          "maxItems": 2,
+          "minItems": 2
+        }
+      },
+      "required": [
+        "name",
+        "span"
+      ]
+    },
+    "Fsm": {
+      "description": "State machine.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "Name.",
+          "type": "string"
+        },
+        "states": {
+          "description": "States in source order.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/State"
+          }
+        },
+        "trigger": {
+          "description": "Evaluation trigger.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Trigger"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "vars": {
+          "description": "Local variables.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/VarDecl"
+          }
+        }
+      },
+      "required": [
+        "name",
+        "states"
+      ]
+    },
+    "Generic": {
+      "description": "Generic parameter.",
+      "oneOf": [
+        {
+          "description": "`T: Bound + Bound`.",
+          "type": "object",
+          "properties": {
+            "bounds": {
+              "description": "Bounds (dotted paths).",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "name": {
+              "description": "Name.",
+              "type": "string"
+            },
+            "param": {
+              "type": "string",
+              "const": "type"
+            }
+          },
+          "required": [
+            "param",
+            "name"
+          ]
+        },
+        {
+          "description": "`const N: index`.",
+          "type": "object",
+          "properties": {
+            "name": {
+              "description": "Name.",
+              "type": "string"
+            },
+            "param": {
+              "type": "string",
+              "const": "const"
+            },
+            "ty": {
+              "description": "Type.",
+              "$ref": "#/$defs/TypeExpr"
+            }
+          },
+          "required": [
+            "param",
+            "name",
+            "ty"
+          ]
+        }
+      ]
+    },
+    "IfBranch": {
+      "description": "`if` / `elif` branch.",
+      "type": "object",
+      "properties": {
+        "body": {
+          "description": "Body.",
+          "$ref": "#/$defs/Block"
+        },
+        "cond": {
+          "description": "Condition.",
+          "$ref": "#/$defs/Expr"
+        }
+      },
+      "required": [
+        "cond",
+        "body"
+      ]
+    },
+    "Item": {
+      "description": "A top-level item (or a method of a class).",
+      "type": "object",
+      "properties": {
+        "attrs": {
+          "description": "Attributes such as `@min_interval(5 ms)`.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Attr"
+          }
+        },
+        "def": {
+          "description": "The definition.",
+          "$ref": "#/$defs/ItemDef"
+        },
+        "doc": {
+          "description": "Documentation comment.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "id": {
+          "description": "Stable id (`m0.i3`).",
+          "type": "string"
+        },
+        "public": {
+          "description": "`pub`.",
+          "type": "boolean"
+        },
+        "span": {
+          "description": "Location.",
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "uint",
+            "minimum": 0
+          },
+          "maxItems": 2,
+          "minItems": 2
+        }
+      },
+      "required": [
+        "id",
+        "span",
+        "def"
+      ]
+    },
+    "ItemDef": {
+      "description": "Item definitions.",
+      "oneOf": [
+        {
+          "description": "`use a.b.{c, d} as e`.",
+          "type": "object",
+          "properties": {
+            "alias": {
+              "description": "Rename.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "item": {
+              "type": "string",
+              "const": "use"
+            },
+            "names": {
+              "description": "Selected names.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "path": {
+              "description": "Path segments.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [
+            "item",
+            "path"
+          ]
+        },
+        {
+          "description": "`const`.",
+          "type": "object",
+          "properties": {
+            "item": {
+              "type": "string",
+              "const": "const"
+            },
+            "name": {
+              "description": "Name.",
+              "type": "string"
+            },
+            "ty": {
+              "description": "Declared type.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/TypeExpr"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "value": {
+              "description": "Value.",
+              "$ref": "#/$defs/Expr"
+            }
+          },
+          "required": [
+            "item",
+            "name",
+            "value"
+          ]
+        },
+        {
+          "description": "`var` / `let` / `retain var` at module level.",
+          "type": "object",
+          "properties": {
+            "item": {
+              "type": "string",
+              "const": "var"
+            },
+            "var": {
+              "description": "The variable.",
+              "$ref": "#/$defs/VarDecl"
+            }
+          },
+          "required": [
+            "item",
+            "var"
+          ]
+        },
+        {
+          "description": "`signal`.",
+          "type": "object",
+          "properties": {
+            "init": {
+              "description": "Initial value.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Expr"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "item": {
+              "type": "string",
+              "const": "signal"
+            },
+            "name": {
+              "description": "Name.",
+              "type": "string"
+            },
+            "ty": {
+              "description": "Type.",
+              "$ref": "#/$defs/TypeExpr"
+            }
+          },
+          "required": [
+            "item",
+            "name",
+            "ty"
+          ]
+        },
+        {
+          "description": "`unit name = expr`.",
+          "type": "object",
+          "properties": {
+            "def": {
+              "description": "Definition.",
+              "$ref": "#/$defs/UnitRef"
+            },
+            "item": {
+              "type": "string",
+              "const": "unit"
+            },
+            "name": {
+              "description": "Name.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "item",
+            "name",
+            "def"
+          ]
+        },
+        {
+          "description": "`event`.",
+          "type": "object",
+          "properties": {
+            "fields": {
+              "description": "Payload fields.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/EventField"
+              }
+            },
+            "from": {
+              "description": "Source device.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "item": {
+              "type": "string",
+              "const": "event"
+            },
+            "name": {
+              "description": "Name.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "item",
+            "name"
+          ]
+        },
+        {
+          "description": "`struct`.",
+          "type": "object",
+          "properties": {
+            "fields": {
+              "description": "Fields.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Field"
+              }
+            },
+            "generics": {
+              "description": "Generic parameters.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Generic"
+              }
+            },
+            "item": {
+              "type": "string",
+              "const": "struct"
+            },
+            "name": {
+              "description": "Name.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "item",
+            "name",
+            "fields"
+          ]
+        },
+        {
+          "description": "`enum`.",
+          "type": "object",
+          "properties": {
+            "generics": {
+              "description": "Generic parameters.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Generic"
+              }
+            },
+            "item": {
+              "type": "string",
+              "const": "enum"
+            },
+            "name": {
+              "description": "Name.",
+              "type": "string"
+            },
+            "repr": {
+              "description": "Representation type.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/TypeExpr"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "variants": {
+              "description": "Variants.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Variant"
+              }
+            }
+          },
+          "required": [
+            "item",
+            "name",
+            "variants"
+          ]
+        },
+        {
+          "description": "`class`.",
+          "type": "object",
+          "properties": {
+            "generics": {
+              "description": "Generic parameters.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Generic"
+              }
+            },
+            "interfaces": {
+              "description": "Interfaces after `is`.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "invariants": {
+              "description": "`invariant` clauses.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Expr"
+              }
+            },
+            "item": {
+              "type": "string",
+              "const": "class"
+            },
+            "methods": {
+              "description": "Methods (items whose definition is `fn`).",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Item"
+              }
+            },
+            "name": {
+              "description": "Name.",
+              "type": "string"
+            },
+            "vars": {
+              "description": "State fields.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/VarDecl"
+              }
+            }
+          },
+          "required": [
+            "item",
+            "name"
+          ]
+        },
+        {
+          "description": "`interface`.",
+          "type": "object",
+          "properties": {
+            "generics": {
+              "description": "Generic parameters.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Generic"
+              }
+            },
+            "item": {
+              "type": "string",
+              "const": "interface"
+            },
+            "methods": {
+              "description": "Method signatures.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/FnSig"
+              }
+            },
+            "name": {
+              "description": "Name.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "item",
+            "name",
+            "methods"
+          ]
+        },
+        {
+          "description": "`type Name = T`.",
+          "type": "object",
+          "properties": {
+            "generics": {
+              "description": "Generic parameters.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Generic"
+              }
+            },
+            "item": {
+              "type": "string",
+              "const": "alias"
+            },
+            "name": {
+              "description": "Name.",
+              "type": "string"
+            },
+            "ty": {
+              "description": "Aliased type.",
+              "$ref": "#/$defs/TypeExpr"
+            }
+          },
+          "required": [
+            "item",
+            "name",
+            "ty"
+          ]
+        },
+        {
+          "description": "`fn`.",
+          "type": "object",
+          "properties": {
+            "func": {
+              "description": "The function.",
+              "$ref": "#/$defs/FnDecl"
+            },
+            "item": {
+              "type": "string",
+              "const": "fn"
+            }
+          },
+          "required": [
+            "item",
+            "func"
+          ]
+        },
+        {
+          "description": "`task`.",
+          "type": "object",
+          "properties": {
+            "attrs": {
+              "description": "Attributes in parentheses.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/TaskAttr"
+              }
+            },
+            "body": {
+              "description": "Body.",
+              "$ref": "#/$defs/Block"
+            },
+            "item": {
+              "type": "string",
+              "const": "task"
+            },
+            "name": {
+              "description": "Name.",
+              "type": "string"
+            },
+            "trigger": {
+              "description": "Release trigger.",
+              "$ref": "#/$defs/Trigger"
+            }
+          },
+          "required": [
+            "item",
+            "name",
+            "trigger",
+            "body"
+          ]
+        },
+        {
+          "description": "`on interrupt`.",
+          "type": "object",
+          "properties": {
+            "attrs": {
+              "description": "Attributes in parentheses.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/TaskAttr"
+              }
+            },
+            "body": {
+              "description": "Body.",
+              "$ref": "#/$defs/Block"
+            },
+            "item": {
+              "type": "string",
+              "const": "interrupt"
+            },
+            "source": {
+              "description": "Hardware event.",
+              "$ref": "#/$defs/Expr"
+            }
+          },
+          "required": [
+            "item",
+            "source",
+            "body"
+          ]
+        },
+        {
+          "description": "`when` rule.",
+          "type": "object",
+          "properties": {
+            "item": {
+              "type": "string",
+              "const": "rule"
+            },
+            "rule": {
+              "description": "The rule.",
+              "$ref": "#/$defs/Rule"
+            }
+          },
+          "required": [
+            "item",
+            "rule"
+          ]
+        },
+        {
+          "description": "`fsm`.",
+          "type": "object",
+          "properties": {
+            "fsm": {
+              "description": "The state machine.",
+              "$ref": "#/$defs/Fsm"
+            },
+            "item": {
+              "type": "string",
+              "const": "fsm"
+            }
+          },
+          "required": [
+            "item",
+            "fsm"
+          ]
+        },
+        {
+          "description": "`sequence`.",
+          "type": "object",
+          "properties": {
+            "item": {
+              "type": "string",
+              "const": "sequence"
+            },
+            "items": {
+              "description": "Body.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/SeqItem"
+              }
+            },
+            "name": {
+              "description": "Name.",
+              "type": "string"
+            },
+            "on": {
+              "description": "Device (cell files).",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "params": {
+              "description": "Parameters.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Param"
+              }
+            }
+          },
+          "required": [
+            "item",
+            "name",
+            "items"
+          ]
+        },
+        {
+          "description": "`safety:`.",
+          "type": "object",
+          "properties": {
+            "item": {
+              "type": "string",
+              "const": "safety"
+            },
+            "members": {
+              "description": "Members in source order.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/SafetyMember"
+              }
+            }
+          },
+          "required": [
+            "item",
+            "members"
+          ]
+        },
+        {
+          "description": "`verify:`.",
+          "type": "object",
+          "properties": {
+            "item": {
+              "type": "string",
+              "const": "verify"
+            },
+            "props": {
+              "description": "Properties.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Prop"
+              }
+            }
+          },
+          "required": [
+            "item",
+            "props"
+          ]
+        },
+        {
+          "description": "`test \"name\":`.",
+          "type": "object",
+          "properties": {
+            "body": {
+              "description": "Body.",
+              "$ref": "#/$defs/Block"
+            },
+            "item": {
+              "type": "string",
+              "const": "test"
+            },
+            "name": {
+              "description": "Name, with its quotes.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "item",
+            "name",
+            "body"
+          ]
+        },
+        {
+          "description": "`io name: kind @ location`.",
+          "type": "object",
+          "properties": {
+            "at": {
+              "description": "Location.",
+              "$ref": "#/$defs/Expr"
+            },
+            "item": {
+              "type": "string",
+              "const": "io"
+            },
+            "kind": {
+              "description": "Peripheral kind and configuration.",
+              "$ref": "#/$defs/Expr"
+            },
+            "name": {
+              "description": "Binding name.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "item",
+            "name",
+            "kind",
+            "at"
+          ]
+        },
+        {
+          "description": "`clocks:`.",
+          "type": "object",
+          "properties": {
+            "clocks": {
+              "description": "Clock definitions.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/ClockDef"
+              }
+            },
+            "item": {
+              "type": "string",
+              "const": "clocks"
+            }
+          },
+          "required": [
+            "item",
+            "clocks"
+          ]
+        },
+        {
+          "description": "`uses regs.X`.",
+          "type": "object",
+          "properties": {
+            "item": {
+              "type": "string",
+              "const": "uses"
+            },
+            "paths": {
+              "description": "Dotted paths.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [
+            "item",
+            "paths"
+          ]
+        },
+        {
+          "description": "`trusted extern \"C\":`.",
+          "type": "object",
+          "properties": {
+            "abi": {
+              "description": "ABI string with quotes.",
+              "type": "string"
+            },
+            "fns": {
+              "description": "Signatures.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/FnSig"
+              }
+            },
+            "item": {
+              "type": "string",
+              "const": "extern_block"
+            }
+          },
+          "required": [
+            "item",
+            "abi",
+            "fns"
+          ]
+        },
+        {
+          "description": "`extern \"C\" fn`.",
+          "type": "object",
+          "properties": {
+            "abi": {
+              "description": "ABI string with quotes.",
+              "type": "string"
+            },
+            "func": {
+              "description": "Function.",
+              "$ref": "#/$defs/FnDecl"
+            },
+            "item": {
+              "type": "string",
+              "const": "extern_fn"
+            }
+          },
+          "required": [
+            "item",
+            "abi",
+            "func"
+          ]
+        },
+        {
+          "description": "`trusted asm`.",
+          "type": "object",
+          "properties": {
+            "asm": {
+              "description": "The block.",
+              "$ref": "#/$defs/Asm"
+            },
+            "item": {
+              "type": "string",
+              "const": "asm"
+            }
+          },
+          "required": [
+            "item",
+            "asm"
+          ]
+        },
+        {
+          "description": "`scan P` (plc).",
+          "type": "object",
+          "properties": {
+            "item": {
+              "type": "string",
+              "const": "scan"
+            },
+            "period": {
+              "description": "Scan period.",
+              "$ref": "#/$defs/Expr"
+            }
+          },
+          "required": [
+            "item",
+            "period"
+          ]
+        },
+        {
+          "description": "`inputs:` / `outputs:` / `memory:` (plc).",
+          "type": "object",
+          "properties": {
+            "item": {
+              "type": "string",
+              "const": "plc_section"
+            },
+            "section": {
+              "description": "`inputs`, `outputs` or `memory`.",
+              "type": "string"
+            },
+            "vars": {
+              "description": "Variables.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/VarDecl"
+              }
+            }
+          },
+          "required": [
+            "item",
+            "section",
+            "vars"
+          ]
+        },
+        {
+          "description": "`rung` (plc).",
+          "type": "object",
+          "properties": {
+            "body": {
+              "description": "Body.",
+              "$ref": "#/$defs/Block"
+            },
+            "item": {
+              "type": "string",
+              "const": "rung"
+            },
+            "name": {
+              "description": "Name.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "item",
+            "name",
+            "body"
+          ]
+        },
+        {
+          "description": "`clock` (hdl).",
+          "type": "object",
+          "properties": {
+            "freq": {
+              "description": "Frequency.",
+              "$ref": "#/$defs/Expr"
+            },
+            "item": {
+              "type": "string",
+              "const": "clock"
+            },
+            "name": {
+              "description": "Name.",
+              "type": "string"
+            },
+            "pin": {
+              "description": "Pin.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Expr"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "item",
+            "name",
+            "freq"
+          ]
+        },
+        {
+          "description": "`circuit` (hdl).",
+          "type": "object",
+          "properties": {
+            "circuit": {
+              "description": "The circuit.",
+              "$ref": "#/$defs/Circuit"
+            },
+            "item": {
+              "type": "string",
+              "const": "circuit"
+            }
+          },
+          "required": [
+            "item",
+            "circuit"
+          ]
+        },
+        {
+          "description": "`sync a -> b via m` (hdl).",
+          "type": "object",
+          "properties": {
+            "from": {
+              "description": "Source.",
+              "$ref": "#/$defs/Expr"
+            },
+            "item": {
+              "type": "string",
+              "const": "sync"
+            },
+            "to": {
+              "description": "Destination.",
+              "$ref": "#/$defs/Expr"
+            },
+            "via": {
+              "description": "Method.",
+              "$ref": "#/$defs/Expr"
+            }
+          },
+          "required": [
+            "item",
+            "from",
+            "to",
+            "via"
+          ]
+        },
+        {
+          "description": "`frame` / `tool` / `point` (robot).",
+          "type": "object",
+          "properties": {
+            "item": {
+              "type": "string",
+              "const": "geometry"
+            },
+            "kind": {
+              "description": "`frame`, `tool` or `point`.",
+              "type": "string"
+            },
+            "name": {
+              "description": "Name.",
+              "type": "string"
+            },
+            "ty": {
+              "description": "Declared type.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/TypeExpr"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "value": {
+              "description": "Value.",
+              "$ref": "#/$defs/Expr"
+            }
+          },
+          "required": [
+            "item",
+            "kind",
+            "name",
+            "value"
+          ]
+        },
+        {
+          "description": "`display` (ui).",
+          "type": "object",
+          "properties": {
+            "driver": {
+              "description": "Driver.",
+              "$ref": "#/$defs/Expr"
+            },
+            "item": {
+              "type": "string",
+              "const": "display"
+            },
+            "name": {
+              "description": "Name.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "item",
+            "name",
+            "driver"
+          ]
+        },
+        {
+          "description": "`screen` (ui).",
+          "type": "object",
+          "properties": {
+            "display": {
+              "description": "Display.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "item": {
+              "type": "string",
+              "const": "screen"
+            },
+            "name": {
+              "description": "Name.",
+              "type": "string"
+            },
+            "widgets": {
+              "description": "Widgets.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Widget"
+              }
+            }
+          },
+          "required": [
+            "item",
+            "name",
+            "widgets"
+          ]
+        },
+        {
+          "description": "`theme` (ui).",
+          "type": "object",
+          "properties": {
+            "body": {
+              "description": "Body.",
+              "$ref": "#/$defs/Block"
+            },
+            "item": {
+              "type": "string",
+              "const": "theme"
+            },
+            "name": {
+              "description": "Name.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "item",
+            "name",
+            "body"
+          ]
+        },
+        {
+          "description": "`device` (cell).",
+          "type": "object",
+          "properties": {
+            "address": {
+              "description": "Address.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Expr"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "item": {
+              "type": "string",
+              "const": "device"
+            },
+            "name": {
+              "description": "Name.",
+              "type": "string"
+            },
+            "ty": {
+              "description": "Device type (dotted path).",
+              "type": "string"
+            }
+          },
+          "required": [
+            "item",
+            "name",
+            "ty"
+          ]
+        },
+        {
+          "description": "`place module on device` (cell).",
+          "type": "object",
+          "properties": {
+            "device": {
+              "description": "Device.",
+              "type": "string"
+            },
+            "item": {
+              "type": "string",
+              "const": "place"
+            },
+            "module": {
+              "description": "Module path.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "item",
+            "module",
+            "device"
+          ]
+        },
+        {
+          "description": "`link` (cell).",
+          "type": "object",
+          "properties": {
+            "every": {
+              "description": "Period.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Expr"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "from": {
+              "description": "Source signal.",
+              "$ref": "#/$defs/Expr"
+            },
+            "item": {
+              "type": "string",
+              "const": "link"
+            },
+            "to": {
+              "description": "Destination signal.",
+              "$ref": "#/$defs/Expr"
+            },
+            "via": {
+              "description": "Medium.",
+              "$ref": "#/$defs/Expr"
+            },
+            "within": {
+              "description": "Latency budget.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Expr"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "item",
+            "from",
+            "to",
+            "via"
+          ]
+        },
+        {
+          "description": "`tag` (cell).",
+          "type": "object",
+          "properties": {
+            "item": {
+              "type": "string",
+              "const": "tag"
+            },
+            "locations": {
+              "description": "Locations on devices.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Expr"
+              }
+            },
+            "name": {
+              "description": "Name.",
+              "type": "string"
+            },
+            "ty": {
+              "description": "Type.",
+              "$ref": "#/$defs/TypeExpr"
+            }
+          },
+          "required": [
+            "item",
+            "name",
+            "ty",
+            "locations"
+          ]
+        },
+        {
+          "description": "`zone` (cell).",
+          "type": "object",
+          "properties": {
+            "item": {
+              "type": "string",
+              "const": "zone"
+            },
+            "name": {
+              "description": "Name.",
+              "type": "string"
+            },
+            "shape": {
+              "description": "Shape.",
+              "$ref": "#/$defs/Expr"
+            }
+          },
+          "required": [
+            "item",
+            "name",
+            "shape"
+          ]
+        },
+        {
+          "description": "`mutex zone between a, b` (cell).",
+          "type": "object",
+          "properties": {
+            "item": {
+              "type": "string",
+              "const": "mutex"
+            },
+            "parties": {
+              "description": "Participants.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Expr"
+              }
+            },
+            "zone": {
+              "description": "Zone.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "item",
+            "zone",
+            "parties"
+          ]
+        }
+      ]
+    },
+    "LambdaParam": {
+      "description": "Lambda parameter.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "description": "Local id.",
+          "type": "string"
+        },
+        "name": {
+          "description": "Name.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "id"
+      ]
+    },
+    "Lit": {
+      "description": "Literal.",
+      "oneOf": [
+        {
+          "description": "Integer. `text` as written, `v` exact decimal value.",
+          "type": "object",
+          "properties": {
+            "lit": {
+              "type": "string",
+              "const": "int"
+            },
+            "text": {
+              "description": "As written.",
+              "type": "string"
+            },
+            "v": {
+              "description": "Exact decimal value.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "lit",
+            "text",
+            "v"
+          ]
+        },
+        {
+          "description": "Real. `text` as written, `v` exact decimal value.",
+          "type": "object",
+          "properties": {
+            "lit": {
+              "type": "string",
+              "const": "real"
+            },
+            "text": {
+              "description": "As written.",
+              "type": "string"
+            },
+            "v": {
+              "description": "Exact decimal value.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "lit",
+            "text",
+            "v"
+          ]
+        },
+        {
+          "description": "String, with quotes and escapes as written.",
+          "type": "object",
+          "properties": {
+            "lit": {
+              "type": "string",
+              "const": "str"
+            },
+            "text": {
+              "description": "As written.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "lit",
+            "text"
+          ]
+        },
+        {
+          "description": "Raw string.",
+          "type": "object",
+          "properties": {
+            "lit": {
+              "type": "string",
+              "const": "raw_str"
+            },
+            "text": {
+              "description": "As written.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "lit",
+            "text"
+          ]
+        },
+        {
+          "description": "Byte string.",
+          "type": "object",
+          "properties": {
+            "lit": {
+              "type": "string",
+              "const": "byte_str"
+            },
+            "text": {
+              "description": "As written.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "lit",
+            "text"
+          ]
+        },
+        {
+          "description": "Character.",
+          "type": "object",
+          "properties": {
+            "lit": {
+              "type": "string",
+              "const": "char"
+            },
+            "text": {
+              "description": "As written.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "lit",
+            "text"
+          ]
+        },
+        {
+          "description": "`true` / `false`.",
+          "type": "object",
+          "properties": {
+            "lit": {
+              "type": "string",
+              "const": "bool"
+            },
+            "v": {
+              "description": "Value.",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "lit",
+            "v"
+          ]
+        },
+        {
+          "description": "`none`.",
+          "type": "object",
+          "properties": {
+            "lit": {
+              "type": "string",
+              "const": "none"
+            }
+          },
+          "required": [
+            "lit"
+          ]
+        },
+        {
+          "description": "IEC address (`%I0.0`).",
+          "type": "object",
+          "properties": {
+            "lit": {
+              "type": "string",
+              "const": "iec"
+            },
+            "text": {
+              "description": "As written.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "lit",
+            "text"
+          ]
+        },
+        {
+          "description": "Bit vector (`8'b1010`).",
+          "type": "object",
+          "properties": {
+            "lit": {
+              "type": "string",
+              "const": "bits"
+            },
+            "text": {
+              "description": "As written.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "lit",
+            "text"
+          ]
+        },
+        {
+          "description": "IPv4 address in dotted-decimal form (`192.168.0.10`, spec 02 §2.8).",
+          "type": "object",
+          "properties": {
+            "lit": {
+              "type": "string",
+              "const": "ip"
+            },
+            "text": {
+              "description": "As written.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "lit",
+            "text"
+          ]
+        }
+      ]
+    },
+    "Module": {
+      "description": "One source file.",
+      "type": "object",
+      "properties": {
+        "dialect": {
+          "description": "Dialect name.",
+          "type": "string"
+        },
+        "file": {
+          "description": "Path of the source file.",
+          "type": "string"
+        },
+        "id": {
+          "description": "Stable id (`m0`).",
+          "type": "string"
+        },
+        "items": {
+          "description": "Items in source order.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Item"
+          }
+        },
+        "kind": {
+          "description": "Module or cell.",
+          "$ref": "#/$defs/ModuleKind"
+        },
+        "name": {
+          "description": "Module path or cell name.",
+          "type": "string"
+        },
+        "target": {
+          "description": "Target after `on`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "file",
+        "kind",
+        "dialect",
+        "items"
+      ]
+    },
+    "ModuleKind": {
+      "description": "File kind.",
+      "oneOf": [
+        {
+          "description": "`module a.b for dialect`.",
+          "type": "string",
+          "const": "module"
+        },
+        {
+          "description": "`cell Name`.",
+          "type": "string",
+          "const": "cell"
+        }
+      ]
+    },
+    "NamedExpr": {
+      "description": "`name value` pair (widget and move options).",
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "Name.",
+          "type": "string"
+        },
+        "value": {
+          "description": "Value.",
+          "$ref": "#/$defs/Expr"
+        }
+      },
+      "required": [
+        "name",
+        "value"
+      ]
+    },
+    "Param": {
+      "description": "Function or method parameter.",
+      "type": "object",
+      "properties": {
+        "default": {
+          "description": "Default value.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Expr"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "id": {
+          "description": "Local id (none for `self`).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "mutable": {
+          "description": "`mut`.",
+          "type": "boolean"
+        },
+        "name": {
+          "description": "Name (`self` for the receiver).",
+          "type": "string"
+        },
+        "ty": {
+          "description": "Type (none for `self`).",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TypeExpr"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "name"
+      ]
+    },
+    "Pattern": {
+      "description": "A pattern.",
+      "type": "object",
+      "properties": {
+        "p": {
+          "description": "Kind.",
+          "$ref": "#/$defs/PatternKind"
+        },
+        "span": {
+          "description": "Location.",
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "uint",
+            "minimum": 0
+          },
+          "maxItems": 2,
+          "minItems": 2
+        }
+      },
+      "required": [
+        "span",
+        "p"
+      ]
+    },
+    "PatternKind": {
+      "description": "Pattern kinds.",
+      "oneOf": [
+        {
+          "description": "`_`.",
+          "type": "object",
+          "properties": {
+            "p": {
+              "type": "string",
+              "const": "wildcard"
+            }
+          },
+          "required": [
+            "p"
+          ]
+        },
+        {
+          "description": "Binding.",
+          "type": "object",
+          "properties": {
+            "id": {
+              "description": "Local id.",
+              "type": "string"
+            },
+            "name": {
+              "description": "Name.",
+              "type": "string"
+            },
+            "p": {
+              "type": "string",
+              "const": "bind"
+            },
+            "ty": {
+              "description": "Type of the bound value.",
+              "$ref": "#/$defs/Type"
+            }
+          },
+          "required": [
+            "p",
+            "name",
+            "id",
+            "ty"
+          ]
+        },
+        {
+          "description": "Literal.",
+          "type": "object",
+          "properties": {
+            "p": {
+              "type": "string",
+              "const": "lit"
+            },
+            "value": {
+              "description": "Value.",
+              "$ref": "#/$defs/Expr"
+            }
+          },
+          "required": [
+            "p",
+            "value"
+          ]
+        },
+        {
+          "description": "`a..b` / `a..=b`.",
+          "type": "object",
+          "properties": {
+            "hi": {
+              "description": "End.",
+              "$ref": "#/$defs/Expr"
+            },
+            "inclusive": {
+              "description": "`..=`.",
+              "type": "boolean"
+            },
+            "lo": {
+              "description": "Start.",
+              "$ref": "#/$defs/Expr"
+            },
+            "p": {
+              "type": "string",
+              "const": "range"
+            }
+          },
+          "required": [
+            "p",
+            "lo",
+            "hi",
+            "inclusive"
+          ]
+        },
+        {
+          "description": "`Path(p, q)` or `Path(x: p)`.",
+          "type": "object",
+          "properties": {
+            "args": {
+              "description": "Positional sub-patterns.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Pattern"
+              }
+            },
+            "fields": {
+              "description": "Named sub-patterns.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/FieldPattern"
+              }
+            },
+            "p": {
+              "type": "string",
+              "const": "ctor"
+            },
+            "path": {
+              "description": "Dotted path.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "p",
+            "path"
+          ]
+        },
+        {
+          "description": "Enum variant or constant.",
+          "type": "object",
+          "properties": {
+            "p": {
+              "type": "string",
+              "const": "path"
+            },
+            "path": {
+              "description": "Dotted path.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "p",
+            "path"
+          ]
+        },
+        {
+          "description": "`(a, b)`.",
+          "type": "object",
+          "properties": {
+            "items": {
+              "description": "Elements.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Pattern"
+              }
+            },
+            "p": {
+              "type": "string",
+              "const": "tuple"
+            }
+          },
+          "required": [
+            "p",
+            "items"
+          ]
+        },
+        {
+          "description": "`A | B`.",
+          "type": "object",
+          "properties": {
+            "alts": {
+              "description": "Alternatives.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Pattern"
+              }
+            },
+            "p": {
+              "type": "string",
+              "const": "or"
+            }
+          },
+          "required": [
+            "p",
+            "alts"
+          ]
+        }
+      ]
+    },
+    "Port": {
+      "description": "hdl port.",
+      "type": "object",
+      "properties": {
+        "dir": {
+          "description": "`in`, `out` or `inout`.",
+          "type": "string"
+        },
+        "id": {
+          "description": "Local id.",
+          "type": "string"
+        },
+        "name": {
+          "description": "Name.",
+          "type": "string"
+        },
+        "pin": {
+          "description": "Pin.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Expr"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "span": {
+          "description": "Location.",
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "uint",
+            "minimum": 0
+          },
+          "maxItems": 2,
+          "minItems": 2
+        },
+        "ty": {
+          "description": "Type.",
+          "$ref": "#/$defs/TypeExpr"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "dir",
+        "ty",
+        "span"
+      ]
+    },
+    "Prop": {
+      "description": "A `verify:` property.",
+      "type": "object",
+      "properties": {
+        "def": {
+          "description": "The property.",
+          "$ref": "#/$defs/PropDef"
+        },
+        "span": {
+          "description": "Location.",
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "uint",
+            "minimum": 0
+          },
+          "maxItems": 2,
+          "minItems": 2
+        }
+      },
+      "required": [
+        "span",
+        "def"
+      ]
+    },
+    "PropDef": {
+      "description": "Property kinds.",
+      "oneOf": [
+        {
+          "description": "`never cond`.",
+          "type": "object",
+          "properties": {
+            "cond": {
+              "description": "Condition.",
+              "$ref": "#/$defs/Expr"
+            },
+            "prop": {
+              "type": "string",
+              "const": "never"
+            }
+          },
+          "required": [
+            "prop",
+            "cond"
+          ]
+        },
+        {
+          "description": "`always cond [implies cond]`.",
+          "type": "object",
+          "properties": {
+            "cond": {
+              "description": "Condition.",
+              "$ref": "#/$defs/Expr"
+            },
+            "implies": {
+              "description": "Consequence.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Expr"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "prop": {
+              "type": "string",
+              "const": "always"
+            }
+          },
+          "required": [
+            "prop",
+            "cond"
+          ]
+        },
+        {
+          "description": "`eventually_within D after E: G`.",
+          "type": "object",
+          "properties": {
+            "after": {
+              "description": "Trigger.",
+              "$ref": "#/$defs/Expr"
+            },
+            "goal": {
+              "description": "Goal.",
+              "$ref": "#/$defs/Expr"
+            },
+            "prop": {
+              "type": "string",
+              "const": "eventually_within"
+            },
+            "within": {
+              "description": "Bound.",
+              "$ref": "#/$defs/Expr"
+            }
+          },
+          "required": [
+            "prop",
+            "within",
+            "after",
+            "goal"
+          ]
+        }
+      ]
+    },
+    "Rule": {
+      "description": "`when cond for D:` rule.",
+      "type": "object",
+      "properties": {
+        "body": {
+          "description": "Body.",
+          "$ref": "#/$defs/Block"
+        },
+        "cond": {
+          "description": "Condition.",
+          "$ref": "#/$defs/Expr"
+        },
+        "hold": {
+          "description": "Hold duration.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Expr"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "span": {
+          "description": "Location.",
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "uint",
+            "minimum": 0
+          },
+          "maxItems": 2,
+          "minItems": 2
+        }
+      },
+      "required": [
+        "cond",
+        "body",
+        "span"
+      ]
+    },
+    "SafetyDef": {
+      "description": "Kinds of safety members.",
+      "oneOf": [
+        {
+          "description": "`rate D`.",
+          "type": "object",
+          "properties": {
+            "member": {
+              "type": "string",
+              "const": "rate"
+            },
+            "value": {
+              "description": "Value.",
+              "$ref": "#/$defs/Expr"
+            }
+          },
+          "required": [
+            "member",
+            "value"
+          ]
+        },
+        {
+          "description": "`watchdog D`.",
+          "type": "object",
+          "properties": {
+            "member": {
+              "type": "string",
+              "const": "watchdog"
+            },
+            "value": {
+              "description": "Value.",
+              "$ref": "#/$defs/Expr"
+            }
+          },
+          "required": [
+            "member",
+            "value"
+          ]
+        },
+        {
+          "description": "`safe_state:`.",
+          "type": "object",
+          "properties": {
+            "body": {
+              "description": "Body.",
+              "$ref": "#/$defs/Block"
+            },
+            "member": {
+              "type": "string",
+              "const": "safe_state"
+            }
+          },
+          "required": [
+            "member",
+            "body"
+          ]
+        },
+        {
+          "description": "`when ...:`.",
+          "type": "object",
+          "properties": {
+            "member": {
+              "type": "string",
+              "const": "rule"
+            },
+            "rule": {
+              "description": "The rule.",
+              "$ref": "#/$defs/Rule"
+            }
+          },
+          "required": [
+            "member",
+            "rule"
+          ]
+        },
+        {
+          "description": "`on fault [Name]:`.",
+          "type": "object",
+          "properties": {
+            "body": {
+              "description": "Body.",
+              "$ref": "#/$defs/Block"
+            },
+            "fault": {
+              "description": "Specific fault.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "member": {
+              "type": "string",
+              "const": "on_fault"
+            }
+          },
+          "required": [
+            "member",
+            "body"
+          ]
+        },
+        {
+          "description": "`reset when cond`.",
+          "type": "object",
+          "properties": {
+            "cond": {
+              "description": "Condition.",
+              "$ref": "#/$defs/Expr"
+            },
+            "member": {
+              "type": "string",
+              "const": "reset"
+            }
+          },
+          "required": [
+            "member",
+            "cond"
+          ]
+        }
+      ]
+    },
+    "SafetyMember": {
+      "description": "Member of `safety:`.",
+      "type": "object",
+      "properties": {
+        "def": {
+          "description": "The member.",
+          "$ref": "#/$defs/SafetyDef"
+        },
+        "span": {
+          "description": "Location.",
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "uint",
+            "minimum": 0
+          },
+          "maxItems": 2,
+          "minItems": 2
+        }
+      },
+      "required": [
+        "span",
+        "def"
+      ]
+    },
+    "SeqBranch": {
+      "description": "`branch name:` of a parallel block.",
+      "type": "object",
+      "properties": {
+        "items": {
+          "description": "Body.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SeqItem"
+          }
+        },
+        "name": {
+          "description": "Name.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "items"
+      ]
+    },
+    "SeqItem": {
+      "description": "Item of a sequence body.",
+      "oneOf": [
+        {
+          "description": "`step Name:`.",
+          "type": "object",
+          "properties": {
+            "body": {
+              "description": "Body.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/SeqItem"
+              }
+            },
+            "initial": {
+              "description": "`initial`.",
+              "type": "boolean"
+            },
+            "name": {
+              "description": "Name.",
+              "type": "string"
+            },
+            "seq": {
+              "type": "string",
+              "const": "step"
+            },
+            "span": {
+              "description": "Location.",
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            }
+          },
+          "required": [
+            "seq",
+            "name",
+            "body",
+            "span"
+          ]
+        },
+        {
+          "description": "`parallel:`.",
+          "type": "object",
+          "properties": {
+            "branches": {
+              "description": "Branches.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/SeqBranch"
+              }
+            },
+            "seq": {
+              "type": "string",
+              "const": "parallel"
+            },
+            "span": {
+              "description": "Location.",
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "format": "uint",
+                "minimum": 0
+              },
+              "maxItems": 2,
+              "minItems": 2
+            }
+          },
+          "required": [
+            "seq",
+            "branches",
+            "span"
+          ]
+        },
+        {
+          "description": "A statement.",
+          "type": "object",
+          "properties": {
+            "seq": {
+              "type": "string",
+              "const": "stmt"
+            },
+            "stmt": {
+              "description": "The statement.",
+              "$ref": "#/$defs/Stmt"
+            }
+          },
+          "required": [
+            "seq",
+            "stmt"
+          ]
+        }
+      ]
+    },
+    "State": {
+      "description": "One state.",
+      "type": "object",
+      "properties": {
+        "do": {
+          "description": "`do:`.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Block"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "entry": {
+          "description": "`entry:`.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Block"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "exit": {
+          "description": "`exit:`.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Block"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "final": {
+          "description": "`final`.",
+          "type": "boolean"
+        },
+        "initial": {
+          "description": "`initial`.",
+          "type": "boolean"
+        },
+        "name": {
+          "description": "Name.",
+          "type": "string"
+        },
+        "span": {
+          "description": "Location.",
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "uint",
+            "minimum": 0
+          },
+          "maxItems": 2,
+          "minItems": 2
+        },
+        "transitions": {
+          "description": "Transitions in source order.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Transition"
+          }
+        }
+      },
+      "required": [
+        "name",
+        "span"
+      ]
+    },
+    "Stmt": {
+      "description": "A statement.",
+      "type": "object",
+      "properties": {
+        "s": {
+          "description": "Kind.",
+          "$ref": "#/$defs/StmtKind"
+        },
+        "span": {
+          "description": "Location.",
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "uint",
+            "minimum": 0
+          },
+          "maxItems": 2,
+          "minItems": 2
+        }
+      },
+      "required": [
+        "span",
+        "s"
+      ]
+    },
+    "StmtKind": {
+      "description": "Statement kinds.",
+      "oneOf": [
+        {
+          "description": "`let` / `var`.",
+          "type": "object",
+          "properties": {
+            "mutable": {
+              "description": "`var`.",
+              "type": "boolean"
+            },
+            "pattern": {
+              "description": "Pattern.",
+              "$ref": "#/$defs/Pattern"
+            },
+            "s": {
+              "type": "string",
+              "const": "let"
+            },
+            "ty": {
+              "description": "Declared type.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/TypeExpr"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "value": {
+              "description": "Value.",
+              "$ref": "#/$defs/Expr"
+            }
+          },
+          "required": [
+            "s",
+            "mutable",
+            "pattern",
+            "value"
+          ]
+        },
+        {
+          "description": "`place op value [when cond]`.",
+          "type": "object",
+          "properties": {
+            "op": {
+              "description": "`=`, `+=`, ...",
+              "type": "string"
+            },
+            "place": {
+              "description": "Target.",
+              "$ref": "#/$defs/Expr"
+            },
+            "s": {
+              "type": "string",
+              "const": "assign"
+            },
+            "value": {
+              "description": "Value.",
+              "$ref": "#/$defs/Expr"
+            },
+            "when": {
+              "description": "Conditional assignment.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Expr"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "s",
+            "place",
+            "op",
+            "value"
+          ]
+        },
+        {
+          "description": "Expression statement.",
+          "type": "object",
+          "properties": {
+            "expr": {
+              "description": "The expression.",
+              "$ref": "#/$defs/Expr"
+            },
+            "s": {
+              "type": "string",
+              "const": "expr"
+            }
+          },
+          "required": [
+            "s",
+            "expr"
+          ]
+        },
+        {
+          "description": "`pass`.",
+          "type": "object",
+          "properties": {
+            "s": {
+              "type": "string",
+              "const": "pass"
+            }
+          },
+          "required": [
+            "s"
+          ]
+        },
+        {
+          "description": "`return [expr]`.",
+          "type": "object",
+          "properties": {
+            "s": {
+              "type": "string",
+              "const": "return"
+            },
+            "value": {
+              "description": "Value.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Expr"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "s"
+          ]
+        },
+        {
+          "description": "`break`.",
+          "type": "object",
+          "properties": {
+            "s": {
+              "type": "string",
+              "const": "break"
+            }
+          },
+          "required": [
+            "s"
+          ]
+        },
+        {
+          "description": "`continue`.",
+          "type": "object",
+          "properties": {
+            "s": {
+              "type": "string",
+              "const": "continue"
+            }
+          },
+          "required": [
+            "s"
+          ]
+        },
+        {
+          "description": "`fault Name(args)`.",
+          "type": "object",
+          "properties": {
+            "args": {
+              "description": "Arguments.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Arg"
+              }
+            },
+            "name": {
+              "description": "Fault name.",
+              "type": "string"
+            },
+            "s": {
+              "type": "string",
+              "const": "fault"
+            }
+          },
+          "required": [
+            "s",
+            "name"
+          ]
+        },
+        {
+          "description": "`assert cond, \"msg\"`.",
+          "type": "object",
+          "properties": {
+            "cond": {
+              "description": "Condition.",
+              "$ref": "#/$defs/Expr"
+            },
+            "msg": {
+              "description": "Message with its quotes.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "s": {
+              "type": "string",
+              "const": "assert"
+            }
+          },
+          "required": [
+            "s",
+            "cond"
+          ]
+        },
+        {
+          "description": "`emit Event(args)`.",
+          "type": "object",
+          "properties": {
+            "args": {
+              "description": "Payload.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Arg"
+              }
+            },
+            "event": {
+              "description": "Event.",
+              "type": "string"
+            },
+            "s": {
+              "type": "string",
+              "const": "emit"
+            }
+          },
+          "required": [
+            "s",
+            "event"
+          ]
+        },
+        {
+          "description": "`set x when c` / `reset x when c`.",
+          "type": "object",
+          "properties": {
+            "place": {
+              "description": "Target.",
+              "$ref": "#/$defs/Expr"
+            },
+            "s": {
+              "type": "string",
+              "const": "coil"
+            },
+            "set": {
+              "description": "`set`.",
+              "type": "boolean"
+            },
+            "when": {
+              "description": "Condition.",
+              "$ref": "#/$defs/Expr"
+            }
+          },
+          "required": [
+            "s",
+            "set",
+            "place",
+            "when"
+          ]
+        },
+        {
+          "description": "`wait D`.",
+          "type": "object",
+          "properties": {
+            "duration": {
+              "description": "Duration.",
+              "$ref": "#/$defs/Expr"
+            },
+            "s": {
+              "type": "string",
+              "const": "wait"
+            }
+          },
+          "required": [
+            "s",
+            "duration"
+          ]
+        },
+        {
+          "description": "`until cond timeout D -> Target`.",
+          "type": "object",
+          "properties": {
+            "cond": {
+              "description": "Condition.",
+              "$ref": "#/$defs/Expr"
+            },
+            "on_timeout": {
+              "description": "Step to jump to on timeout.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "s": {
+              "type": "string",
+              "const": "until"
+            },
+            "timeout": {
+              "description": "Timeout.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Expr"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "s",
+            "cond"
+          ]
+        },
+        {
+          "description": "`-> Target`.",
+          "type": "object",
+          "properties": {
+            "s": {
+              "type": "string",
+              "const": "jump"
+            },
+            "target": {
+              "description": "Step.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "s",
+            "target"
+          ]
+        },
+        {
+          "description": "robot `move`.",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "description": "`ptp`, `linear` or `arc`.",
+              "type": "string"
+            },
+            "options": {
+              "description": "Options.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/NamedExpr"
+              }
+            },
+            "s": {
+              "type": "string",
+              "const": "move"
+            },
+            "to": {
+              "description": "Target.",
+              "$ref": "#/$defs/Expr"
+            },
+            "via": {
+              "description": "Intermediate point.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Expr"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "s",
+            "kind",
+            "to"
+          ]
+        },
+        {
+          "description": "`if` / `elif` / `else`.",
+          "type": "object",
+          "properties": {
+            "branches": {
+              "description": "Branches.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/IfBranch"
+              }
+            },
+            "otherwise": {
+              "description": "`else`.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Block"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "s": {
+              "type": "string",
+              "const": "if"
+            }
+          },
+          "required": [
+            "s",
+            "branches"
+          ]
+        },
+        {
+          "description": "`match`.",
+          "type": "object",
+          "properties": {
+            "arms": {
+              "description": "Arms.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Arm"
+              }
+            },
+            "s": {
+              "type": "string",
+              "const": "match"
+            },
+            "value": {
+              "description": "Scrutinee.",
+              "$ref": "#/$defs/Expr"
+            }
+          },
+          "required": [
+            "s",
+            "value",
+            "arms"
+          ]
+        },
+        {
+          "description": "`for pattern in expr:`.",
+          "type": "object",
+          "properties": {
+            "body": {
+              "description": "Body.",
+              "$ref": "#/$defs/Block"
+            },
+            "count": {
+              "description": "Static number of iterations, when known.",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint64",
+              "minimum": 0
+            },
+            "iter": {
+              "description": "Iterated expression.",
+              "$ref": "#/$defs/Expr"
+            },
+            "pattern": {
+              "description": "Pattern.",
+              "$ref": "#/$defs/Pattern"
+            },
+            "s": {
+              "type": "string",
+              "const": "for"
+            }
+          },
+          "required": [
+            "s",
+            "pattern",
+            "iter",
+            "body"
+          ]
+        },
+        {
+          "description": "`while cond max N:`.",
+          "type": "object",
+          "properties": {
+            "body": {
+              "description": "Body.",
+              "$ref": "#/$defs/Block"
+            },
+            "cond": {
+              "description": "Condition or scrutinee.",
+              "$ref": "#/$defs/Expr"
+            },
+            "max": {
+              "description": "Bound.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Expr"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "pattern": {
+              "description": "Pattern of `while let`.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Pattern"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "s": {
+              "type": "string",
+              "const": "while"
+            }
+          },
+          "required": [
+            "s",
+            "cond",
+            "body"
+          ]
+        },
+        {
+          "description": "`loop max N:`.",
+          "type": "object",
+          "properties": {
+            "body": {
+              "description": "Body.",
+              "$ref": "#/$defs/Block"
+            },
+            "max": {
+              "description": "Bound.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Expr"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "s": {
+              "type": "string",
+              "const": "loop"
+            }
+          },
+          "required": [
+            "s",
+            "body"
+          ]
+        },
+        {
+          "description": "`atomic:`.",
+          "type": "object",
+          "properties": {
+            "body": {
+              "description": "Body.",
+              "$ref": "#/$defs/Block"
+            },
+            "s": {
+              "type": "string",
+              "const": "atomic"
+            }
+          },
+          "required": [
+            "s",
+            "body"
+          ]
+        },
+        {
+          "description": "Nested rule.",
+          "type": "object",
+          "properties": {
+            "rule": {
+              "description": "The rule.",
+              "$ref": "#/$defs/Rule"
+            },
+            "s": {
+              "type": "string",
+              "const": "rule"
+            }
+          },
+          "required": [
+            "s",
+            "rule"
+          ]
+        },
+        {
+          "description": "Inline assembly.",
+          "type": "object",
+          "properties": {
+            "asm": {
+              "description": "The block.",
+              "$ref": "#/$defs/Asm"
+            },
+            "s": {
+              "type": "string",
+              "const": "asm"
+            }
+          },
+          "required": [
+            "s",
+            "asm"
+          ]
+        }
+      ]
+    },
+    "TaskAttr": {
+      "description": "Task attribute.",
+      "oneOf": [
+        {
+          "description": "`prio N`.",
+          "type": "object",
+          "properties": {
+            "attr": {
+              "type": "string",
+              "const": "prio"
+            },
+            "value": {
+              "description": "Value.",
+              "$ref": "#/$defs/Expr"
+            }
+          },
+          "required": [
+            "attr",
+            "value"
+          ]
+        },
+        {
+          "description": "`deadline D`.",
+          "type": "object",
+          "properties": {
+            "attr": {
+              "type": "string",
+              "const": "deadline"
+            },
+            "value": {
+              "description": "Value.",
+              "$ref": "#/$defs/Expr"
+            }
+          },
+          "required": [
+            "attr",
+            "value"
+          ]
+        },
+        {
+          "description": "`core C`.",
+          "type": "object",
+          "properties": {
+            "attr": {
+              "type": "string",
+              "const": "core"
+            },
+            "value": {
+              "description": "Value.",
+              "$ref": "#/$defs/Expr"
+            }
+          },
+          "required": [
+            "attr",
+            "value"
+          ]
+        },
+        {
+          "description": "`stack S`.",
+          "type": "object",
+          "properties": {
+            "attr": {
+              "type": "string",
+              "const": "stack"
+            },
+            "value": {
+              "description": "Value.",
+              "$ref": "#/$defs/Expr"
+            }
+          },
+          "required": [
+            "attr",
+            "value"
+          ]
+        },
+        {
+          "description": "`reads a b`.",
+          "type": "object",
+          "properties": {
+            "attr": {
+              "type": "string",
+              "const": "reads"
+            },
+            "names": {
+              "description": "Names.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [
+            "attr",
+            "names"
+          ]
+        },
+        {
+          "description": "`writes a b`.",
+          "type": "object",
+          "properties": {
+            "attr": {
+              "type": "string",
+              "const": "writes"
+            },
+            "names": {
+              "description": "Names.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [
+            "attr",
+            "names"
+          ]
+        }
+      ]
+    },
+    "Transition": {
+      "description": "`-> Target when cond or after D`.",
+      "type": "object",
+      "properties": {
+        "action": {
+          "description": "Action.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Block"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "after": {
+          "description": "Timeout since entry.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Expr"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "span": {
+          "description": "Location.",
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "uint",
+            "minimum": 0
+          },
+          "maxItems": 2,
+          "minItems": 2
+        },
+        "target": {
+          "description": "Destination state.",
+          "type": "string"
+        },
+        "when": {
+          "description": "Guard.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Expr"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "target",
+        "span"
+      ]
+    },
+    "Trigger": {
+      "description": "Task trigger.",
+      "oneOf": [
+        {
+          "description": "`every P offset O`.",
+          "type": "object",
+          "properties": {
+            "offset": {
+              "description": "Phase.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Expr"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "period": {
+              "description": "Period.",
+              "$ref": "#/$defs/Expr"
+            },
+            "trigger": {
+              "type": "string",
+              "const": "every"
+            }
+          },
+          "required": [
+            "trigger",
+            "period"
+          ]
+        },
+        {
+          "description": "`on E`.",
+          "type": "object",
+          "properties": {
+            "event": {
+              "description": "Event.",
+              "$ref": "#/$defs/Expr"
+            },
+            "trigger": {
+              "type": "string",
+              "const": "on"
+            }
+          },
+          "required": [
+            "trigger",
+            "event"
+          ]
+        }
+      ]
+    },
+    "Type": {
+      "description": "A resolved type.",
+      "oneOf": [
+        {
+          "description": "External vocabulary that is not typed yet.",
+          "type": "object",
+          "properties": {
+            "t": {
+              "type": "string",
+              "const": "unknown"
+            }
+          },
+          "required": [
+            "t"
+          ]
+        },
+        {
+          "description": "No value.",
+          "type": "object",
+          "properties": {
+            "t": {
+              "type": "string",
+              "const": "void"
+            }
+          },
+          "required": [
+            "t"
+          ]
+        },
+        {
+          "description": "Diverges.",
+          "type": "object",
+          "properties": {
+            "t": {
+              "type": "string",
+              "const": "never"
+            }
+          },
+          "required": [
+            "t"
+          ]
+        },
+        {
+          "description": "`bool`.",
+          "type": "object",
+          "properties": {
+            "t": {
+              "type": "string",
+              "const": "bool"
+            }
+          },
+          "required": [
+            "t"
+          ]
+        },
+        {
+          "description": "Number with a unit.",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "description": "`u8` ... `i64`, `index`, `f32`, `f64`, `fixed<I, F>`, `ufixed<I, F>`,\n`duration`, or `integer` / `real` for literals without context.",
+              "type": "string"
+            },
+            "t": {
+              "type": "string",
+              "const": "num"
+            },
+            "unit": {
+              "description": "Unit (absent for plain numbers).",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Unit"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "t",
+            "kind"
+          ]
+        },
+        {
+          "description": "`bit<N>` / `sbit<N>`.",
+          "type": "object",
+          "properties": {
+            "signed": {
+              "description": "Signed.",
+              "type": "boolean"
+            },
+            "t": {
+              "type": "string",
+              "const": "bits"
+            },
+            "width": {
+              "description": "Width.",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "t",
+            "signed",
+            "width"
+          ]
+        },
+        {
+          "description": "`instant`.",
+          "type": "object",
+          "properties": {
+            "t": {
+              "type": "string",
+              "const": "instant"
+            }
+          },
+          "required": [
+            "t"
+          ]
+        },
+        {
+          "description": "`str` / `str<N>`.",
+          "type": "object",
+          "properties": {
+            "cap": {
+              "description": "Capacity.",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0
+            },
+            "t": {
+              "type": "string",
+              "const": "str"
+            }
+          },
+          "required": [
+            "t"
+          ]
+        },
+        {
+          "description": "`[T; N]`.",
+          "type": "object",
+          "properties": {
+            "elem": {
+              "description": "Element.",
+              "$ref": "#/$defs/Type"
+            },
+            "len": {
+              "description": "Length.",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint64",
+              "minimum": 0
+            },
+            "t": {
+              "type": "string",
+              "const": "array"
+            }
+          },
+          "required": [
+            "t",
+            "elem"
+          ]
+        },
+        {
+          "description": "`[T]`.",
+          "type": "object",
+          "properties": {
+            "elem": {
+              "description": "Element.",
+              "$ref": "#/$defs/Type"
+            },
+            "t": {
+              "type": "string",
+              "const": "slice"
+            }
+          },
+          "required": [
+            "t",
+            "elem"
+          ]
+        },
+        {
+          "description": "`(A, B)`.",
+          "type": "object",
+          "properties": {
+            "items": {
+              "description": "Elements.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Type"
+              }
+            },
+            "t": {
+              "type": "string",
+              "const": "tuple"
+            }
+          },
+          "required": [
+            "t",
+            "items"
+          ]
+        },
+        {
+          "description": "`range<T>`.",
+          "type": "object",
+          "properties": {
+            "elem": {
+              "description": "Element.",
+              "$ref": "#/$defs/Type"
+            },
+            "t": {
+              "type": "string",
+              "const": "range"
+            }
+          },
+          "required": [
+            "t",
+            "elem"
+          ]
+        },
+        {
+          "description": "`T?`.",
+          "type": "object",
+          "properties": {
+            "inner": {
+              "description": "Inner.",
+              "$ref": "#/$defs/Type"
+            },
+            "t": {
+              "type": "string",
+              "const": "option"
+            }
+          },
+          "required": [
+            "t",
+            "inner"
+          ]
+        },
+        {
+          "description": "`none` without context.",
+          "type": "object",
+          "properties": {
+            "t": {
+              "type": "string",
+              "const": "none_lit"
+            }
+          },
+          "required": [
+            "t"
+          ]
+        },
+        {
+          "description": "`Result<T, E>`.",
+          "type": "object",
+          "properties": {
+            "err": {
+              "description": "Error.",
+              "$ref": "#/$defs/Type"
+            },
+            "ok": {
+              "description": "Success.",
+              "$ref": "#/$defs/Type"
+            },
+            "t": {
+              "type": "string",
+              "const": "result"
+            }
+          },
+          "required": [
+            "t",
+            "ok",
+            "err"
+          ]
+        },
+        {
+          "description": "User struct, enum or class.",
+          "type": "object",
+          "properties": {
+            "args": {
+              "description": "Generic arguments.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Type"
+              }
+            },
+            "def": {
+              "description": "Item id of the definition.",
+              "type": "string"
+            },
+            "name": {
+              "description": "Name.",
+              "type": "string"
+            },
+            "t": {
+              "type": "string",
+              "const": "adt"
+            }
+          },
+          "required": [
+            "t",
+            "def",
+            "name"
+          ]
+        },
+        {
+          "description": "User interface.",
+          "type": "object",
+          "properties": {
+            "def": {
+              "description": "Item id.",
+              "type": "string"
+            },
+            "name": {
+              "description": "Name.",
+              "type": "string"
+            },
+            "t": {
+              "type": "string",
+              "const": "interface"
+            }
+          },
+          "required": [
+            "t",
+            "def",
+            "name"
+          ]
+        },
+        {
+          "description": "Generic parameter.",
+          "type": "object",
+          "properties": {
+            "name": {
+              "description": "Name.",
+              "type": "string"
+            },
+            "t": {
+              "type": "string",
+              "const": "param"
+            }
+          },
+          "required": [
+            "t",
+            "name"
+          ]
+        },
+        {
+          "description": "`channel<T, N>`.",
+          "type": "object",
+          "properties": {
+            "cap": {
+              "description": "Capacity.",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint64",
+              "minimum": 0
+            },
+            "elem": {
+              "description": "Element.",
+              "$ref": "#/$defs/Type"
+            },
+            "t": {
+              "type": "string",
+              "const": "channel"
+            }
+          },
+          "required": [
+            "t",
+            "elem"
+          ]
+        },
+        {
+          "description": "`pool<T, N>`.",
+          "type": "object",
+          "properties": {
+            "cap": {
+              "description": "Capacity.",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint64",
+              "minimum": 0
+            },
+            "elem": {
+              "description": "Element.",
+              "$ref": "#/$defs/Type"
+            },
+            "t": {
+              "type": "string",
+              "const": "pool"
+            }
+          },
+          "required": [
+            "t",
+            "elem"
+          ]
+        },
+        {
+          "description": "`Handle<T>`.",
+          "type": "object",
+          "properties": {
+            "elem": {
+              "description": "Element.",
+              "$ref": "#/$defs/Type"
+            },
+            "t": {
+              "type": "string",
+              "const": "handle"
+            }
+          },
+          "required": [
+            "t",
+            "elem"
+          ]
+        },
+        {
+          "description": "A function value.",
+          "type": "object",
+          "properties": {
+            "t": {
+              "type": "string",
+              "const": "fn"
+            }
+          },
+          "required": [
+            "t"
+          ]
+        },
+        {
+          "description": "An `io` binding.",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "description": "Peripheral kind.",
+              "type": "string"
+            },
+            "t": {
+              "type": "string",
+              "const": "io"
+            }
+          },
+          "required": [
+            "t",
+            "kind"
+          ]
+        },
+        {
+          "description": "Named external type (`point`, `ton`, ...).",
+          "type": "object",
+          "properties": {
+            "name": {
+              "description": "Name.",
+              "type": "string"
+            },
+            "t": {
+              "type": "string",
+              "const": "opaque"
+            }
+          },
+          "required": [
+            "t",
+            "name"
+          ]
+        },
+        {
+          "description": "A type used as a value.",
+          "type": "object",
+          "properties": {
+            "of": {
+              "description": "The type.",
+              "$ref": "#/$defs/Type"
+            },
+            "t": {
+              "type": "string",
+              "const": "type_ref"
+            }
+          },
+          "required": [
+            "t",
+            "of"
+          ]
+        },
+        {
+          "description": "A package module used as a value.",
+          "type": "object",
+          "properties": {
+            "id": {
+              "description": "Module id.",
+              "type": "string"
+            },
+            "t": {
+              "type": "string",
+              "const": "module"
+            }
+          },
+          "required": [
+            "t",
+            "id"
+          ]
+        },
+        {
+          "description": "A hardware or protocol event.",
+          "type": "object",
+          "properties": {
+            "t": {
+              "type": "string",
+              "const": "event"
+            }
+          },
+          "required": [
+            "t"
+          ]
+        }
+      ]
+    },
+    "TypeArg": {
+      "description": "Generic argument.",
+      "oneOf": [
+        {
+          "description": "Type argument.",
+          "type": "object",
+          "properties": {
+            "arg": {
+              "type": "string",
+              "const": "type"
+            },
+            "ty": {
+              "description": "The type.",
+              "$ref": "#/$defs/TypeExpr"
+            }
+          },
+          "required": [
+            "arg",
+            "ty"
+          ]
+        },
+        {
+          "description": "Constant argument.",
+          "type": "object",
+          "properties": {
+            "arg": {
+              "type": "string",
+              "const": "expr"
+            },
+            "expr": {
+              "description": "The expression.",
+              "$ref": "#/$defs/Expr"
+            }
+          },
+          "required": [
+            "arg",
+            "expr"
+          ]
+        }
+      ]
+    },
+    "TypeExpr": {
+      "description": "A type as written in the source.",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "description": "Kind.",
+          "$ref": "#/$defs/TypeExprKind"
+        },
+        "optional": {
+          "description": "`?` suffix.",
+          "type": "boolean"
+        },
+        "span": {
+          "description": "Location.",
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "uint",
+            "minimum": 0
+          },
+          "maxItems": 2,
+          "minItems": 2
+        },
+        "unit": {
+          "description": "Unit suffix.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/UnitRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "span"
+      ]
+    },
+    "TypeExprKind": {
+      "description": "Kinds of written types.",
+      "oneOf": [
+        {
+          "description": "`path<args>`.",
+          "type": "object",
+          "properties": {
+            "args": {
+              "description": "Generic arguments.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/TypeArg"
+              }
+            },
+            "path": {
+              "description": "Dotted path.",
+              "type": "string"
+            },
+            "t": {
+              "type": "string",
+              "const": "named"
+            }
+          },
+          "required": [
+            "t",
+            "path"
+          ]
+        },
+        {
+          "description": "`[T; N]`.",
+          "type": "object",
+          "properties": {
+            "elem": {
+              "description": "Element.",
+              "$ref": "#/$defs/TypeExpr"
+            },
+            "len": {
+              "description": "Length.",
+              "$ref": "#/$defs/Expr"
+            },
+            "t": {
+              "type": "string",
+              "const": "array"
+            }
+          },
+          "required": [
+            "t",
+            "elem",
+            "len"
+          ]
+        },
+        {
+          "description": "`[T]`.",
+          "type": "object",
+          "properties": {
+            "elem": {
+              "description": "Element.",
+              "$ref": "#/$defs/TypeExpr"
+            },
+            "t": {
+              "type": "string",
+              "const": "slice"
+            }
+          },
+          "required": [
+            "t",
+            "elem"
+          ]
+        },
+        {
+          "description": "`(A, B)`.",
+          "type": "object",
+          "properties": {
+            "items": {
+              "description": "Elements.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/TypeExpr"
+              }
+            },
+            "t": {
+              "type": "string",
+              "const": "tuple"
+            }
+          },
+          "required": [
+            "t",
+            "items"
+          ]
+        },
+        {
+          "description": "A bare unit (`degC` means `f32 degC`).",
+          "type": "object",
+          "properties": {
+            "t": {
+              "type": "string",
+              "const": "unit"
+            }
+          },
+          "required": [
+            "t"
+          ]
+        }
+      ]
+    },
+    "Unit": {
+      "description": "A resolved unit.",
+      "type": "object",
+      "properties": {
+        "dim": {
+          "description": "Exponents of the base dimensions in the order\n`s m kg A K mol cd rad count`.",
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "int8",
+            "maximum": 127,
+            "minimum": -128
+          },
+          "maxItems": 9,
+          "minItems": 9
+        },
+        "offset": {
+          "description": "Exact offset to the base unit (non-zero only for `degC` and `degF`).",
+          "type": "string"
+        },
+        "scale": {
+          "description": "Exact factor to the base unit, as a decimal or `n/d` string.",
+          "type": "string"
+        },
+        "text": {
+          "description": "Display text (`mm/s`, or the dimension name for derived units).",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text",
+        "dim",
+        "scale"
+      ]
+    },
+    "UnitFactor": {
+      "description": "One factor of a unit expression.",
+      "type": "object",
+      "properties": {
+        "exp": {
+          "description": "Exponent.",
+          "type": "integer",
+          "format": "int32"
+        },
+        "name": {
+          "description": "Unit name.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "exp"
+      ]
+    },
+    "UnitRef": {
+      "description": "A unit expression as written (`mm/s`).",
+      "type": "object",
+      "properties": {
+        "factors": {
+          "description": "Factors in source order with exponents (division gives negative exponents).",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/UnitFactor"
+          }
+        },
+        "text": {
+          "description": "Canonical text.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text",
+        "factors"
+      ]
+    },
+    "VarDecl": {
+      "description": "A variable declaration.",
+      "type": "object",
+      "properties": {
+        "at": {
+          "description": "Placement (`@ %I0.0`).",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Expr"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "id": {
+          "description": "Stable id (item id, local id `l3`, or field id).",
+          "type": "string"
+        },
+        "init": {
+          "description": "Initial value.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Expr"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "mutable": {
+          "description": "`var` (true) or `let` (false).",
+          "type": "boolean"
+        },
+        "name": {
+          "description": "Name.",
+          "type": "string"
+        },
+        "retain": {
+          "description": "`retain` (plc).",
+          "type": "boolean"
+        },
+        "span": {
+          "description": "Location.",
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "uint",
+            "minimum": 0
+          },
+          "maxItems": 2,
+          "minItems": 2
+        },
+        "ty": {
+          "description": "Declared type.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TypeExpr"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "vty": {
+          "description": "Resolved type.",
+          "$ref": "#/$defs/Type"
+        }
+      },
+      "required": [
+        "id",
+        "mutable",
+        "name",
+        "vty",
+        "span"
+      ]
+    },
+    "Variant": {
+      "description": "Enum variant.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "Name.",
+          "type": "string"
+        },
+        "payload": {
+          "description": "Payload types.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TypeExpr"
+          }
+        },
+        "span": {
+          "description": "Location.",
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "uint",
+            "minimum": 0
+          },
+          "maxItems": 2,
+          "minItems": 2
+        },
+        "value": {
+          "description": "Explicit discriminant.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Expr"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "name",
+        "span"
+      ]
+    },
+    "Widget": {
+      "description": "ui widget.",
+      "type": "object",
+      "properties": {
+        "children": {
+          "description": "Children.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Widget"
+          }
+        },
+        "events": {
+          "description": "Event handlers.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/WidgetEvent"
+          }
+        },
+        "kind": {
+          "description": "Kind (`label`, `button`, ...).",
+          "type": "string"
+        },
+        "name": {
+          "description": "Instance name.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "options": {
+          "description": "Options.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/NamedExpr"
+          }
+        },
+        "span": {
+          "description": "Location.",
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "uint",
+            "minimum": 0
+          },
+          "maxItems": 2,
+          "minItems": 2
+        },
+        "text": {
+          "description": "Text with its quotes.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "span"
+      ]
+    },
+    "WidgetEvent": {
+      "description": "`on press:` handler.",
+      "type": "object",
+      "properties": {
+        "body": {
+          "description": "Body.",
+          "$ref": "#/$defs/Block"
+        },
+        "name": {
+          "description": "Event name.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "body"
+      ]
+    }
+  }
+}

@@ -1106,7 +1106,8 @@ fn lit(l: &Lit) -> String {
         | Lit::ByteStr { text }
         | Lit::Char { text }
         | Lit::Iec { text }
-        | Lit::Bits { text } => text.clone(),
+        | Lit::Bits { text }
+        | Lit::Ip { text } => text.clone(),
         Lit::Bool { v } => if *v { "true" } else { "false" }.into(),
         Lit::None => "none".into(),
     }

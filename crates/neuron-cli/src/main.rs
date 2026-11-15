@@ -1,8 +1,8 @@
 //! `neuron` command line tool.
 //!
 //! Implemented: `--version`, `lex <file>`, `ast <file>`, `check <file|dir>...`
-//! (syntax and full semantic analysis). Planned: `fmt`, `build`, `flash`, `test`,
-//! `doc`, `pkg`, `explain`.
+//! (syntax and full semantic analysis), `emit-nir` and `print-nir` (spec 16).
+//! Planned: `fmt`, `build`, `flash`, `test`, `doc`, `pkg`, `explain`.
 
 use neuron_sema::{analyze, Reports, SemaOptions, SourceFile};
 use neuron_syntax::{lex, parse, LineIndex};
@@ -18,6 +18,10 @@ usage:
   neuron check [options] <file|dir>...
                                     analyze files, or a package (a directory with neuron.toml);
                                     exit code 1 on errors
+  neuron emit-nir <file|dir>... [-o out.nir.json]
+                                    analyze and write the program as canonical NIR JSON
+                                    (stdout by default); nothing is written on errors
+  neuron print-nir <file.nir.json>  print NIR back as Neuron source
 
 check options:
   --cpu-hz <n>     CPU clock in Hz: enables worst-case execution time analysis
@@ -87,6 +91,124 @@ fn collect(dir: &Path, out: &mut Vec<PathBuf>) -> std::io::Result<()> {
         }
     }
     Ok(())
+}
+
+/// Reads the files and directories given on the command line. A directory is a package:
+/// its `neuron.toml` is used as the manifest. With `relative`, the paths of files found
+/// in a directory are relative to it and use `/`, so the output does not depend on where
+/// the command runs or on the operating system.
+fn load(paths: &[String], relative: bool) -> Result<(Vec<SourceFile>, Option<String>), ExitCode> {
+    let mut files: Vec<(PathBuf, String)> = Vec::new();
+    let mut manifest: Option<String> = None;
+    for p in paths {
+        let path = Path::new(p);
+        if path.is_dir() {
+            if let Ok(m) = std::fs::read_to_string(path.join("neuron.toml")) {
+                manifest = Some(m);
+            }
+            let mut found = Vec::new();
+            if let Err(e) = collect(path, &mut found) {
+                eprintln!("error: cannot read {p}: {e}");
+                return Err(ExitCode::from(2));
+            }
+            for f in found {
+                let shown = if relative {
+                    f.strip_prefix(path)
+                        .unwrap_or(&f)
+                        .to_string_lossy()
+                        .replace('\\', "/")
+                } else {
+                    f.to_string_lossy().into_owned()
+                };
+                files.push((f, shown));
+            }
+        } else {
+            let shown = if relative {
+                path.file_name()
+                    .map_or_else(|| p.clone(), |n| n.to_string_lossy().into_owned())
+            } else {
+                p.clone()
+            };
+            files.push((path.to_path_buf(), shown));
+        }
+    }
+    let mut sources = Vec::new();
+    for (f, shown) in files {
+        let text = read(&f.to_string_lossy())?;
+        sources.push(SourceFile { path: shown, text });
+    }
+    Ok((sources, manifest))
+}
+
+/// `neuron emit-nir <file|dir>... [-o out.nir.json]`: analyzes and writes canonical NIR.
+fn cmd_emit_nir(args: &[String]) -> ExitCode {
+    let mut out: Option<String> = None;
+    let mut paths: Vec<String> = Vec::new();
+    let mut it = args.iter();
+    while let Some(a) = it.next() {
+        if a == "-o" || a == "--output" {
+            let Some(v) = it.next() else {
+                eprintln!("error: `{a}` needs a file name\n\n{USAGE}");
+                return ExitCode::from(2);
+            };
+            out = Some(v.clone());
+        } else {
+            paths.push(a.clone());
+        }
+    }
+    if paths.is_empty() {
+        eprintln!("error: `emit-nir` needs at least one file or directory\n\n{USAGE}");
+        return ExitCode::from(2);
+    }
+    let (sources, manifest) = match load(&paths, true) {
+        Ok(x) => x,
+        Err(code) => return code,
+    };
+    let analysis = analyze(sources, manifest.as_deref(), &SemaOptions::default());
+    eprint!("{}", analysis.render());
+    let Some(nir) = analysis.nir.as_ref() else {
+        eprintln!("error: no NIR was written because the program has errors");
+        return ExitCode::from(1);
+    };
+    let text = neuron_sema::nir::to_json(nir);
+    match out {
+        Some(path) => {
+            if let Err(e) = std::fs::write(&path, text) {
+                eprintln!("error: cannot write {path}: {e}");
+                return ExitCode::from(2);
+            }
+            eprintln!("wrote {path}");
+        }
+        None => print!("{text}"),
+    }
+    ExitCode::SUCCESS
+}
+
+/// `neuron print-nir <file.nir.json>`: prints NIR back as Neuron source.
+fn cmd_print_nir(path: &str) -> ExitCode {
+    let text = match read(path) {
+        Ok(s) => s,
+        Err(code) => return code,
+    };
+    let nir = match neuron_sema::nir::from_json(&text) {
+        Ok(n) => n,
+        Err(e) => {
+            eprintln!("error: {path} is not valid NIR: {e}");
+            return ExitCode::from(1);
+        }
+    };
+    let modules = neuron_sema::nir::print(&nir);
+    let many = modules.len() > 1;
+    for (i, (file, src)) in modules.iter().enumerate() {
+        if many {
+            if i > 0 {
+                println!();
+            }
+            println!("# ---- {file} ----");
+        }
+        print!("{src}");
+    }
+    ExitCode::SUCCESS
 }
 
 fn print_reports(r: &Reports) {
@@ -182,33 +304,10 @@ fn cmd_check(args: &[String]) -> ExitCode {
         eprintln!("error: `check` needs at least one file or directory\n\n{USAGE}");
         return ExitCode::from(2);
     }
-    let mut files: Vec<PathBuf> = Vec::new();
-    let mut manifest: Option<String> = None;
-    for p in &paths {
-        let path = Path::new(p);
-        if path.is_dir() {
-            if let Ok(m) = std::fs::read_to_string(path.join("neuron.toml")) {
-                manifest = Some(m);
-            }
-            if let Err(e) = collect(path, &mut files) {
-                eprintln!("error: cannot read {p}: {e}");
-                return ExitCode::from(2);
-            }
-        } else {
-            files.push(path.to_path_buf());
-        }
-    }
-    let mut sources = Vec::new();
-    for f in &files {
-        let display = f.to_string_lossy().into_owned();
-        match read(&display) {
-            Ok(text) => sources.push(SourceFile {
-                path: display,
-                text,
-            }),
-            Err(code) => return code,
-        }
-    }
+    let (sources, manifest) = match load(&paths, false) {
+        Ok(x) => x,
+        Err(code) => return code,
+    };
     let analysis = analyze(sources, manifest.as_deref(), &opts);
     eprint!("{}", analysis.render());
     let mut per_file = vec![0usize; analysis.paths.len()];
@@ -262,6 +361,14 @@ fn main() -> ExitCode {
             }
         },
         Some("check") => cmd_check(&args[1..]),
+        Some("emit-nir") => cmd_emit_nir(&args[1..]),
+        Some("print-nir") => match args.get(1) {
+            Some(path) => cmd_print_nir(path),
+            None => {
+                eprintln!("error: `print-nir` needs a .nir.json file\n\n{USAGE}");
+                ExitCode::from(2)
+            }
+        },
         Some(other) => {
             eprintln!("error: unknown command '{other}'\n\n{USAGE}");
             ExitCode::from(2)

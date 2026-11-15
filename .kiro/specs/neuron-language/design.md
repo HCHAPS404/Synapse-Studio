@@ -31,7 +31,7 @@ platform runtime), never from the grammar.
 | R10 dialects (was "profiles") | 09 |
 | R11 modules and packages | 04 §4.7 |
 | R12 syntax quality and diagnostics | 02, 10 |
-| R13 IR round trip | 01 §1.6 |
+| R13 IR round trip | 01 §1.6, 16 §16.7 |
 | R14 safety layers | 08 |
 | R15 architecture-aware compilation | 07 §7.7 |
 | Interchange (NIR, tags, wire, fidelity) | 11 |
@@ -39,6 +39,7 @@ platform runtime), never from the grammar.
 | Formatter (P-FMT) | 13 |
 | Models of computation, cell time, translation refinement | 14 |
 | Semantic analysis (names, types, dialect rules, time, safety) | 15 |
+| NIR: model, ids, canonical JSON, schema, printer (spec `.kiro/specs/neuron-nir/`) | 16 |
 
 ## Key decisions (ADR summary)
 
@@ -55,4 +56,4 @@ platform runtime), never from the grammar.
 ## Correctness properties (become property-based tests)
 
 LEX-1, LEX-2 (02) · UNIT-1 (03) · MEM-1, MEM-2 (05) · SRP-1..3, LET-1 (06) ·
-HW-1 (07) · SAFE-1, SAFE-2 (08) · VIEW-1 (09) · P-FMT and P-RT (requirements R12, R13).
+HW-1 (07) · SAFE-1, SAFE-2 (08) · VIEW-1 (09) · P-FMT (13) · NIR-1 and P-RT (16).

@@ -1347,6 +1347,11 @@ impl Lower<'_> {
                 index: self.bx(i),
                 end: end.as_ref().map(|x| self.bx(x)),
             },
+            ExprKind::Field(..) if ipv4_text(e).is_some() => nir::ExprKind::Lit {
+                lit: nir::Lit::Ip {
+                    text: ipv4_text(e).unwrap_or_default(),
+                },
+            },
             ExprKind::Field(b, id) => {
                 let target = match self.resolved.res.get(&key(self.mi, id.span)) {
                     Some(Res::Item { module, name }) => self.item_id(*module, name),
@@ -1409,6 +1414,32 @@ fn asm(a: &ast::AsmBlock) -> nir::Asm {
         operands: a.operands.clone(),
         lines: a.lines.clone(),
     }
+}
+
+/// `192.168.0.10` is read by the parser as the real `192.168` followed by the fields
+/// `0` and `10` (spec 02 §2.8: an IP address is not a token). This recognizes that shape
+/// when every part is a decimal octet and returns the address as written.
+fn ipv4_text(e: &ast::Expr) -> Option<String> {
+    let octet = |s: &str| {
+        !s.is_empty()
+            && s.len() <= 3
+            && s.bytes().all(|b| b.is_ascii_digit())
+            && s.parse::<u16>().is_ok_and(|v| v <= 255)
+    };
+    let ExprKind::Field(mid, d) = &e.kind else {
+        return None;
+    };
+    let ExprKind::Field(base, c) = &mid.kind else {
+        return None;
+    };
+    let ExprKind::Lit(ast::Lit::Real(ab)) = &base.kind else {
+        return None;
+    };
+    let (a, b) = ab.split_once('.')?;
+    [a, b, c.name.as_str(), d.name.as_str()]
+        .iter()
+        .all(|p| octet(p))
+        .then(|| format!("{ab}.{}.{}", c.name, d.name))
 }
 
 fn lit(l: &ast::Lit) -> nir::Lit {

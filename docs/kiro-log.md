@@ -118,3 +118,21 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
 - **Lessons:** the failures were a loose USB connection plus file-system errors, not the
   compiler. Comparing content with a clean clone, instead of trusting timestamps, was the
   only reliable way to find damaged files.
+
+## 2026-11-15 · Task A9 (NIR)
+- **Kiro features:** spec-driven development (new spec `.kiro/specs/neuron-nir`,
+  chapter 16 of the language specification, chapter 11 §11.1 rewritten as a summary),
+  steering (`rust-style`: deterministic output, no `unwrap`, documented public items),
+  property-based testing (`proptest`) for P-RT over mutated examples.
+- **Produced:** the `neuron-nir` crate (data model, canonical JSON, reader with version
+  check, JSON Schema, printer back to `.neuron`), lowering in `neuron-sema`
+  (`Analysis::nir`), the published schema `spec/schemas/nir.schema.json` with a drift
+  test, the golden file `conformance/golden/nir/examples.nir.json`, and the commands
+  `neuron emit-nir` and `neuron print-nir`. Properties NIR-1 and P-RT hold on the
+  examples package, each example, every valid spec program and generated variations.
+- **Lessons:** the round-trip property found two real problems before any user did:
+  `-40..40 mm` was printed in a form that reads back differently, and the unit offset
+  was lost when reading JSON. Reviewing the NIR of the examples also showed that
+  `ip(192.168.0.10)` was parsed as a number with fields; NIR now records an `ip`
+  literal. The drive failed a third time during this task; the work was rescued to a
+  clean clone on C:, committed from there, and E: was rewritten from GitHub.
