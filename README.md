@@ -127,50 +127,78 @@ syntax:
 - **`cell` (system level):** devices, links, shared zones, sequences and safety rules
   for a whole cell.
 
-> The syntax below is the **edition 2026 draft** from the
-> [language spec](.kiro/specs/neuron-language/). It is not frozen yet.
+> The syntax below is the **edition 2026 draft** defined in the
+> [language specification](spec/language/README.md) (v0.4). It is not frozen yet.
+> Both programs are copied from [`examples/`](examples/), which CI analyzes on every
+> commit.
 
-**A PID thermostat on a bare-metal MCU**
+**A PID thermostat on a bare-metal MCU** ([`examples/thermostat.neuron`](examples/thermostat.neuron))
 
 ```python
-module thermostat
+module thermostat for mcu on nucleo_f446re
+
 use std.control.{pid, lowpass}
-use std.hal.{adc, pwm}
 
 const target = 60 degC
 
-signal temp:   degC = adc.ch(0) |> scale(0..4095 -> 0..120 degC) |> lowpass(2 Hz)
-signal heater: pwm  = pwm.ch(1, freq: 1 kHz)
+io sensor: adc(resolution: 12)  @ ADC1.in0(PA0)
+io heater: pwm(freq: 1 kHz)     @ TIM2.ch2(PA1)
+io alarm:  gpio.output          @ PA5
 
-let ctl = pid(kp: 2.0, ki: 0.1, out: 0..100 %, antiwindup)
+signal temp: f32 degC
 
-task control every 100 ms (prio 2, deadline 20 ms, reads temp, writes heater):
+let filter = lowpass(cutoff: 2 Hz)
+var ctl = pid(kp: 2.0, ki: 0.1, out: 0..100 %, antiwindup: true)
+
+task measure every 10 ms (prio 3):
+  temp = sensor.read() |> scale(0..4095 -> 0..120 degC) |> filter.step()
+
+task control every 100 ms (prio 2, deadline 20 ms):
   heater.duty = ctl.step(target - temp)
 
 safety:
-  when temp > 90 degC:
+  watchdog 50 ms
+  safe_state:
     heater.duty = 0 %
+    alarm.write(true)
+  when temp > 90 degC:
     fault Overheat
 ```
 
-**A heterogeneous bottling cell**
+**A heterogeneous bottling cell** ([`examples/bottling_line.neuron`](examples/bottling_line.neuron))
 
 ```python
 cell BottlingLine
-  device plc:  s7_1200      @ ip(192.168.0.10)
-  device arm:  scara_t3     @ ip(192.168.0.20)
-  device fpga: artix7_board @ uart(COM4, 115200)
+  device ctl:  nucleo_f446re          @ usb
+  device plc:  generic_s7_1200        @ ip(192.168.0.10)
+  device arm:  generic_scara          @ ip(192.168.0.20)
+  device fpga: generic_artix7_board   @ uart(COM4, 115200 Bd)
 
-  link fpga.pulse   -> plc.in_sensor  via zero_hop(gpio) within 50 us
-  link plc.cap_done -> arm.pick_start via modbus_tcp every 10 ms within 25 ms
+  place thermostat on ctl
+  place conveyor on plc
+
+  event bottle_seen: timestamp, encoder: u32 from fpga
+
+  link fpga.bottle  -> plc.sensor  via zero_hop(gpio, opto_24v) within 15 ms
+  link plc.cap_done -> arm.pick    via modbus_tcp every 10 ms within 25 ms
+
+  tag line_speed: f32 mm/s @ plc.%MD20, ctl.speed
 
   zone press: box(x: 100..220 mm, y: -40..40 mm, z: 0..120 mm)
-  mutex press between arm, press_cylinder
+  mutex press between arm, plc.press_cylinder
 
   sequence Cycle on plc:
-    step Idle:  until sensor.rising
-    step Cap:   run capper.cycle(); until done or timeout 3 s -> Fault
-    step Move:  arm.pick_and_place(from: station_a, to: press)
+    initial step Idle:
+      until plc.sensor.rising
+    step Cap:
+      run plc.capper.cycle()
+      until plc.capper.done timeout 3 s -> Fault
+    step Move:
+      run arm.pick_and_place(from: conveyor_track(bottle_seen), to: press)
+      until arm.done timeout 5 s -> Fault
+      -> Idle
+    step Fault:
+      fault CycleFault
 ```
 
 <sub>Code blocks use Python highlighting only because GitHub has no Neuron grammar
@@ -190,14 +218,14 @@ yet. A TextMate grammar and a VS Code extension are planned.</sub>
 | **Hardware** | Typed registers generated from CMSIS-SVD, per-architecture `asm` blocks and `extern "C"`. |
 | **Abstraction** | `struct`, `enum` with payloads, `class` (also IEC function blocks), interfaces, static-dispatch generics, `Option`/`Result` (no exceptions). |
 | **Contracts** | `requires`, `ensures`, `invariant` and `deadline`, checked by the verifier. |
-| **Profiles** | `bare_metal_mcu`, `plc`, `hdl`, `robot` and `host`. Each profile restricts the legal constructs and explains why. |
+| **Dialects** | `core`, `mcu`, `plc`, `hdl`, `robot`, `ui`, `host` and `cell`, declared in each file header. Each dialect restricts the legal constructs and explains why (`NE0501`). |
 
 ### File formats
 
 | File | Purpose |
 |---|---|
 | `.neuron` | Source code, written by people and versioned in git. |
-| `.nir.json` | Canonical IR for interchange between tools. Validated with JSON Schema. |
+| `.nir.json` | Canonical IR for interchange between tools ([spec chapter 16](spec/language/16-nir.md)). Validated with the JSON Schema [`spec/schemas/nir.schema.json`](spec/schemas/nir.schema.json). |
 | `.layout.json` | Diagram positions, kept separate so moving a block does not touch the logic diff. |
 | `.scene.json` | Digital-twin scene. |
 | `.target` | Architecture and board description (ISA, ABI, memory map, peripherals). |
@@ -497,6 +525,8 @@ cd Synapse-Studio
 cargo test --workspace
 cargo run -p neuron-cli -- --version
 cargo run -p neuron-cli -- check examples --report --cpu-hz 16000000 --ram 2048
+cargo run -p neuron-cli -- emit-nir examples -o target/examples.nir.json   # canonical IR
+cargo run -p neuron-cli -- print-nir target/examples.nir.json              # IR back to source
 
 # Core API
 cd services/core
@@ -516,9 +546,9 @@ SYNAPSE Studio is built spec-first with [Kiro](https://kiro.dev). Everything is 
 
 | Kiro feature | How we use it |
 |---|---|
-| **Specs** | Requirements → design → tasks for every component, with **correctness properties** (units, formatter idempotence, IR round-trip, SRP race freedom) that become property-based tests. Example: [`neuron-language`](.kiro/specs/neuron-language/). |
+| **Specs** | Requirements → design → tasks for every component, with **correctness properties** (units, formatter idempotence, IR round-trip, SRP race freedom) that become property-based tests. Specs so far: [`neuron-language`](.kiro/specs/neuron-language/), [`neuron-sema`](.kiro/specs/neuron-sema/), [`neuron-nir`](.kiro/specs/neuron-nir/). |
 | **Steering** | Always-on: product, tech, structure and conventions. Loaded by file pattern: Rust, Python and TypeScript style, plus **code-generation safety rules** (synchronous HDL with no latches, non-blocking C, robot workspace checks, IEC conventions). |
-| **Agent hooks** | Secret guard before every file write, `cargo check` on save, a guard that fails if `.kiro` is ever gitignored, and evidence logging after each spec task. |
+| **Agent hooks** | `cargo check` on save, a guard that fails if `.kiro` is ever gitignored, and evidence logging after each spec task. Secret scanning runs in CI (gitleaks). |
 | **MCP** | *Planned:* a datasheet and register-map server for the AI Driver Builder, plus GitHub, Playwright and Neon integrations. |
 | **Custom agents** | *Planned:* `spec-reviewer`, `safety-auditor`, `emitter-author`, `manifest-builder`. |
 | **Property-based testing** | proptest (Rust) and Hypothesis (Python) from the first commit. |
@@ -533,13 +563,14 @@ SYNAPSE Studio is built spec-first with [Kiro](https://kiro.dev). Everything is 
 | Repository, license, governance, CI (compliance, Rust, Python) | ✅ |
 | Kiro steering and hooks | ✅ |
 | Core API skeleton with `/health` | ✅ |
-| Neuron language specification (edition 2026) | 🚧 draft v0.3 (15 chapters) |
+| Neuron language specification (edition 2026) | 🚧 draft v0.4 (16 chapters) |
 | Lexer, parser | ✅ |
 | Formatter | 📋 |
 | Names, modules and packages; types and units; dialect rules | ✅ (`neuron check`) |
 | SRP ceilings, response-time analysis, memory budget | ✅ (abstract cost model; target timing in B1) |
 | Safe-state checks and model checking of state machines and sequences | ✅ (counterexample traces) |
-| IR, interpreter, conformance vectors | 📋 |
+| NIR (canonical IR): JSON Schema, printer back to source, round-trip property | ✅ (`neuron emit-nir`, `neuron print-nir`) |
+| Interpreter, conformance vectors | 📋 |
 | Device manifests, resource solver, topologies | 📋 |
 | C backend and runtime, LLVM IR, native backends (RV32, Thumb-2, AVR, MSP430) | 📋 |
 | ISA simulators, virtual MCU, debugger | 📋 |
@@ -561,7 +592,7 @@ gantt
   Repo, CI, Kiro setup            :done,   f0, 2026-11-13, 2d
   Specifications                  :active, f1, 2026-11-14, 4d
   section Language and compiler
-  Front end and IR                :        f2, 2026-11-15, 6d
+  Front end and IR                :active, f2, 2026-11-15, 6d
   Backends and runtime            :        f4, 2026-11-18, 9d
   Cell compiler and verification  :        f6, 2026-11-19, 7d
   Emitters and importers          :        f7, 2026-11-20, 10d

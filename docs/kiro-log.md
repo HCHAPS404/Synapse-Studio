@@ -136,3 +136,6 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   `ip(192.168.0.10)` was parsed as a number with fields; NIR now records an `ip`
   literal. The drive failed a third time during this task; the work was rescued to a
   clean clone on C:, committed from there, and E: was rewritten from GitHub.
+- **Follow-up:** the README now shows the status after A9, the NIR commands, and the
+  two code samples copied from `examples/` (checked in CI) instead of an older draft
+  syntax.
