@@ -17,6 +17,7 @@
 mod check;
 mod consteval;
 mod facts;
+mod lower;
 mod manifest;
 mod mc;
 mod model;
@@ -32,6 +33,8 @@ mod visit;
 
 pub use manifest::Manifest;
 pub use model::{FileDiag, SourceFile};
+pub use lower::rat_text;
+pub use neuron_nir as nir;
 pub use report::{ActivityTiming, Counterexample, MemoryReport, Reports, ResourceInfo, TraceStep};
 
 use neuron_syntax::Diagnostic;
@@ -79,6 +82,8 @@ pub struct Analysis {
     pub diagnostics: Vec<FileDiag>,
     /// Timing, resources, memory and counterexamples.
     pub reports: Reports,
+    /// The program in NIR form (spec 16). `None` when there is any error.
+    pub nir: Option<neuron_nir::Nir>,
 }
 
 impl Analysis {
@@ -164,7 +169,13 @@ pub fn analyze(sources: Vec<SourceFile>, manifest: Option<&str>, opts: &SemaOpti
     }
     sort_diags(&mut diags);
     diags.dedup();
+    let nir = if diags.iter().any(|d| d.diag.is_error()) {
+        None
+    } else {
+        Some(lower::lower_program(&prog, &resolved, &checked))
+    };
     Analysis {
+        nir,
         paths,
         texts,
         diagnostics: diags,
