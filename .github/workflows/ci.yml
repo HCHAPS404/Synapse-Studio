@@ -18,9 +18,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          # gitleaks scans the commits of each push; a shallow clone lacks their history.
-          fetch-depth: 0
       - name: .kiro present and not gitignored
         shell: pwsh
         run: ./tools/check-kiro-not-ignored.ps1
