@@ -1,0 +1,51 @@
+schema = 1
+name = "atmega328p"
+source = "Own description. Pin functions and limits are facts from the public device documentation; no text or tables are copied."
+trust = "community"
+arch = "avr8"
+mcu = "atmega328p"
+flash_bytes = 32768
+ram_bytes = 2048
+voltage_mv = 5000
+
+peripherals = [
+  { name = "uart0", kind = "uart", aliases = ["usart0"], index = 0, pins = { tx = "PD1", rx = "PD0" } },
+  { name = "timer0", kind = "timer", bits = 8, prescalers = [1, 8, 64, 256, 1024] },
+  { name = "timer1", kind = "timer", bits = 16, prescalers = [1, 8, 64, 256, 1024] },
+  { name = "timer2", kind = "timer", bits = 8, prescalers = [1, 8, 32, 64, 128, 256, 1024] },
+  { name = "adc", kind = "adc", bits = 10 },
+]
+
+pins = [
+  { name = "PB0", port = "B", bit = 0, functions = ["gpio"] },
+  { name = "PB1", port = "B", bit = 1, functions = ["gpio", "pwm:timer1.a"] },
+  { name = "PB2", port = "B", bit = 2, functions = ["gpio", "pwm:timer1.b", "spi.ss"] },
+  { name = "PB3", port = "B", bit = 3, functions = ["gpio", "pwm:timer2.a", "spi.mosi"] },
+  { name = "PB4", port = "B", bit = 4, functions = ["gpio", "spi.miso"] },
+  { name = "PB5", port = "B", bit = 5, functions = ["gpio", "spi.sck"] },
+  { name = "PB6", port = "B", bit = 6, functions = ["xtal"] },
+  { name = "PB7", port = "B", bit = 7, functions = ["xtal"] },
+  { name = "PC0", port = "C", bit = 0, functions = ["gpio", "adc:0"] },
+  { name = "PC1", port = "C", bit = 1, functions = ["gpio", "adc:1"] },
+  { name = "PC2", port = "C", bit = 2, functions = ["gpio", "adc:2"] },
+  { name = "PC3", port = "C", bit = 3, functions = ["gpio", "adc:3"] },
+  { name = "PC4", port = "C", bit = 4, functions = ["gpio", "adc:4", "i2c.sda"] },
+  { name = "PC5", port = "C", bit = 5, functions = ["gpio", "adc:5", "i2c.scl"] },
+  { name = "PC6", port = "C", bit = 6, functions = ["reset"] },
+  { name = "PD0", port = "D", bit = 0, functions = ["gpio", "uart0.rx"] },
+  { name = "PD1", port = "D", bit = 1, functions = ["gpio", "uart0.tx"] },
+  { name = "PD2", port = "D", bit = 2, functions = ["gpio", "int:0"] },
+  { name = "PD3", port = "D", bit = 3, functions = ["gpio", "int:1", "pwm:timer2.b"] },
+  { name = "PD4", port = "D", bit = 4, functions = ["gpio"] },
+  { name = "PD5", port = "D", bit = 5, functions = ["gpio", "pwm:timer0.b"] },
+  { name = "PD6", port = "D", bit = 6, functions = ["gpio", "pwm:timer0.a"] },
+  { name = "PD7", port = "D", bit = 7, functions = ["gpio"] },
+]
+
+[clock]
+max_hz = 20000000
+post_dividers = [1, 2, 4, 8, 16, 32, 64, 128, 256]
+sources = [
+  { name = "xtal", min_hz = 1000000, max_hz = 20000000 },
+  { name = "rc", min_hz = 8000000, max_hz = 8000000 },
+]

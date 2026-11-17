@@ -1,0 +1,12 @@
+schema = 1
+name = "xtensa-lx7"
+source = "Own description of the Xtensa LX7 core of the ESP32-S3; facts from public vendor overviews."
+trust = "community"
+isa = "xtensa"
+word_bits = 32
+endian = "little"
+harvard = false
+fpu = true
+atomic_bits = 32
+interrupt_model = "xtensa-levels"
+toolchain = "xtensa-esp32s3-elf-gcc"

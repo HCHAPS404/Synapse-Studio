@@ -1,0 +1,16 @@
+[package]
+name = "neuron-sim-thumb"
+description = "Cycle-approximate simulator of an ARMv6-M (Cortex-M0+) core with SysTick and an RP2040-style GPIO block (task B6)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+thiserror = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true }

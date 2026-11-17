@@ -5,6 +5,7 @@
 
 const SYNTAX: &str = include_str!("../../../docs/errors/syntax.md");
 const ANALYSIS: &str = include_str!("../../../docs/errors/analysis.md");
+const TARGETS: &str = include_str!("../../../docs/errors/targets.md");
 const RESERVED: &str = include_str!("../../../docs/errors/reserved.md");
 
 /// Number of `#` that start a Markdown heading, and the heading text.
@@ -70,6 +71,7 @@ pub fn explain(code: &str) -> Option<String> {
     let code = code.trim().to_ascii_uppercase();
     section(SYNTAX, &code)
         .or_else(|| section(ANALYSIS, &code))
+        .or_else(|| section(TARGETS, &code))
         .or_else(|| reserved(&code))
 }
 
@@ -82,6 +84,8 @@ mod tests {
         assert!(explain("NE0001").is_some_and(|t| t.contains("2 spaces")));
         assert!(explain("ne0201").is_some_and(|t| t.starts_with("NE0201")));
         assert!(explain("NE0701").is_some_and(|t| t.contains("reserved")));
+        assert!(explain("NE0601").is_some_and(|t| t.contains("timer0")));
+        assert!(explain("ne0610").is_some_and(|t| t.starts_with("NE0610")));
         assert_eq!(explain("NE9999"), None);
     }
 

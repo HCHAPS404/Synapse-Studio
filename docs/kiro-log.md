@@ -202,3 +202,56 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   (a keyword used as a task name, `|>` precedence, `u8 <` read as generics, PLC
   inputs in `drive`). They are listed with their decisions. The final freeze needs a
   reviewer who did not write the specification.
+
+## 2026-11-16 · Task B1 (target model)
+- **Kiro features:** spec-driven development (`.kiro/specs/neuron-targets`), steering
+  (`conventions`: derive register facts with attribution, no vendor manuals copied),
+  agent-run tests through logged scripts.
+- **Produced:** crate `neuron-target` (TOML model, registry with the files embedded,
+  validation, pin and peripheral binding, clock-tree, UART, timer and PWM solvers),
+  `targets/` with 5 architectures, 7 chips, 8 boards and 4 runtimes
+  (`tools/gen-targets.ps1` generates the regular ones), `NE0601`–`NE0608` with
+  `docs/errors/targets.md`, and `neuron check` now runs the hardware checks.
+  Tests: TGT-1, HW-1 and CLK-1 (property tests) and one test per code.
+- **Lessons:** the UART default tolerance of 2 % in spec 07 would reject 115200 Bd on a
+  16 MHz UNO (2.1 % off, which works in practice); it is now 3 % and the spec says so.
+  Owning `timer0` for the runtime tick makes PWM on D5/D6 an `NE0601`, which is the
+  honest answer.
+
+## 2026-11-16 · Tasks B2 and B3 (MIR, C backend, runtime)
+- **Kiro features:** specs (`.kiro/specs/neuron-codegen-c`), differential testing against
+  the reference interpreter, golden files.
+- **Produced:** crate `neuron-mir` (typed structured IR, lowering from NIR with
+  `NE0610` for constructs outside the subset, verifier, printer), crate
+  `neuron-codegen-c` (C99 emitter with checked integer arithmetic, source map, embedded
+  runtime, gcc and avr-gcc drivers), `runtime/neuron-rt` (core scheduler, host port in
+  simulated time, AVR port for the ATmega328P and ATmega2560), goldens in
+  `conformance/golden/c/`, and `tools/install-toolchains.ps1` (gcc, avr-gcc and
+  avrdude, every download checked with SHA-256).
+- **Lessons:** the differential test against the interpreter found semantic differences
+  that reading the code had missed: a task release at the same instant as a fault reset
+  must be dropped, and a fault must abort the running activity. The oldest avr-gcc in the Arduino index (4.8.1) fails to
+  link on Windows, so the installer pins 7.3.0.
+
+## 2026-11-16 · Tasks B4 and B5 (build, flash, more boards)
+- **Kiro features:** spec task lists updated with what is done and what is not.
+- **Produced:** `neuron targets [board]`, `neuron emit-c`, `neuron build` (UNO, Mega,
+  `--board`, `--host`) and `neuron flash` (avrdude, programmer from the board file),
+  `crates/neuron-cli/tests/b4_cli.rs`, `docs/targets.md` with the tier table and the
+  supported subset, and CI installing `gcc-avr` so these tests never skip there.
+- **Lessons:** Pico, Pico 2 W, ESP32-S3, XIAO and NUCLEO boards are `described`: their
+  pins, clocks and rates are checked and their C is generated, but they have no runtime
+  port yet, and the tool says so instead of failing late. The UNO flash (gate G2) needs
+  the board on USB.
+
+## 2026-11-16 · Task B6 (instruction-set simulators)
+- **Kiro features:** spec written for the task after the AVR work
+  (`.kiro/specs/neuron-isa-simulators`), property tests.
+- **Produced:** crate `neuron-sim-avr` (ATmega328P, cycle counted, the peripherals the
+  runtime uses) whose tests run the avr-gcc firmware of six corpus programs and compare
+  the pins with the interpreter millisecond by millisecond (MOC-A1, also on random
+  inputs); crate `neuron-sim-thumb` (ARMv6-M core with SysTick, NVIC and an RP2040-style
+  GPIO block) tested with hand-assembled programs and a flags property test.
+- **Lessons:** the AVR simulator agreed with the interpreter on the first full run, which
+  checks the AVR port, the compiler flags and the tick timer together without a board.
+  The Thumb simulator cannot run Neuron firmware until the RP2040 runtime port exists.

@@ -1,0 +1,22 @@
+[package]
+name = "neuron-sim-avr"
+description = "Cycle-counted simulator of the ATmega328P: runs the real firmware images (task B6)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+thiserror = { workspace = true }
+
+[dev-dependencies]
+neuron-codegen-c = { path = "../neuron-codegen-c" }
+neuron-mir = { path = "../neuron-mir" }
+neuron-nir = { path = "../neuron-nir" }
+neuron-sema = { path = "../neuron-sema" }
+neuron-interp = { path = "../neuron-interp" }
+neuron-target = { path = "../neuron-target" }
+proptest = { workspace = true }

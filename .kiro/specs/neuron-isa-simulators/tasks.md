@@ -1,0 +1,15 @@
+# Tasks: MCU instruction-set simulators (B6)
+
+- [x] 1. `neuron-sim-avr`: instruction set, flags, cycle counts, Intel HEX loader with
+      checksums; unit tests.
+- [x] 2. AVR peripherals used by the runtime: GPIO, `INT0`/`INT1`, timer 0 CTC, PWM
+      compare, ADC, UART 0 TX, watchdog, sleep.
+- [x] 3. MOC-A1: firmware built by avr-gcc from the corpus (m01, m02, m06, m07, m08, m11)
+      runs in the simulator and matches the interpreter, plus random presses (property).
+- [x] 4. `neuron-sim-thumb`: ARMv6-M instruction set, exceptions, SysTick, NVIC, SIO GPIO;
+      tests with hand-assembled programs and a flags property test.
+- [ ] 5. Run RP2040 firmware built from Neuron in the Thumb simulator (needs the RP2040
+      runtime port of B5 and an `arm-none-eabi-gcc` toolchain).
+- [ ] 6. Expose both simulators to the digital twin as virtual devices (F7, with the WASM
+      build).
+- [x] 7. Evidence entry in `docs/kiro-log.md`.

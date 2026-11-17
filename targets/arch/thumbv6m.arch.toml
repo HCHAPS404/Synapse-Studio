@@ -1,0 +1,12 @@
+schema = 1
+name = "thumbv6m"
+source = "Own description of the Arm Cortex-M0+ class; facts from public Arm architecture overviews."
+trust = "community"
+isa = "thumb"
+word_bits = 32
+endian = "little"
+harvard = false
+fpu = false
+atomic_bits = 32
+interrupt_model = "nvic"
+toolchain = "arm-none-eabi-gcc"

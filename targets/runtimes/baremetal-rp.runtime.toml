@@ -1,0 +1,9 @@
+schema = 1
+name = "baremetal-rp"
+source = "Planned port of runtime/neuron-rt to the RP2040 and RP2350 (task B5)."
+trust = "community"
+kind = "baremetal"
+port = "rp"
+tick_hz = 1000
+reserves = ["systick"]
+cflags = ["-Os", "-ffunction-sections", "-fdata-sections"]

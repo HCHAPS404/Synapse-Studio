@@ -98,6 +98,8 @@ error[NE0201]: cannot add a length to a duration
 | NE0605 | requested clock frequency not achievable |
 | NE0606 | derived rate error above tolerance |
 | NE0607 | unknown target, chip or board |
+| NE0608 | peripheral option beyond what the chip supports |
+| NE0610 | construct not supported by the selected code generator |
 | NE0701 | link latency budget cannot be met |
 | NE0702 | clock domain crossing without synchronizer |
 | NE0703 | tag mapped to incompatible types or units on two devices |

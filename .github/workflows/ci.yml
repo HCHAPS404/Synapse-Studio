@@ -40,9 +40,14 @@ jobs:
         with:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
+      - name: C toolchains for the backend tests (host gcc, avr-gcc)
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends gcc-avr avr-libc binutils-avr
       - run: cargo fmt --all -- --check
       - run: cargo clippy --workspace --all-targets -- -D warnings
-      - run: cargo test --workspace
+      - name: Tests (the C backend and simulator tests must not skip)
+        env:
+          NEURON_REQUIRE_TOOLCHAIN: "1"
+        run: cargo test --workspace
       - name: Analyze the examples package
         run: cargo run --quiet -p neuron-cli -- check examples
       - name: Examples are formatted

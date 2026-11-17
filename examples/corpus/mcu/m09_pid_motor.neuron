@@ -2,7 +2,7 @@
 module m09_pid_motor for mcu on arduino_uno_r3
 
 io tach: adc(resolution: 10) @ A1
-io drive: pwm(freq: 2 kHz)   @ D10
+io drive: pwm(freq: 1 kHz)   @ D10
 
 const target = 600.0
 

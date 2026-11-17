@@ -1,0 +1,21 @@
+[package]
+name = "neuron-codegen-c"
+description = "C backend: MIR to portable C, the runtime sources, and the build and flash drivers (tasks B2 to B4)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+neuron-mir = { path = "../neuron-mir" }
+neuron-target = { path = "../neuron-target" }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+neuron-nir = { path = "../neuron-nir" }
+neuron-sema = { path = "../neuron-sema" }
+neuron-interp = { path = "../neuron-interp" }
+proptest = { workspace = true }

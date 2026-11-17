@@ -1,0 +1,12 @@
+schema = 1
+name = "avr8"
+source = "Own description. Facts come from the public AVR architecture documentation; no text is copied."
+trust = "community"
+isa = "avr"
+word_bits = 8
+endian = "little"
+harvard = true
+fpu = false
+atomic_bits = 8
+interrupt_model = "avr-vectors"
+toolchain = "avr-gcc"

@@ -72,7 +72,9 @@ clocks:
   nearest achievable values.
 - All derived rates (baud rates, PWM frequencies, timer periods, SPI and I2C clocks,
   ADC sampling) are computed from the tree. The achieved error is reported; above
-  the tolerance (`@tolerance(2 %)` by default for UART) it is `NE0606`.
+  the tolerance it is `NE0606`. The default tolerance is 3 % for UART (115200 Bd from
+  16 MHz is 2.1 % off and works in practice) and 5 % for PWM carriers; a binding
+  can set its own with the `tolerance` option.
 - Without a `clocks:` block, the board default (reset clock) is used.
 
 ## 7.4 Typed registers

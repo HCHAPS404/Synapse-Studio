@@ -1,0 +1,20 @@
+[package]
+name = "neuron-target"
+description = "Target descriptions (architecture, chip, board, runtime), pin and clock solvers"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+neuron-nir = { path = "../neuron-nir" }
+serde = { workspace = true }
+thiserror = { workspace = true }
+toml = "0.8"
+
+[dev-dependencies]
+proptest = { workspace = true }
+neuron-sema = { path = "../neuron-sema" }

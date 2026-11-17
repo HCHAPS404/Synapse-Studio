@@ -1,0 +1,9 @@
+schema = 1
+name = "baremetal-avr"
+source = "Own runtime: runtime/neuron-rt (C, no heap, no RTOS)."
+trust = "community"
+kind = "baremetal"
+port = "avr"
+tick_hz = 1000
+reserves = ["timer0"]
+cflags = ["-Os", "-ffunction-sections", "-fdata-sections", "-Wl,--gc-sections"]

@@ -1,0 +1,9 @@
+schema = 1
+name = "baremetal-stm32"
+source = "Planned port of runtime/neuron-rt to STM32 parts (task B5)."
+trust = "community"
+kind = "baremetal"
+port = "stm32"
+tick_hz = 1000
+reserves = ["systick"]
+cflags = ["-Os", "-ffunction-sections", "-fdata-sections"]

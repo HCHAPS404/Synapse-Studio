@@ -1,0 +1,9 @@
+schema = 1
+name = "esp-idf"
+source = "Planned port of the scheduler onto the vendor SDK (task B5); the SDK is not redistributed."
+trust = "community"
+kind = "vendor-sdk"
+port = "esp-idf"
+tick_hz = 1000
+reserves = []
+cflags = []

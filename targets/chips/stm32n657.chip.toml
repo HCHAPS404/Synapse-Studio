@@ -1,0 +1,51 @@
+schema = 1
+name = "stm32n657"
+source = "Placeholder. The pin and clock data are incomplete until the SVD import (task B1b) and the lab session."
+trust = "community"
+arch = "thumbv8m"
+mcu = "stm32n657"
+flash_bytes = 0
+ram_bytes = 4194304
+voltage_mv = 3300
+
+pins = [
+  { name = "PA0", port = "A", bit = 0, functions = ["gpio", "int:0"] },
+  { name = "PA1", port = "A", bit = 1, functions = ["gpio", "int:1"] },
+  { name = "PA2", port = "A", bit = 2, functions = ["gpio", "int:2"] },
+  { name = "PA3", port = "A", bit = 3, functions = ["gpio", "int:3"] },
+  { name = "PA4", port = "A", bit = 4, functions = ["gpio", "int:4"] },
+  { name = "PA5", port = "A", bit = 5, functions = ["gpio", "int:5"] },
+  { name = "PA6", port = "A", bit = 6, functions = ["gpio", "int:6"] },
+  { name = "PA7", port = "A", bit = 7, functions = ["gpio", "int:7"] },
+  { name = "PA8", port = "A", bit = 8, functions = ["gpio", "int:8"] },
+  { name = "PA9", port = "A", bit = 9, functions = ["gpio", "int:9"] },
+  { name = "PA10", port = "A", bit = 10, functions = ["gpio", "int:10"] },
+  { name = "PA11", port = "A", bit = 11, functions = ["gpio", "int:11"] },
+  { name = "PA12", port = "A", bit = 12, functions = ["gpio", "int:12"] },
+  { name = "PA13", port = "A", bit = 13, functions = ["gpio", "int:13"] },
+  { name = "PA14", port = "A", bit = 14, functions = ["gpio", "int:14"] },
+  { name = "PA15", port = "A", bit = 15, functions = ["gpio", "int:15"] },
+  { name = "PB0", port = "B", bit = 0, functions = ["gpio", "int:0"] },
+  { name = "PB1", port = "B", bit = 1, functions = ["gpio", "int:1"] },
+  { name = "PB2", port = "B", bit = 2, functions = ["gpio", "int:2"] },
+  { name = "PB3", port = "B", bit = 3, functions = ["gpio", "int:3"] },
+  { name = "PB4", port = "B", bit = 4, functions = ["gpio", "int:4"] },
+  { name = "PB5", port = "B", bit = 5, functions = ["gpio", "int:5"] },
+  { name = "PB6", port = "B", bit = 6, functions = ["gpio", "int:6"] },
+  { name = "PB7", port = "B", bit = 7, functions = ["gpio", "int:7"] },
+  { name = "PB8", port = "B", bit = 8, functions = ["gpio", "int:8"] },
+  { name = "PB9", port = "B", bit = 9, functions = ["gpio", "int:9"] },
+  { name = "PB10", port = "B", bit = 10, functions = ["gpio", "int:10"] },
+  { name = "PB11", port = "B", bit = 11, functions = ["gpio", "int:11"] },
+  { name = "PB12", port = "B", bit = 12, functions = ["gpio", "int:12"] },
+  { name = "PB13", port = "B", bit = 13, functions = ["gpio", "int:13"] },
+  { name = "PB14", port = "B", bit = 14, functions = ["gpio", "int:14"] },
+  { name = "PB15", port = "B", bit = 15, functions = ["gpio", "int:15"] },
+]
+
+[clock]
+max_hz = 600000000
+post_dividers = [1]
+sources = [
+  { name = "hse", min_hz = 16000000, max_hz = 48000000 },
+]

@@ -1,8 +1,9 @@
 //! `neuron` command line tool.
 //!
 //! Implemented: `--version`, `lex <file>`, `ast <file>`, `check <file|dir>...`
-//! (syntax and full semantic analysis), `emit-nir` and `print-nir` (spec 16).
-//! Planned: `fmt`, `build`, `flash`, `test`, `doc`, `pkg`, `explain`.
+//! (syntax and full semantic analysis), `emit-nir` and `print-nir` (spec 16), `fmt`,
+//! `explain`, `lsp`, `run`, `test`, and the hardware path `targets`, `emit-c`, `build`
+//! and `flash` (tasks B1 to B4). Planned: `doc`, `pkg`.
 
 use neuron_sema::{analyze, Reports, SemaOptions, SourceFile};
 use neuron_syntax::{lex, parse, LineIndex};
@@ -30,6 +31,16 @@ usage:
   neuron run [options] <file|dir>...
                                     run the program in simulated time and print what it does
   neuron test <file|dir>...         run the `test` blocks of the program
+  neuron targets [board]            list the boards, or describe one (pins, clocks, runtime)
+  neuron emit-c <file|dir>... [--board b] [-o dir]
+                                    check the program against its board and print the C
+                                    (with `-o`, write it with the runtime sources)
+  neuron build <file|dir>... [--board b] [--out dir] [--host]
+                                    check, generate C and compile the firmware
+                                    (default build/<board>/app.hex); `--host` builds a
+                                    host executable that runs in simulated time
+  neuron flash <file|dir>... --port <port> [--board b]
+                                    build and write the firmware to the board (avrdude)
 
 run options:
   --for <time>        simulated time to run, such as `2 s` or `500ms` (default 1 s)
@@ -438,6 +449,249 @@ fn cmd_test(args: &[String]) -> ExitCode {
     }
 }
 
+fn registry() -> Result<neuron_target::Registry, ExitCode> {
+    neuron_target::Registry::builtin().map_err(|e| {
+        eprintln!("error[NE0607]: the embedded target descriptions are invalid: {e}");
+        ExitCode::from(2)
+    })
+}
+
+/// `neuron targets [board]`: the boards, or the details of one.
+fn cmd_targets(args: &[String]) -> ExitCode {
+    let reg = match registry() {
+        Ok(r) => r,
+        Err(code) => return code,
+    };
+    match args.first() {
+        None => {
+            print!("{}", neuron_cli::hw::targets_table(&reg));
+            ExitCode::SUCCESS
+        }
+        Some(board) => match neuron_cli::hw::target_detail(&reg, board) {
+            Ok(text) => {
+                print!("{text}");
+                ExitCode::SUCCESS
+            }
+            Err(e) => {
+                eprintln!("{e}");
+                ExitCode::from(1)
+            }
+        },
+    }
+}
+
+/// Options shared by `emit-c`, `build` and `flash`.
+#[derive(Default)]
+struct HwArgs {
+    paths: Vec<String>,
+    board: Option<String>,
+    out: Option<String>,
+    port: Option<String>,
+    host: bool,
+}
+
+fn parse_hw_args(cmd: &str, args: &[String]) -> Result<HwArgs, ExitCode> {
+    let mut h = HwArgs::default();
+    let mut it = args.iter();
+    while let Some(a) = it.next() {
+        match a.as_str() {
+            "--board" | "-o" | "--out" | "--port" => {
+                let Some(v) = it.next() else {
+                    eprintln!("error: `{a}` needs a value\n\n{USAGE}");
+                    return Err(ExitCode::from(2));
+                };
+                match a.as_str() {
+                    "--board" => h.board = Some(v.clone()),
+                    "--port" => h.port = Some(v.clone()),
+                    _ => h.out = Some(v.clone()),
+                }
+            }
+            "--host" => h.host = true,
+            other => h.paths.push(other.to_string()),
+        }
+    }
+    if h.paths.is_empty() {
+        eprintln!("error: `{cmd}` needs at least one file or directory\n\n{USAGE}");
+        return Err(ExitCode::from(2));
+    }
+    Ok(h)
+}
+
+/// Analysis, hardware checks, lowering and C, for the hardware commands.
+fn prepare_hw(h: &HwArgs) -> Result<neuron_cli::hw::Prepared, ExitCode> {
+    let reg = registry()?;
+    let (sources, manifest) = load(&h.paths, true)?;
+    let analysis = analyze(sources, manifest.as_deref(), &SemaOptions::default());
+    eprint!("{}", analysis.render());
+    let Some(mut nir) = analysis.nir.clone() else {
+        eprintln!("error: the program has errors, so nothing was built");
+        return Err(ExitCode::from(1));
+    };
+    if let Some(b) = &h.board {
+        neuron_cli::hw::override_board(&mut nir, b);
+    }
+    neuron_cli::hw::prepare(&reg, &nir, &analysis.paths, &analysis.texts).map_err(|e| {
+        eprintln!("{e}");
+        ExitCode::from(1)
+    })
+}
+
+fn out_dir(h: &HwArgs, p: &neuron_cli::hw::Prepared) -> PathBuf {
+    match &h.out {
+        Some(o) => PathBuf::from(o),
+        None => Path::new("build").join(&p.target.board.name),
+    }
+}
+
+/// `neuron emit-c <file|dir>... [--board b] [-o dir]`: the generated C, without compiling it.
+fn cmd_emit_c(args: &[String]) -> ExitCode {
+    let h = match parse_hw_args("emit-c", args) {
+        Ok(h) => h,
+        Err(code) => return code,
+    };
+    let p = match prepare_hw(&h) {
+        Ok(p) => p,
+        Err(code) => return code,
+    };
+    let Some(dir) = &h.out else {
+        print!("{}", p.emitted.c);
+        return ExitCode::SUCCESS;
+    };
+    let dir = PathBuf::from(dir);
+    let port = if p.target.arch.isa == "avr" && !h.host {
+        neuron_codegen_c::Port::Avr
+    } else {
+        neuron_codegen_c::Port::Host
+    };
+    let mut files: Vec<(String, String)> = vec![
+        ("app.c".into(), p.emitted.c.clone()),
+        ("app.map.json".into(), p.emitted.map_json.clone()),
+    ];
+    for f in neuron_codegen_c::runtime_files(port) {
+        files.push((f.name.to_string(), f.text.to_string()));
+    }
+    if let Err(e) = std::fs::create_dir_all(&dir) {
+        eprintln!("error: cannot create {}: {e}", dir.display());
+        return ExitCode::from(2);
+    }
+    for (name, text) in files {
+        if let Err(e) = std::fs::write(dir.join(&name), text) {
+            eprintln!("error: cannot write {name}: {e}");
+            return ExitCode::from(2);
+        }
+    }
+    eprintln!("wrote the C sources and the runtime to {}", dir.display());
+    ExitCode::SUCCESS
+}
+
+/// Builds for the board (or for the host with `--host`). Returns the HEX image.
+fn build(h: &HwArgs) -> Result<(neuron_cli::hw::Prepared, PathBuf), ExitCode> {
+    let p = prepare_hw(h)?;
+    let dir = out_dir(h, &p);
+    if h.host {
+        return match neuron_codegen_c::build_host(&p.emitted, &dir) {
+            Ok(exe) => {
+                eprintln!("built {} for the host (simulated time)", exe.display());
+                eprintln!("run it with: {} --for 2000 [scenario-file]", exe.display());
+                Ok((p, exe))
+            }
+            Err(e) => {
+                eprintln!("error: {e}");
+                Err(ExitCode::from(1))
+            }
+        };
+    }
+    if p.target.board.tier != neuron_target::Tier::Runtime || p.target.arch.isa != "avr" {
+        eprintln!(
+            "error: `{}` is a `described` board: its pins, clocks and rates were checked, but the runtime \
+             has no port for `{}` yet.\nUse `neuron emit-c` for the C, `--host` for a host build, or \
+             `neuron run` for the interpreter. Boards that build: `neuron targets`.",
+            p.target.board.name, p.target.chip.name
+        );
+        return Err(ExitCode::from(1));
+    }
+    match neuron_codegen_c::build_avr(&p.emitted, &p.target.chip.mcu, p.program.sysclk_hz, &dir) {
+        Ok(b) => {
+            eprintln!(
+                "built {} for {} ({} at {} Hz)",
+                b.hex.display(),
+                p.target.board.name,
+                p.target.chip.mcu,
+                p.program.sysclk_hz
+            );
+            if !b.size_report.trim().is_empty() {
+                eprintln!("{}", b.size_report.trim_end());
+            }
+            Ok((p, b.hex))
+        }
+        Err(e) => {
+            eprintln!("error: {e}");
+            Err(ExitCode::from(1))
+        }
+    }
+}
+
+/// `neuron build <file|dir>... [--board b] [--out dir] [--host]`
+fn cmd_build(args: &[String]) -> ExitCode {
+    let h = match parse_hw_args("build", args) {
+        Ok(h) => h,
+        Err(code) => return code,
+    };
+    match build(&h) {
+        Ok(_) => ExitCode::SUCCESS,
+        Err(code) => code,
+    }
+}
+
+/// `neuron flash <file|dir>... --port COM3 [--board b]`: builds and writes the board.
+fn cmd_flash(args: &[String]) -> ExitCode {
+    let h = match parse_hw_args("flash", args) {
+        Ok(h) => h,
+        Err(code) => return code,
+    };
+    if h.host {
+        eprintln!("error: `--host` builds cannot be flashed");
+        return ExitCode::from(2);
+    }
+    let Some(port) = h.port.clone() else {
+        eprintln!("error: `flash` needs `--port` (such as COM3 or /dev/ttyACM0)\n\n{USAGE}");
+        return ExitCode::from(2);
+    };
+    let (p, hex) = match build(&h) {
+        Ok(x) => x,
+        Err(code) => return code,
+    };
+    let Some(prog) = &p.target.board.programmer else {
+        eprintln!(
+            "error: `{}` does not say how it is programmed",
+            p.target.board.name
+        );
+        return ExitCode::from(1);
+    };
+    if prog.tool != "avrdude" {
+        eprintln!("error: flashing with `{}` is not supported yet", prog.tool);
+        return ExitCode::from(1);
+    }
+    let opts = neuron_codegen_c::FlashOptions {
+        mcu: p.target.chip.mcu.clone(),
+        programmer: prog.protocol.clone().unwrap_or_else(|| "arduino".into()),
+        port,
+        baud: prog.baud.unwrap_or(115_200),
+    };
+    eprintln!("flashing {} through {} ...", p.target.board.name, opts.port);
+    match neuron_codegen_c::flash_avr(&hex, &opts) {
+        Ok(log) => {
+            eprintln!("{}", log.trim_end());
+            eprintln!("done");
+            ExitCode::SUCCESS
+        }
+        Err(e) => {
+            eprintln!("error: {e}");
+            ExitCode::from(1)
+        }
+    }
+}
+
 /// `neuron print-nir <file.nir.json>`: prints NIR back as Neuron source.
 fn cmd_print_nir(path: &str) -> ExitCode {
     let text = match read(path) {
@@ -568,6 +822,24 @@ fn cmd_check(args: &[String]) -> ExitCode {
     for d in analysis.errors() {
         per_file[d.file] += 1;
     }
+    // Hardware checks against the board of each `mcu` module (spec 07, task B1).
+    let mut hw_errors = 0usize;
+    if let Some(nir) = &analysis.nir {
+        let reg = match registry() {
+            Ok(r) => r,
+            Err(code) => return code,
+        };
+        for d in neuron_target::check(&reg, nir).diags {
+            eprintln!(
+                "{}",
+                neuron_cli::hw::render_diag(&d, &analysis.paths, &analysis.texts)
+            );
+            if let Some(i) = analysis.paths.iter().position(|p| *p == d.file) {
+                per_file[i] += 1;
+            }
+            hw_errors += 1;
+        }
+    }
     for (path, n) in analysis.paths.iter().zip(&per_file) {
         if *n == 0 {
             println!("{path}: ok");
@@ -578,7 +850,7 @@ fn cmd_check(args: &[String]) -> ExitCode {
     if report {
         print_reports(&analysis.reports);
     }
-    if analysis.is_ok() {
+    if analysis.is_ok() && hw_errors == 0 {
         ExitCode::SUCCESS
     } else {
         ExitCode::from(1)
@@ -636,6 +908,10 @@ fn main() -> ExitCode {
             }
         },
         Some("run") => cmd_run(&args[1..]),
+        Some("targets") => cmd_targets(&args[1..]),
+        Some("emit-c") => cmd_emit_c(&args[1..]),
+        Some("build") => cmd_build(&args[1..]),
+        Some("flash") => cmd_flash(&args[1..]),
         Some("test") => cmd_test(&args[1..]),
         Some("print-nir") => match args.get(1) {
             Some(path) => cmd_print_nir(path),

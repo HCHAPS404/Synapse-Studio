@@ -1,0 +1,15 @@
+[package]
+name = "neuron-mir"
+description = "MIR: the typed, unit-free intermediate form that code generators read (task B2)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+neuron-nir = { path = "../neuron-nir" }
+neuron-syntax = { path = "../neuron-syntax" }
+neuron-target = { path = "../neuron-target" }
