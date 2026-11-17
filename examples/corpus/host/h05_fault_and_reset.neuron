@@ -1,0 +1,13 @@
+## A watchdog task that faults when a heartbeat input stops, and resets on acknowledge.
+module h05_fault_and_reset for host
+
+signal heartbeat: bool
+signal ack: bool
+
+when heartbeat == false for 2 s:
+  fault HeartbeatLost
+
+safety:
+  safe_state:
+    pass
+  reset when ack

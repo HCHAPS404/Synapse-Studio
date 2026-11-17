@@ -1,0 +1,82 @@
+## IEC 61131-3 timers written in Neuron: on-delay, off-delay and pulse.
+##
+## Each class owns its state and receives the elapsed time `dt` from the caller, so it
+## needs no clock and behaves the same on every target and in the interpreter.
+module std.time.timers for core
+
+## On-delay timer (TON). `q` becomes true once `input` has been true for `preset`.
+pub class Ton:
+  let preset: duration
+  var elapsed: duration = 0 s
+  var q: bool = false
+
+  ## Advances the timer by `dt` with the current `input` and returns `q`.
+  pub fn step(mut self, input: bool, dt: duration) -> bool:
+    if input:
+      self.elapsed = min(self.elapsed + dt, self.preset)
+    else:
+      self.elapsed = 0 s
+    self.q = input and self.elapsed >= self.preset
+    return self.q
+
+## Off-delay timer (TOF). `q` follows `input` up and stays true for `preset` after it falls.
+pub class Tof:
+  let preset: duration
+  var elapsed: duration = 0 s
+  var q: bool = false
+
+  ## Advances the timer by `dt` with the current `input` and returns `q`.
+  pub fn step(mut self, input: bool, dt: duration) -> bool:
+    if input:
+      self.q = true
+      self.elapsed = 0 s
+    elif self.q:
+      self.elapsed += dt
+      if self.elapsed >= self.preset:
+        self.q = false
+        self.elapsed = self.preset
+    return self.q
+
+## Pulse timer (TP). A rising edge of `input` starts a pulse of length `preset`.
+pub class Tp:
+  let preset: duration
+  var elapsed: duration = 0 s
+  var q: bool = false
+  var running: bool = false
+  var previous: bool = false
+
+  ## Advances the timer by `dt` with the current `input` and returns `q`.
+  pub fn step(mut self, input: bool, dt: duration) -> bool:
+    if input and not self.previous and not self.running:
+      self.running = true
+      self.elapsed = 0 s
+      self.q = true
+    if self.running:
+      self.elapsed += dt
+      if self.elapsed >= self.preset:
+        self.running = false
+        self.q = false
+    self.previous = input
+    return self.q
+
+test "ton delays its output":
+  var t = Ton(preset: 3 ms)
+  assert t.step(true, 1 ms) == false, "after 1 ms"
+  assert t.step(true, 1 ms) == false, "after 2 ms"
+  assert t.step(true, 1 ms) == true, "after 3 ms"
+  assert t.step(false, 1 ms) == false, "input fell"
+  assert t.step(true, 1 ms) == false, "restarts from zero"
+
+test "tof holds its output after the input falls":
+  var t = Tof(preset: 2 ms)
+  assert t.step(true, 1 ms) == true, "follows the input"
+  assert t.step(false, 1 ms) == true, "1 ms after the fall"
+  assert t.step(false, 1 ms) == false, "2 ms after the fall"
+
+test "tp gives one pulse per rising edge":
+  var t = Tp(preset: 2 ms)
+  assert t.step(true, 1 ms) == true, "pulse starts"
+  assert t.step(true, 1 ms) == false, "pulse ends after the preset"
+  assert t.step(true, 1 ms) == false, "a held input does not retrigger"
+  assert t.step(false, 1 ms) == false, "input falls"
+  assert t.step(true, 1 ms) == true, "new edge, new pulse"

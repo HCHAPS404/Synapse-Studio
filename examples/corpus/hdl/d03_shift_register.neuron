@@ -1,0 +1,11 @@
+## An 8-bit serial-in parallel-out shift register.
+module d03_shift_register for hdl
+clock sys: 50 MHz @ pin(E3)
+
+circuit shifter(din: in bit, enable: in bit, q: out bit<8>) on sys:
+  reg bits: bit<8> = 0
+  on rising(sys):
+    if enable:
+      bits = bits[6:0] ++ din
+  comb:
+    q = bits

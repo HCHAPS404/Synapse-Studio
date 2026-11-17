@@ -1,0 +1,22 @@
+## Raise a pressure alarm with hysteresis and hold it until acknowledged.
+module p10_analog_alarm for plc
+scan 20 ms
+
+inputs:
+  pressure: i16 @ %IW64
+  ack: bool     @ %I0.0
+
+outputs:
+  alarm: bool @ %Q0.0
+
+let high = hysteresis(low: 800.0, high: 900.0)
+
+rung compare:
+  set alarm when high.step(pressure)
+
+rung acknowledge:
+  reset alarm when ack and not high.q
+
+safety:
+  safe_state:
+    alarm = true

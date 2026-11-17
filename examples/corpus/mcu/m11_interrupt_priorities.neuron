@@ -1,0 +1,21 @@
+## Two interrupts with different priorities share one counter.
+module m11_interrupt_priorities for mcu on arduino_uno_r3
+
+io fast: gpio.input @ D2
+io slow: gpio.input @ D3
+io led: gpio.output @ D13
+
+var events: u16 = 0
+
+on interrupt fast.rising (prio 4):
+  events += 1
+
+on interrupt slow.rising (prio 2):
+  events += 10
+
+task show every 50 ms (prio 1):
+  led.write(events % 2 == 1)
+
+safety:
+  safe_state:
+    led.write(false)

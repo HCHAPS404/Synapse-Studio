@@ -25,3 +25,5 @@ by git), because long command output in an IDE terminal can be cut off.
 Diagnostic codes are checked by a test (`crates/neuron-sema/tests/catalogue.rs`), not by a
 script: every `NE`/`NL` code used in the compiler must be in
 `spec/language/10-diagnostics.md` and documented in `docs/errors/`.
+
+- `corpus-check.ps1 [-Fix]`: checks, format-checks and tests every package of `examples/corpus` and writes a short `out/corpus.log` (errors and results only). `-Fix` rewrites the files in the canonical layout first.

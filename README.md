@@ -564,9 +564,10 @@ SYNAPSE Studio is built spec-first with [Kiro](https://kiro.dev). Everything is 
 | Repository, license, governance, CI (compliance, Rust, Python) | ✅ |
 | Kiro steering and hooks | ✅ |
 | Core API skeleton with `/health` | ✅ |
-| Neuron language specification (edition 2026) | 🚧 draft v0.5 (17 chapters) |
+| Neuron language specification (edition 2026) | ✅ v1.0-rc1 (17 chapters); the final v1.0 waits for an independent review |
 | Lexer, parser | ✅ |
-| Formatter | 📋 |
+| Formatter, `neuron explain`, language server, VS Code and Kiro extension | ✅ (`neuron fmt`, `neuron explain`, `neuron lsp`, `editors/vscode`) |
+| Validation corpus: 50 programs in the eight dialects | ✅ (`examples/corpus`) |
 | Names, modules and packages; types and units; dialect rules | ✅ (`neuron check`) |
 | SRP ceilings, response-time analysis, memory budget | ✅ (abstract cost model; target timing in B1) |
 | Safe-state checks and model checking of state machines and sequences | ✅ (counterexample traces) |
@@ -576,7 +577,7 @@ SYNAPSE Studio is built spec-first with [Kiro](https://kiro.dev). Everything is 
 | Device manifests, resource solver, topologies | 📋 |
 | C backend and runtime, LLVM IR, native backends (RV32, Thumb-2, AVR, MSP430) | 📋 |
 | ISA simulators, virtual MCU, debugger | 📋 |
-| Standard library | 📋 |
+| Standard library, base layers (core, units, time, logic, control, test) | ✅ (`lib/`, written in Neuron); HAL, protocols and drivers 📋 |
 | Partitioner, timing analysis, safety verifier, model checking | 📋 |
 | Emitters (Verilog, IEC, robot, Python/ROS 2) and importers | 📋 |
 | Edge Daemon and hardware-in-the-loop | 📋 |

@@ -1,0 +1,11 @@
+## Helpers for `test` blocks.
+module std.test.asserts for core
+
+## `true` when `a` and `b` differ by at most `eps`.
+pub fn close(a: f32, b: f32, eps: f32) -> bool:
+  let d = a - b
+  return -eps <= d and d <= eps
+
+test "close":
+  assert close(1.0, 1.0005, 0.001), "within tolerance"
+  assert not close(1.0, 1.1, 0.001), "outside tolerance"

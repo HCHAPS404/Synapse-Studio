@@ -1,0 +1,22 @@
+## A class with a contract: the state is explicit and the limits are written down.
+module c04_class_contract for core
+
+pub class Tank:
+  let capacity: u16
+  var level: u16 = 0
+
+  pub fn fill(mut self, amount: u16) -> u16:
+    requires amount <= self.capacity - self.level
+    self.level += amount
+    return self.level
+
+  pub fn drain(mut self, amount: u16) -> u16:
+    requires amount <= self.level
+    self.level -= amount
+    return self.level
+
+test "a tank fills and drains within its capacity":
+  var t = Tank(capacity: 100)
+  assert t.fill(60) == 60, "fill"
+  assert t.drain(10) == 50, "drain"
+  assert t.fill(50) == 100, "to the top"

@@ -1,0 +1,20 @@
+## Two screens: a status page and a settings page with a slider.
+module u04_two_screens for ui on esp32_s3_devkit
+display lcd: ili9341(bus: spi1, size: (320, 240), rotation: 90 deg)
+
+signal speed: f32 mm/s
+signal setpoint: f32 mm/s
+
+screen Status on lcd:
+  label title "Status" at (10, 8) font sans_16
+  gauge now bind speed range 0..200 mm/s at (20, 40)
+  button settings "SETTINGS" at (200, 180):
+    on press:
+      emit open_settings
+
+screen Settings on lcd:
+  label title "Settings" at (10, 8) font sans_16
+  slider target bind setpoint range 0..200 mm/s at (20, 100) size (280, 30)
+  button back "BACK" at (200, 180):
+    on press:
+      emit open_status

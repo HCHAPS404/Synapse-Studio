@@ -1,0 +1,36 @@
+## Bit helpers for unsigned integers.
+module std.core.bits for core
+
+## `true` when bit `n` (0 is the least significant) of `x` is set.
+pub fn bit_get(x: u32, n: u8) -> bool:
+  requires n < 32
+  return (x >> n) & 1 == 1
+
+## `x` with bit `n` set.
+pub fn bit_set(x: u32, n: u8) -> u32:
+  requires n < 32
+  return x | (1 << n)
+
+## `x` with bit `n` cleared.
+pub fn bit_clear(x: u32, n: u8) -> u32:
+  requires n < 32
+  return x & ~(1 << n)
+
+## Number of bits set in `x`.
+pub fn popcount(x: u32) -> u8:
+  var count: u8 = 0
+  for i in 0..32:
+    if (x >> i) & 1 == 1:
+      count += 1
+  return count
+
+test "single bits":
+  assert bit_get(0b1010, 1), "bit 1 is set"
+  assert not bit_get(0b1010, 0), "bit 0 is clear"
+  assert bit_set(0, 3) == 8, "set bit 3"
+  assert bit_clear(0b1111, 2) == 0b1011, "clear bit 2"
+
+test "popcount":
+  assert popcount(0) == 0, "zero"
+  assert popcount(0b1011) == 3, "three bits"
+  assert popcount(0xFFFFFFFF) == 32, "all bits"

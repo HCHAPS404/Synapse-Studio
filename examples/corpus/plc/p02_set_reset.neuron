@@ -1,0 +1,20 @@
+## A lamp with set and reset coils.
+module p02_set_reset for plc
+scan 10 ms
+
+inputs:
+  on_button: bool  @ %I0.0
+  off_button: bool @ %I0.1
+
+outputs:
+  lamp: bool @ %Q0.0
+
+rung turn_on:
+  set lamp when on_button
+
+rung turn_off:
+  reset lamp when off_button
+
+safety:
+  safe_state:
+    lamp = false

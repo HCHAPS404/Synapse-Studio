@@ -1,0 +1,23 @@
+## Close a gripper, check that it holds a part, and release it at a drop point.
+module r03_gripper_check for robot
+
+tool gripper = tool(offset: xyz(0, 0, 90) mm, payload: 0.8 kg)
+
+io close: gpio.output  @ dout(1)
+io holding: gpio.input @ din(2)
+
+point pick = joints(20, -35, 65, 0, 60, 0) deg
+point drop = joints(-40, -35, 65, 0, 60, 0) deg
+
+sequence transfer():
+  move ptp to pick speed 50 %
+  close.write(true)
+  until holding timeout 800 ms -> Dropped
+  move ptp to drop speed 50 %
+  close.write(false)
+  step Dropped:
+    fault GripLost
+
+safety:
+  safe_state:
+    close.write(false)

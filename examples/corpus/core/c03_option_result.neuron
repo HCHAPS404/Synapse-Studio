@@ -1,0 +1,27 @@
+## Absence and failure are values: `Option` for "maybe", `Result` for "or an error".
+module c03_option_result for core
+
+pub enum ParseError:
+  Empty
+  TooLarge
+
+pub fn first_even(a: u8, b: u8) -> u8?:
+  if a % 2 == 0:
+    return a
+  if b % 2 == 0:
+    return b
+  return none
+
+pub fn percent(raw: u16) -> Result<u16, ParseError>:
+  if raw > 1000:
+    return Err(ParseError.TooLarge)
+  return Ok(raw / 10)
+
+test "first_even returns the first even value or none":
+  assert first_even(3, 4) == 4, "second"
+  assert first_even(2, 5) == 2, "first"
+  assert (first_even(1, 3) ?? 99) == 99, "default"
+
+test "percent rejects large values":
+  assert percent(500) == Ok(50), "half"
+  assert percent(2000) == Err(ParseError.TooLarge), "too large"

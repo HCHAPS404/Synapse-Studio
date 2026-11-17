@@ -49,6 +49,18 @@ jobs:
         run: cargo run --quiet -p neuron-cli -- fmt --check examples
       - name: Run the tests of the examples package
         run: cargo run --quiet -p neuron-cli -- test examples
+      - name: Validation corpus is checked, formatted and tested
+        run: |
+          for d in examples/corpus/*/; do
+            cargo run --quiet -p neuron-cli -- check "$d"
+            cargo run --quiet -p neuron-cli -- fmt --check "$d"
+            cargo run --quiet -p neuron-cli -- test "$d"
+          done
+      - name: Standard library is formatted, checked and tested
+        run: |
+          cargo run --quiet -p neuron-cli -- fmt --check lib
+          cargo run --quiet -p neuron-cli -- check lib
+          cargo run --quiet -p neuron-cli -- test lib
 
   core:
     name: Core API (Python)

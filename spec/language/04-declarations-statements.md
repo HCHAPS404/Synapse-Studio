@@ -188,7 +188,8 @@ read-only and are inlined; they cannot escape their call.
 
 ## 4.7 Modules and packages
 
-- `use a.b.c` imports module `c`; `use a.b.{c, d}` imports names; `as` renames.
+- `use a.b.c` imports module `c`; `use a.b.{c, d}` imports names; `as` renames. A
+  segment after the first MAY be a reserved word, so that `use std.test.asserts` is legal.
 - `std` is the standard library; `self.` refers to the current package root.
 - Circular imports are an error (`NE0104`).
 - `neuron.toml`:

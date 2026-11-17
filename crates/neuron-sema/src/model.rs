@@ -295,6 +295,7 @@ impl Program {
         prog.define_units();
         prog.resolve_imports(diags);
         prog.check_cycles(diags);
+        prog.check_layering(diags);
         prog
     }
 
@@ -592,6 +593,47 @@ impl Program {
                 continue;
             }
             module.imports.insert(name, entry);
+        }
+    }
+
+    /// Reports `NE0106` when a standard-library module imports from a later layer
+    /// (spec 12.1: a module may import only from its own layer or from earlier ones).
+    fn check_layering(&self, diags: &mut Vec<FileDiag>) {
+        fn layer_of(dotted: &str) -> Option<(usize, &str)> {
+            let mut parts = dotted.split('.');
+            if parts.next() != Some("std") {
+                return None;
+            }
+            let layer = parts.next()?;
+            let rank = prelude::STD_LAYERS.iter().position(|l| *l == layer)?;
+            Some((rank, layer))
+        }
+        for (i, m) in self.modules.iter().enumerate() {
+            let Some((own, own_name)) = layer_of(&m.name) else {
+                continue;
+            };
+            for e in m.imports.values() {
+                let target = match &e.import {
+                    Import::Module(t) => self.modules[*t].name.clone(),
+                    Import::Item { module, .. } => self.modules[*module].name.clone(),
+                    Import::Foreign(p) => p.clone(),
+                };
+                if let Some((rank, name)) = layer_of(&target) {
+                    if rank > own {
+                        diags.push(FileDiag {
+                            file: i,
+                            diag: Diagnostic::error(
+                                "NE0106",
+                                format!(
+                                    "layer `std.{own_name}` cannot import from the later layer `std.{name}`"
+                                ),
+                                e.span,
+                            )
+                            .with_help("move the shared code to an earlier layer"),
+                        });
+                    }
+                }
+            }
         }
     }
 

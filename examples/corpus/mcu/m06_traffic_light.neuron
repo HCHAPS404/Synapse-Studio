@@ -1,0 +1,42 @@
+## A traffic light as a state machine.
+module m06_traffic_light for mcu on arduino_uno_r3
+
+io red: gpio.output    @ D2
+io yellow: gpio.output @ D3
+io green: gpio.output  @ D4
+
+fsm Light every 10 ms:
+  initial state Red:
+    entry:
+      red.write(true)
+    exit:
+      red.write(false)
+    -> Green after 4 s
+  state Green:
+    entry:
+      green.write(true)
+    exit:
+      green.write(false)
+    -> Yellow after 3 s
+  state Yellow:
+    entry:
+      yellow.write(true)
+    exit:
+      yellow.write(false)
+    -> Red after 1 s
+
+safety:
+  safe_state:
+    red.write(true)
+    yellow.write(false)
+    green.write(false)
+
+test "the light cycles red, green, yellow":
+  advance(20 ms)
+  assert state_of("Light") == "Red", "starts red"
+  advance(4100 ms)
+  assert state_of("Light") == "Green", "then green"
+  advance(3000 ms)
+  assert state_of("Light") == "Yellow", "then yellow"
+  advance(1000 ms)
+  assert state_of("Light") == "Red", "and red again"

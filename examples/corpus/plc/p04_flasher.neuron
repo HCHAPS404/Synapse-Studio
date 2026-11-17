@@ -1,0 +1,25 @@
+## A warning lamp that flashes at 1 Hz while an alarm is active.
+module p04_flasher for plc
+scan 10 ms
+
+inputs:
+  alarm: bool @ %I0.0
+
+outputs:
+  lamp: bool @ %Q0.0
+
+let off_time = ton(preset: 500 ms)
+let on_time = ton(preset: 500 ms)
+
+rung phase_off:
+  off_time.input = alarm and not on_time.q
+
+rung phase_on:
+  on_time.input = off_time.q
+
+rung output:
+  lamp = alarm and off_time.q
+
+safety:
+  safe_state:
+    lamp = false

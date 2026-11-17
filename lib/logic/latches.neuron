@@ -1,0 +1,34 @@
+## Bistable latches (IEC 61131-3 SR and RS).
+module std.logic.latches for core
+
+## Set-dominant latch: when `set` and `reset` are both true, `q` is true.
+pub class Sr:
+  var q: bool = false
+
+  ## Applies `set` and `reset` and returns `q`.
+  pub fn step(mut self, set_input: bool, reset: bool) -> bool:
+    self.q = set_input or (self.q and not reset)
+    return self.q
+
+## Reset-dominant latch: when `set` and `reset` are both true, `q` is false.
+pub class Rs:
+  var q: bool = false
+
+  ## Applies `set` and `reset` and returns `q`.
+  pub fn step(mut self, set_input: bool, reset: bool) -> bool:
+    self.q = not reset and (set_input or self.q)
+    return self.q
+
+test "sr is set-dominant":
+  var l = Sr()
+  assert l.step(true, false) == true, "set"
+  assert l.step(false, false) == true, "holds"
+  assert l.step(false, true) == false, "reset"
+  assert l.step(true, true) == true, "set wins"
+
+test "rs is reset-dominant":
+  var l = Rs()
+  assert l.step(true, false) == true, "set"
+  assert l.step(false, false) == true, "holds"
+  assert l.step(true, true) == false, "reset wins"
+  assert l.step(false, true) == false, "reset"

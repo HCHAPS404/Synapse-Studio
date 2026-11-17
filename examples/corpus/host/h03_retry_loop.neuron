@@ -1,0 +1,17 @@
+## Retry a connection a bounded number of times.
+module h03_retry_loop for host
+
+var attempts: u8 = 0
+
+fn try_connect(n: u8) -> bool = n >= 3
+
+fn connect() -> bool:
+  loop max 5:
+    attempts += 1
+    if try_connect(attempts):
+      return true
+  return false
+
+test "the third attempt succeeds":
+  assert connect() == true, "connected"
+  assert attempts == 3, "after three attempts"

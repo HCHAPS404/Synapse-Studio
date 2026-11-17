@@ -1,0 +1,11 @@
+## A gateway that counts messages once per second.
+module h01_gateway_counter for host
+
+signal messages: u32
+
+task tick every 1 s:
+  messages = messages + 1
+
+test "the counter grows once per second":
+  advance(3500 ms)
+  assert elapsed() > 3.4, "time passed"

@@ -1,0 +1,34 @@
+## Count items and release a gate when a batch of ten is complete.
+module p05_batch_counter for plc
+scan 10 ms
+
+inputs:
+  item: bool        @ %I0.0
+  reset_batch: bool @ %I0.1
+
+outputs:
+  gate: bool @ %Q0.0
+
+let batch = ctu(preset: 10)
+
+rung count:
+  batch.input = item
+  batch.reset = reset_batch
+
+rung release:
+  gate = batch.q
+
+safety:
+  safe_state:
+    gate = false
+
+test "the gate opens at ten items":
+  for i in 0..9:
+    drive("item", true)
+    advance(30 ms)
+    drive("item", false)
+    advance(30 ms)
+  assert gate == false, "nine items"
+  drive("item", true)
+  advance(50 ms)
+  assert gate == true, "tenth item"

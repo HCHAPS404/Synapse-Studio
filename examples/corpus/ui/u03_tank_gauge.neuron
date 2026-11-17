@@ -1,0 +1,11 @@
+## Show a tank level as a bar and a gauge.
+module u03_tank_gauge for ui on esp32_s3_devkit
+display lcd: st7789(bus: spi1, size: (240, 240), rotation: 0 deg)
+
+signal level: f32 %
+signal flow: f32 mm/s
+
+screen Tank on lcd:
+  label title "Tank 1" at (10, 8) font sans_16
+  bar fill bind level range 0..100 % at (20, 50) size (40, 160)
+  gauge rate bind flow range 0..200 mm/s at (90, 60)

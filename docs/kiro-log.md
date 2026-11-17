@@ -174,3 +174,31 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   one space from its number, also after a call such as `xyz(1, 2, 3) mm` (`NE0014`);
   the generator, not the formatter, was wrong. Line breaking at 88 columns is not
   implemented and is documented as such.
+
+## 2026-11-16 · Task A12 (standard library, base layer)
+- **Kiro features:** spec-driven development (new spec `.kiro/specs/neuron-stdlib`),
+  steering (`rust-style`), property-based testing (`proptest`) for the differential
+  tests, agent-run builds through logged scripts.
+- **Produced:** `lib/`, a Neuron package of 13 modules in the layers core, units, time,
+  logic, control and test (timers, edge detectors, latches, counters, PID with
+  anti-windup, filters, hysteresis, debounce, ramp), 30 `test` blocks run by
+  `neuron test lib`, the layering rule `NE0106` in the analyzer, and
+  `crates/neuron-interp/tests/a12_stdlib.rs`, which feeds each library class and the
+  matching native block the same random inputs and requires the same outputs.
+- **Lessons:** the library type-checked and passed its tests almost at once, which says
+  the language is usable for its own library. The differential test found that
+  `use std.test.asserts` did not parse because `test` is a reserved word; the parser
+  now accepts reserved words as later path segments. Native debounce reads the clock, so
+  the test advances simulated time between steps.
+
+## 2026-11-16 · Task A13 (validation corpus and freeze)
+- **Kiro features:** spec-driven development (`.kiro/specs/neuron-corpus`), agent-run
+  checks through `tools/corpus-check.ps1`, steering (`conventions`: English, spec first).
+- **Produced:** 50 programs in `examples/corpus/` across the eight dialects, each with
+  tests where behavior is observable, a Rust test that analyzes, runs and tests every
+  file, CI steps for every folder, `docs/usability-review.md` and the specification at
+  v1.0-rc1.
+- **Lessons:** writing fifty programs from the specification found eight friction points
+  (a keyword used as a task name, `|>` precedence, `u8 <` read as generics, PLC
+  inputs in `drive`). They are listed with their decisions. The final freeze needs a
+  reviewer who did not write the specification.

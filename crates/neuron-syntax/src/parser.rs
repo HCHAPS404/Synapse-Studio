@@ -873,7 +873,8 @@ impl<'a> Parser<'a> {
                 self.expect_p(P::RBrace)?;
                 break;
             }
-            segments.push(self.ident()?);
+            // A layer or module may be named like a keyword (`std.test.asserts`).
+            segments.push(self.member_name()?);
         }
         let path = Path {
             segments,

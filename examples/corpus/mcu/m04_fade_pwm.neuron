@@ -1,0 +1,19 @@
+## Fade an LED up and down with a PWM output and a ramp.
+module m04_fade_pwm for mcu on arduino_uno_r3
+
+io led: pwm(freq: 1 kHz) @ D9
+
+let smooth = ramp(rate: 50.0)
+var goal: f32 = 100.0
+
+task fade every 20 ms (prio 1):
+  let level = smooth.step(goal)
+  led.duty = level * 1 %
+  if level >= 100.0:
+    goal = 0.0
+  elif level <= 0.0:
+    goal = 100.0
+
+safety:
+  safe_state:
+    led.duty = 0 %

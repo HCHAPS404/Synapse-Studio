@@ -1,0 +1,40 @@
+## Edge detectors (IEC 61131-3 R_TRIG and F_TRIG).
+module std.logic.edges for core
+
+## Rising edge: `q` is true for one step when `input` goes from false to true.
+pub class RTrig:
+  var previous: bool = false
+  var q: bool = false
+
+  ## Samples `input` and returns `q`.
+  pub fn step(mut self, input: bool) -> bool:
+    self.q = input and not self.previous
+    self.previous = input
+    return self.q
+
+## Falling edge: `q` is true for one step when `input` goes from true to false.
+pub class FTrig:
+  var previous: bool = false
+  var q: bool = false
+
+  ## Samples `input` and returns `q`.
+  pub fn step(mut self, input: bool) -> bool:
+    self.q = not input and self.previous
+    self.previous = input
+    return self.q
+
+test "r_trig fires once per rising edge":
+  var t = RTrig()
+  assert t.step(false) == false, "low"
+  assert t.step(true) == true, "rising"
+  assert t.step(true) == false, "held high"
+  assert t.step(false) == false, "falling is not a rising edge"
+  assert t.step(true) == true, "rising again"
+
+test "f_trig fires once per falling edge":
+  var t = FTrig()
+  assert t.step(true) == false, "high"
+  assert t.step(false) == true, "falling"
+  assert t.step(false) == false, "held low"
+  assert t.step(true) == false, "rising is not a falling edge"
+  assert t.step(false) == true, "falling again"

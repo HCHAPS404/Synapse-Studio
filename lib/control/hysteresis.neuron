@@ -1,0 +1,56 @@
+## Hysteresis (a Schmitt trigger) and debounce.
+module std.control.hysteresis for core
+
+## Switches on at `high` and off at `low`; between the two it keeps its state.
+pub class Hysteresis:
+  let low: f32
+  let high: f32
+  var q: bool = false
+
+  ## Applies `x` and returns the state.
+  pub fn step(mut self, x: f32) -> bool:
+    requires self.low <= self.high
+    if x >= self.high:
+      self.q = true
+    elif x <= self.low:
+      self.q = false
+    return self.q
+
+## Accepts a change of the raw input only after it has held for `time`.
+pub class Debounce:
+  let time: duration
+  var stable: bool = false
+  var held: duration = 0 s
+  var counting: bool = false
+
+  ## Applies the raw input after `dt` and returns the stable value.
+  pub fn step(mut self, raw: bool, dt: duration) -> bool:
+    if raw == self.stable:
+      self.counting = false
+      self.held = 0 s
+    elif not self.counting:
+      self.counting = true
+      self.held = 0 s
+    else:
+      self.held += dt
+      if self.held >= self.time:
+        self.stable = raw
+        self.counting = false
+        self.held = 0 s
+    return self.stable
+
+test "hysteresis keeps its state between the thresholds":
+  var h = Hysteresis(low: 10.0, high: 20.0)
+  assert h.step(15.0) == false, "starts off"
+  assert h.step(20.0) == true, "switches on at high"
+  assert h.step(15.0) == true, "holds between the thresholds"
+  assert h.step(10.0) == false, "switches off at low"
+
+test "debounce ignores a short glitch":
+  var d = Debounce(time: 3 ms)
+  assert d.step(true, 1 ms) == false, "first sample of the change"
+  assert d.step(false, 1 ms) == false, "glitch is ignored"
+  assert d.step(true, 1 ms) == false, "change starts again"
+  assert d.step(true, 1 ms) == false, "1 ms held"
+  assert d.step(true, 1 ms) == false, "2 ms held"
+  assert d.step(true, 1 ms) == true, "3 ms held"

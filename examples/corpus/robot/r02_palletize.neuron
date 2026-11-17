@@ -1,0 +1,29 @@
+## Stack parts on a 3 x 4 pallet with a vacuum gripper.
+module r02_palletize for robot
+
+frame pallet = frame(origin: xyz(400, -200, 0) mm, rot: rpy(0, 0, 90) deg)
+tool vacuum = tool(offset: xyz(0, 0, 120) mm, payload: 1.2 kg)
+
+io suction: gpio.output @ dout(3)
+io part_ok: gpio.input  @ din(5)
+
+point home = joints(0, -20, 70, 0, 40, 0) deg
+const rows = 3
+const cols = 4
+
+sequence stack():
+  move ptp to home speed 60 %
+  for r in 0..rows:
+    for c in 0..cols:
+      let p = pallet.xyz(c * 80, r * 60, 0) mm
+      move linear to p.above(50 mm) speed 400 mm/s blend 10 mm
+      move linear to p speed 80 mm/s
+      suction.write(true)
+      until part_ok timeout 500 ms -> Retry
+      move linear to p.above(50 mm) speed 400 mm/s
+  step Retry:
+    fault PartLost
+
+safety:
+  safe_state:
+    suction.write(false)

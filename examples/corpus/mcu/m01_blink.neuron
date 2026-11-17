@@ -1,0 +1,17 @@
+## The smallest useful program: blink an LED twice a second.
+module m01_blink for mcu on arduino_uno_r3
+
+io led: gpio.output @ D13
+
+task blink every 500 ms (prio 1):
+  led.toggle()
+
+safety:
+  safe_state:
+    led.write(false)
+
+test "the led toggles every period":
+  advance(10 ms)
+  assert led.read() == true, "on at the first release"
+  advance(500 ms)
+  assert led.read() == false, "off after one period"

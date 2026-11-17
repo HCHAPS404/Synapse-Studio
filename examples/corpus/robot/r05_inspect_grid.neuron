@@ -1,0 +1,23 @@
+## Visit the cells of a 2 x 3 inspection grid and trigger a camera at each one.
+module r05_inspect_grid for robot
+
+frame bench = frame(origin: xyz(350, -100, 0) mm, rot: rpy(0, 0, 0) deg)
+
+io camera: gpio.output @ dout(2)
+
+point home = joints(0, -25, 55, 0, 60, 0) deg
+
+sequence inspect():
+  move ptp to home speed 60 %
+  for r in 0..2:
+    for c in 0..3:
+      let p = bench.xyz(c * 60, r * 60, 150) mm
+      move linear to p speed 200 mm/s
+      camera.write(true)
+      wait 200 ms
+      camera.write(false)
+  move ptp to home speed 60 %
+
+safety:
+  safe_state:
+    camera.write(false)

@@ -1,0 +1,15 @@
+## A touch panel with start and stop buttons and a running indicator.
+module u02_start_stop_panel for ui on esp32_s3_devkit
+display lcd: ili9341(bus: spi1, size: (320, 240), rotation: 90 deg)
+
+signal running: bool
+
+screen Main on lcd:
+  label title "Conveyor" at (10, 8) font sans_16
+  led state bind running at (270, 10)
+  button start "START" at (20, 150):
+    on press:
+      emit start_requested
+  button stop "STOP" at (180, 150):
+    on press:
+      emit stop_requested

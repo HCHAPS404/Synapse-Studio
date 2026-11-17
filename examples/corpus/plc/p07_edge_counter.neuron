@@ -1,0 +1,27 @@
+## Count presses with a rising-edge detector and show the parity on a lamp.
+module p07_edge_counter for plc
+scan 10 ms
+
+inputs:
+  press: bool @ %I0.0
+
+outputs:
+  odd: bool @ %Q0.0
+
+memory:
+  presses: u16 @ %MW10
+
+let edge = r_trig()
+
+rung detect:
+  edge.input = press
+
+rung count:
+  presses += 1 when edge.q
+
+rung show:
+  odd = presses % 2 == 1
+
+safety:
+  safe_state:
+    odd = false

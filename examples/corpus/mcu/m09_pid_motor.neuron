@@ -1,0 +1,18 @@
+## Speed control of a DC motor with a PID controller and a low-pass filter.
+module m09_pid_motor for mcu on arduino_uno_r3
+
+io tach: adc(resolution: 10) @ A1
+io drive: pwm(freq: 2 kHz)   @ D10
+
+const target = 600.0
+
+let filter = lowpass(cutoff: 5 Hz)
+var ctl = pid(kp: 0.2, ki: 0.5, out: 0..100 %, antiwindup: true)
+
+task control every 10 ms (prio 1):
+  let rpm = tach.read() |> scale(0..1023 -> 0..1200) |> filter.step()
+  drive.duty = ctl.step(target - rpm) * 1 %
+
+safety:
+  safe_state:
+    drive.duty = 0 %

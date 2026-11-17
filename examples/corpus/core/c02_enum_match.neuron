@@ -1,0 +1,18 @@
+## An enum, an exhaustive match and a pure function.
+module c02_enum_match for core
+
+pub enum Mode:
+  Off
+  Manual
+  Auto
+
+pub fn speed_limit(mode: Mode) -> u16:
+  match mode:
+    Mode.Off => return 0
+    Mode.Manual => return 40
+    Mode.Auto => return 100
+
+test "every mode has a limit":
+  assert speed_limit(Mode.Off) == 0, "off"
+  assert speed_limit(Mode.Manual) == 40, "manual"
+  assert speed_limit(Mode.Auto) == 100, "auto"

@@ -1,0 +1,16 @@
+## Sum an array with a bounded loop and scale the result with a pipeline.
+module h04_recursion_free_sum for host
+
+fn total(values: [i32; 5]) -> i32:
+  var sum = 0
+  for v in values:
+    sum += v
+  return sum
+
+fn double(x: i32) -> i32 = x * 2
+
+test "sum then double":
+  let values = [1, 2, 3, 4, 5]
+  assert total(values) == 15, "sum"
+  let doubled = total(values) |> double()
+  assert doubled == 30, "pipeline"

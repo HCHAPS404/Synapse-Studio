@@ -1,0 +1,13 @@
+## Draw a half circle with an arc motion between two points.
+module r06_arc_path for robot
+
+frame board = frame(origin: xyz(300, 0, 50) mm, rot: rpy(0, 0, 0) deg)
+
+point a = board.xyz(0, -50, 0) mm
+point mid = board.xyz(50, 0, 0) mm
+point b = board.xyz(0, 50, 0) mm
+
+sequence draw():
+  move linear to a speed 100 mm/s
+  move arc to b via mid speed 60 mm/s
+  move linear to a speed 100 mm/s

@@ -1,0 +1,9 @@
+## A robot and a press share a zone, protected by a mutex.
+cell PressCell
+  device arm: generic_scara @ ip(192.168.0.20)
+  device plc: generic_s7_1200 @ ip(192.168.0.10)
+
+  zone press: box(x: 100..220 mm, y: -40..40 mm, z: 0..120 mm)
+  mutex press between arm, plc.press_cylinder
+
+  link plc.part_ready -> arm.pick via modbus_tcp every 10 ms within 30 ms

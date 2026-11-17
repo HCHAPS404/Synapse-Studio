@@ -1,0 +1,18 @@
+## An interrupt raises an event and a task handles it.
+module m10_event_task for mcu on arduino_uno_r3
+
+io led: gpio.output   @ D13
+io sensor: gpio.input @ D3
+
+var hits: u16 = 0
+
+on interrupt sensor.rising (prio 3):
+  emit object_seen
+
+task handle on object_seen (prio 1):
+  hits += 1
+  led.toggle()
+
+safety:
+  safe_state:
+    led.write(false)

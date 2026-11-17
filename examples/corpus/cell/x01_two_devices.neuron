@@ -1,0 +1,8 @@
+## The smallest cell: a PLC and a controller board linked over Modbus TCP.
+cell TwoDevices
+  device ctl: nucleo_f446re @ usb
+  device plc: generic_s7_1200 @ ip(192.168.0.10)
+
+  link ctl.ready -> plc.start via modbus_tcp every 20 ms within 50 ms
+
+  tag line_speed: f32 mm/s @ plc.%MD20, ctl.speed

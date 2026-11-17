@@ -1,0 +1,20 @@
+## A button toggles an LED from an interrupt.
+module m02_button_toggle for mcu on arduino_uno_r3
+
+io led: gpio.output             @ D13
+io button: gpio.input(pull: up) @ D2
+
+on interrupt button.falling (prio 2):
+  led.toggle()
+
+safety:
+  safe_state:
+    led.write(false)
+
+test "each press toggles the led":
+  drive(button, true)
+  drive(button, false)
+  assert led.read() == true, "on after the first press"
+  drive(button, true)
+  drive(button, false)
+  assert led.read() == false, "off after the second press"

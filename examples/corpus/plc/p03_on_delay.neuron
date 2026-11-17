@@ -1,0 +1,31 @@
+## A horn that sounds only after the start button has been held for two seconds.
+module p03_on_delay for plc
+scan 10 ms
+
+inputs:
+  button: bool @ %I0.0
+
+outputs:
+  horn: bool @ %Q0.0
+
+let hold = ton(preset: 2 s)
+
+rung timer:
+  hold.input = button
+
+rung output:
+  horn = hold.q
+
+safety:
+  safe_state:
+    horn = false
+
+test "the horn waits two seconds":
+  drive("button", true)
+  advance(1 s)
+  assert horn == false, "not yet"
+  advance(1100 ms)
+  assert horn == true, "after two seconds"
+  drive("button", false)
+  advance(50 ms)
+  assert horn == false, "released"

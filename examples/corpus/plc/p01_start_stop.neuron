@@ -1,0 +1,29 @@
+## The classic motor start/stop latch with seal-in contact.
+module p01_start_stop for plc
+scan 10 ms
+
+inputs:
+  start: bool @ %I0.0
+  stop: bool  @ %I0.1
+
+outputs:
+  motor: bool @ %Q0.0
+
+rung run:
+  motor = (start or motor) and stop
+
+safety:
+  safe_state:
+    motor = false
+
+test "the motor latches and stops":
+  drive("start", true)
+  drive("stop", true)
+  advance(50 ms)
+  assert motor == true, "started"
+  drive("start", false)
+  advance(50 ms)
+  assert motor == true, "seal-in holds"
+  drive("stop", false)
+  advance(50 ms)
+  assert motor == false, "stopped"

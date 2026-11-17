@@ -1,0 +1,18 @@
+## Physical units are part of the type: lengths, times and speeds do not mix by accident.
+module c01_units for core
+
+pub fn travel_time(distance: f32 mm, speed: f32 mm/s) -> f32 s:
+  requires speed > 0.1 mm/s
+  return distance / speed
+
+pub fn stroke(position: f32 mm) -> f32 mm = position - 10 mm
+
+test "a conveyor moves 300 mm at 100 mm/s in 3 s":
+  let t = travel_time(300 mm, 100 mm/s)
+  assert t > 2.99 s and t < 3.01 s, "travel time"
+
+test "units convert on their own":
+  assert 1 s + 250 ms == 1.25 s, "time"
+  assert 2 m == 2000 mm, "length"
+  let s = stroke(25 mm)
+  assert s > 14.9 mm and s < 15.1 mm, "stroke"

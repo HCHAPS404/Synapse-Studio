@@ -1,0 +1,16 @@
+## A producer and a consumer share a signal with logical execution time.
+module m08_two_tasks_signal for mcu on arduino_uno_r3
+
+io led: gpio.output @ D13
+
+signal counter: u16
+
+task producer every 10 ms (prio 2, deadline 5 ms):
+  counter = counter + 1
+
+task consumer every 10 ms (prio 1):
+  led.write(counter % 2 == 0)
+
+safety:
+  safe_state:
+    led.write(false)

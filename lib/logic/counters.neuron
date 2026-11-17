@@ -1,0 +1,91 @@
+## Counters (IEC 61131-3 CTU, CTD and CTUD).
+module std.logic.counters for core
+
+## Up counter. Counts rising edges of `input`; `reset` clears. `q` is true at `preset`.
+pub class Ctu:
+  let preset: i32
+  var count: i32 = 0
+  var q: bool = false
+  var previous: bool = false
+
+  ## Samples `input` and `reset`, and returns the count.
+  pub fn step(mut self, input: bool, reset: bool) -> i32:
+    if reset:
+      self.count = 0
+    elif input and not self.previous:
+      self.count += 1
+    self.q = self.count >= self.preset
+    self.previous = input
+    return self.count
+
+## Down counter. Counts rising edges of `input` down; `load` sets the count to `preset`.
+## `q` is true at zero or below.
+pub class Ctd:
+  let preset: i32
+  var count: i32 = 0
+  var q: bool = false
+  var previous: bool = false
+
+  ## Samples `input` and `load`, and returns the count.
+  pub fn step(mut self, input: bool, load: bool) -> i32:
+    if load:
+      self.count = self.preset
+    elif input and not self.previous:
+      self.count -= 1
+    self.q = self.count <= 0
+    self.previous = input
+    return self.count
+
+## Up/down counter. `qu` is true at `preset` or above, `qd` at zero or below.
+pub class Ctud:
+  let preset: i32
+  var count: i32 = 0
+  var qu: bool = false
+  var qd: bool = false
+  var previous_up: bool = false
+  var previous_down: bool = false
+
+  ## Samples `up`, `down` and `reset`, and returns the count.
+  pub fn step(mut self, up: bool, down: bool, reset: bool) -> i32:
+    if reset:
+      self.count = 0
+    else:
+      if up and not self.previous_up:
+        self.count += 1
+      if down and not self.previous_down:
+        self.count -= 1
+    self.qu = self.count >= self.preset
+    self.qd = self.count <= 0
+    self.previous_up = up
+    self.previous_down = down
+    return self.count
+
+test "ctu counts rising edges and reports the preset":
+  var c = Ctu(preset: 2)
+  assert c.step(true, false) == 1, "first edge"
+  assert c.step(true, false) == 1, "held input is not counted"
+  assert c.step(false, false) == 1, "falling edge is not counted"
+  assert c.step(true, false) == 2, "second edge"
+  assert c.q == true, "preset reached"
+  assert c.step(false, true) == 0, "reset"
+  assert c.q == false, "q follows the count"
+
+test "ctd counts down from the preset":
+  var c = Ctd(preset: 2)
+  assert c.step(false, true) == 2, "load"
+  assert c.q == false, "not empty"
+  assert c.step(true, false) == 1, "first edge"
+  assert c.step(false, false) == 1, "released"
+  assert c.step(true, false) == 0, "second edge"
+  assert c.q == true, "empty"
+
+test "ctud counts both ways":
+  var c = Ctud(preset: 2)
+  assert c.step(true, false, false) == 1, "up"
+  assert c.step(false, false, false) == 1, "idle"
+  assert c.step(true, false, false) == 2, "up again"
+  assert c.qu == true, "preset reached"
+  assert c.step(false, true, false) == 1, "down"
+  assert c.qu == false, "below the preset"
+  assert c.step(false, false, true) == 0, "reset"
+  assert c.qd == true, "empty"

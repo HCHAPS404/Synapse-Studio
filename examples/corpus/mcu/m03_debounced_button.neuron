@@ -1,0 +1,20 @@
+## A task samples a noisy button through a debounce filter.
+module m03_debounced_button for mcu on arduino_uno_r3
+
+io led: gpio.output             @ D13
+io button: gpio.input(pull: up) @ D2
+
+let filter = debounce(time: 20 ms)
+var presses: u16 = 0
+var was_down: bool = false
+
+task sample every 5 ms (prio 2):
+  let down = filter.step(button.read())
+  if down and not was_down:
+    presses += 1
+    led.toggle()
+  was_down = down
+
+safety:
+  safe_state:
+    led.write(false)

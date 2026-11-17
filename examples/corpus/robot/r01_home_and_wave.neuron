@@ -1,0 +1,13 @@
+## Move to the home position and wave between two points.
+module r01_home_and_wave for robot
+
+point home = joints(0, -30, 60, 0, 60, 0) deg
+point left = joints(-30, -30, 60, 0, 60, 0) deg
+point right = joints(30, -30, 60, 0, 60, 0) deg
+
+sequence wave():
+  move ptp to home speed 40 %
+  for i in 0..3:
+    move ptp to left speed 60 %
+    move ptp to right speed 60 %
+  move ptp to home speed 40 %

@@ -1,0 +1,12 @@
+## Smooth a noisy measurement before logging it.
+module h02_moving_average for host
+
+let smooth = moving_average(window: 4)
+var last: f32 = 0.0
+
+task log every 100 ms:
+  last = smooth.step(20.0 + 0.5)
+
+test "a constant input gives a constant output":
+  advance(1 s)
+  assert last > 20.4 and last < 20.6, "mean of a constant"

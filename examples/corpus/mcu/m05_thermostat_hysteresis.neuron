@@ -1,0 +1,15 @@
+## On/off thermostat with hysteresis, so the relay does not chatter.
+module m05_thermostat_hysteresis for mcu on arduino_uno_r3
+
+io sensor: adc(resolution: 10) @ A0
+io relay: gpio.output          @ D7
+
+let band = hysteresis(low: 20.0, high: 24.0)
+
+task control every 100 ms (prio 1):
+  let temp = sensor.read() |> scale(0..1023 -> 0..50)
+  relay.write(not band.step(temp))
+
+safety:
+  safe_state:
+    relay.write(false)

@@ -27,6 +27,11 @@ a third module.
 ### NE0105 private item used outside its module
 Mark the item `pub`, or use another item.
 
+### NE0106 import breaks the standard-library layering
+A module of the standard library (`std.<layer>...`) imports from a layer that comes
+after its own in the table of spec 12.1 (core, units, time, logic, hal, control, ...).
+Layers form a stack: move the shared code to an earlier layer.
+
 ### NE0108 invalid `neuron.toml`
 The manifest needs `[package]` with `name` and `edition`.
 

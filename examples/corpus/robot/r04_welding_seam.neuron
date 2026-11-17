@@ -1,0 +1,23 @@
+## Follow a straight seam with the torch on, at a constant speed.
+module r04_welding_seam for robot
+
+frame part = frame(origin: xyz(500, 0, 100) mm, rot: rpy(0, 180, 0) deg)
+tool torch = tool(offset: xyz(0, 0, 150) mm, payload: 2 kg)
+
+io arc: gpio.output @ dout(7)
+
+point start = part.xyz(0, 0, 5) mm
+point finish = part.xyz(200, 0, 5) mm
+point safe = part.xyz(0, 0, 80) mm
+
+sequence weld():
+  move ptp to safe speed 50 %
+  move linear to start speed 100 mm/s
+  arc.write(true)
+  move linear to finish speed 8 mm/s
+  arc.write(false)
+  move linear to safe speed 100 mm/s
+
+safety:
+  safe_state:
+    arc.write(false)

@@ -1,0 +1,78 @@
+## First-order filters and a moving average. They keep the unit of their input.
+module std.control.filters for core
+
+## First-order low-pass filter. The first sample passes through unchanged.
+pub class Lowpass:
+  let cutoff_hz: f32
+  var y: f32 = 0.0
+  var started: bool = false
+
+  ## Filters `x` after `dt` seconds.
+  pub fn step(mut self, x: f32, dt: f32) -> f32:
+    requires dt > 0.0
+    if not self.started:
+      self.y = x
+      self.started = true
+    else:
+      let rc = 1.0 / (2.0 * 3.14159265 * self.cutoff_hz)
+      let a = dt / (rc + dt)
+      self.y += a * (x - self.y)
+    return self.y
+
+## First-order high-pass filter. The first sample gives zero.
+pub class Highpass:
+  let cutoff_hz: f32
+  var y: f32 = 0.0
+  var previous: f32 = 0.0
+  var started: bool = false
+
+  ## Filters `x` after `dt` seconds.
+  pub fn step(mut self, x: f32, dt: f32) -> f32:
+    requires dt > 0.0
+    if not self.started:
+      self.y = 0.0
+      self.started = true
+    else:
+      let rc = 1.0 / (2.0 * 3.14159265 * self.cutoff_hz)
+      let a = dt / (rc + dt)
+      self.y = (1.0 - a) * (self.y + x - self.previous)
+    self.previous = x
+    return self.y
+
+## Mean of the last `window` samples (1 to 16).
+pub class MovingAverage:
+  let window: u8
+  var samples: [f32; 16] = [0.0; 16]
+  var next: u8 = 0
+  var count: u8 = 0
+
+  ## Adds `x` and returns the mean of the samples held so far.
+  pub fn step(mut self, x: f32) -> f32:
+    requires self.window >= 1 and self.window <= 16
+    self.samples[self.next] = x
+    self.next = (self.next + 1) % self.window
+    if self.count < self.window:
+      self.count += 1
+    var sum = 0.0
+    for i in 0..16:
+      if (i as u8) < self.count:
+        sum += self.samples[i]
+    return sum / self.count as f32
+
+test "lowpass starts at the first sample and then moves toward the input":
+  var f = Lowpass(cutoff_hz: 1.0)
+  assert f.step(10.0, 0.01) == 10.0, "first sample"
+  let y = f.step(20.0, 0.01)
+  assert y > 10.0 and y < 20.0, "moves toward the input"
+  assert f.step(20.0, 0.01) > y, "keeps moving"
+
+test "highpass removes a constant input":
+  var f = Highpass(cutoff_hz: 1.0)
+  assert f.step(5.0, 0.01) == 0.0, "first sample"
+  assert f.step(5.0, 0.01) == 0.0, "constant input gives zero"
+
+test "moving average of a window of two":
+  var f = MovingAverage(window: 2)
+  assert f.step(2.0) == 2.0, "one sample"
+  assert f.step(4.0) == 3.0, "two samples"
+  assert f.step(6.0) == 5.0, "the oldest sample leaves"

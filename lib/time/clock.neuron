@@ -1,0 +1,42 @@
+## Time bookkeeping helpers.
+module std.time.clock for core
+
+## Accumulates the time given to it.
+pub class Stopwatch:
+  var total: duration = 0 s
+
+  ## Adds `dt` and returns the total.
+  pub fn step(mut self, dt: duration) -> duration:
+    self.total += dt
+    return self.total
+
+  ## Sets the total back to zero.
+  pub fn reset(mut self):
+    self.total = 0 s
+
+## Fires once every `period`.
+pub class Every:
+  let period: duration
+  var elapsed: duration = 0 s
+
+  ## Adds `dt`. Returns true on the step that completes a period.
+  pub fn step(mut self, dt: duration) -> bool:
+    self.elapsed += dt
+    if self.elapsed >= self.period:
+      self.elapsed -= self.period
+      return true
+    return false
+
+test "stopwatch adds and resets":
+  var s = Stopwatch()
+  assert s.step(2 ms) == 2 ms, "first"
+  assert s.step(3 ms) == 5 ms, "second"
+  s.reset()
+  assert s.step(1 ms) == 1 ms, "after reset"
+
+test "every fires once per period":
+  var e = Every(period: 3 ms)
+  assert e.step(1 ms) == false, "1 ms"
+  assert e.step(1 ms) == false, "2 ms"
+  assert e.step(1 ms) == true, "3 ms"
+  assert e.step(1 ms) == false, "restarts"

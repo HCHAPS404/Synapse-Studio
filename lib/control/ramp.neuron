@@ -1,0 +1,22 @@
+## Ramp generator (rate limiter).
+module std.control.ramp for core
+
+## Moves its value toward the target by at most `rate` per second.
+pub class Ramp:
+  let rate: f32
+  var value: f32 = 0.0
+
+  ## Moves toward `target` for `dt` seconds and returns the value.
+  pub fn step(mut self, target: f32, dt: f32) -> f32:
+    requires dt > 0.0 and self.rate >= 0.0
+    let limit = self.rate * dt
+    self.value += clamp(target - self.value, -limit, limit)
+    return self.value
+
+test "ramp climbs at its rate and stops at the target":
+  var r = Ramp(rate: 10.0)
+  assert r.step(25.0, 1.0) == 10.0, "first second"
+  assert r.step(25.0, 1.0) == 20.0, "second second"
+  assert r.step(25.0, 1.0) == 25.0, "reaches the target"
+  assert r.step(25.0, 1.0) == 25.0, "stays"
+  assert r.step(0.0, 1.0) == 15.0, "falls at the same rate"

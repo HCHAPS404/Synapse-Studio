@@ -1,0 +1,19 @@
+## A cycle that coordinates a clamp and a drill, with a timeout on every action.
+cell DrillCell
+  device plc: generic_s7_1200 @ ip(192.168.0.10)
+
+  sequence Cycle on plc:
+    initial step Idle:
+      until plc.start
+    step Clamp:
+      run plc.clamp.close()
+      until plc.clamp.done timeout 2 s -> Fault
+    step Drill:
+      run plc.drill.cycle()
+      until plc.drill.done timeout 8 s -> Fault
+    step Release:
+      run plc.clamp.open()
+      until plc.clamp.done timeout 2 s -> Fault
+      -> Idle
+    step Fault:
+      fault CycleFault

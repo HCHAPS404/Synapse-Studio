@@ -1,0 +1,23 @@
+## A press that needs both hands on the buttons within half a second.
+## Design aid only: a real two-hand control needs a certified safety relay.
+module p08_two_hand_control for plc
+scan 10 ms
+
+inputs:
+  left: bool  @ %I0.0
+  right: bool @ %I0.1
+
+outputs:
+  press: bool @ %Q0.0
+
+let sync_window = ton(preset: 500 ms)
+
+rung window:
+  sync_window.input = left != right
+
+rung press_output:
+  press = left and right and not sync_window.q
+
+safety:
+  safe_state:
+    press = false

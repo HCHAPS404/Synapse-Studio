@@ -1,0 +1,15 @@
+## Physical and mathematical constants.
+module std.units.constants for core
+
+## The ratio of a circle's circumference to its diameter.
+pub const pi = 3.14159265358979
+
+## Standard acceleration of gravity.
+pub const g0 = 9.80665 m/s^2
+
+## Absolute zero.
+pub const absolute_zero = -273.15 degC
+
+test "constants have their usual values":
+  assert pi > 3.14159 and pi < 3.1416, "pi"
+  assert g0 > 9.8 m/s^2 and g0 < 9.81 m/s^2, "g0"

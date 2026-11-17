@@ -1,0 +1,4 @@
+[package]
+name = "corpus_mcu"
+version = "0.1.0"
+edition = "2026"

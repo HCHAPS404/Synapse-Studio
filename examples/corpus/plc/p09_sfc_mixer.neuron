@@ -1,0 +1,46 @@
+## A mixing cycle as a sequence: fill, stir, drain.
+module p09_sfc_mixer for plc
+scan 10 ms
+
+inputs:
+  start: bool @ %I0.0
+  full: bool  @ %I0.1
+  empty: bool @ %I0.2
+
+outputs:
+  inlet: bool   @ %Q0.0
+  stirrer: bool @ %Q0.1
+  outlet: bool  @ %Q0.2
+
+sequence Mix:
+  initial step Idle:
+    until start
+  step Fill:
+    inlet = true
+    until full
+    inlet = false
+  step Stir:
+    stirrer = true
+    wait 5 s
+    stirrer = false
+  step Drain:
+    outlet = true
+    until empty
+    outlet = false
+    -> Idle
+
+safety:
+  safe_state:
+    inlet = false
+    stirrer = false
+    outlet = false
+
+test "the mixer fills, stirs and drains":
+  drive("start", true)
+  advance(50 ms)
+  assert inlet == true, "filling"
+  drive("full", true)
+  advance(50 ms)
+  assert stirrer == true, "stirring"
+  advance(5 s)
+  assert outlet == true, "draining"

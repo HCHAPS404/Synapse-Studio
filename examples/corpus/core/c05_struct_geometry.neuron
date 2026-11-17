@@ -1,0 +1,18 @@
+## A struct with units and a function that works on it.
+module c05_struct_geometry for core
+
+pub struct Rect:
+  width: f32 mm
+  height: f32 mm
+
+pub fn area(r: Rect) -> f32 mm^2 = r.width * r.height
+
+pub fn fits(inner: Rect, outer: Rect) -> bool:
+  return inner.width <= outer.width and inner.height <= outer.height
+
+test "area and fit":
+  let box = Rect(width: 40 mm, height: 25 mm)
+  let tray = Rect(width: 100 mm, height: 100 mm)
+  assert area(box) == 1000 mm^2, "area"
+  assert fits(box, tray), "fits in the tray"
+  assert not fits(tray, box), "does not fit the other way"

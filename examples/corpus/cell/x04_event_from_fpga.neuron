@@ -1,0 +1,9 @@
+## A fast event from an FPGA board reaches the PLC with its timestamp.
+cell Tracking
+  device fpga: generic_artix7_board @ uart(COM4, 115200 Bd)
+  device plc: generic_s7_1200 @ ip(192.168.0.10)
+
+  event part_seen: timestamp, encoder: u32 from fpga
+
+  link fpga.part -> plc.sensor via zero_hop(gpio, opto_24v) within 5 ms
+  tag part_count: u32 @ plc.%MD30

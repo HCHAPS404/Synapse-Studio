@@ -1,0 +1,9 @@
+## A one-line status display on a small OLED.
+module u01_status_label for ui on esp32_s3_devkit
+display oled: ssd1306(bus: i2c1, size: (128, 64), rotation: 0 deg)
+
+signal temp: f32 degC
+
+screen Main on oled:
+  label title "Oven" at (0, 0) font sans_12
+  label value bind temp at (0, 24) font sans_16

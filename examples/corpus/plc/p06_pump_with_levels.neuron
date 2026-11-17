@@ -1,0 +1,29 @@
+## Fill a tank between two level switches, with a dry-run protection timer.
+module p06_pump_with_levels for plc
+scan 20 ms
+
+inputs:
+  low_level: bool  @ %I0.0
+  high_level: bool @ %I0.1
+  flow_ok: bool    @ %I0.2
+
+outputs:
+  pump: bool    @ %Q0.0
+  dry_run: bool @ %Q0.1
+
+let no_flow = ton(preset: 3 s)
+
+rung fill:
+  set pump when low_level and not dry_run
+  reset pump when high_level or dry_run
+
+rung dry_run_timer:
+  no_flow.input = pump and not flow_ok
+
+rung dry_run_alarm:
+  dry_run = no_flow.q
+
+safety:
+  safe_state:
+    pump = false
+    dry_run = true

@@ -1,0 +1,10 @@
+## Detect the rising edge of an input signal and emit a one-cycle pulse.
+module d04_edge_detector for hdl
+clock sys: 100 MHz @ pin(W5)
+
+circuit edge(signal_in: in bit, pulse: out bit) on sys:
+  reg previous: bit = 0
+  on rising(sys):
+    previous = signal_in
+  comb:
+    pulse = signal_in and not previous

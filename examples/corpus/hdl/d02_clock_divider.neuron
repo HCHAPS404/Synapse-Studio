@@ -1,0 +1,19 @@
+## Divide a 100 MHz clock down to a 1 Hz tick for a blinking LED.
+module d02_clock_divider for hdl
+clock sys: 100 MHz @ pin(W5)
+
+circuit blinker(led: out bit) on sys:
+  const half_period = 50_000_000
+
+  reg ticks: bit<26> = 0
+  reg state: bit = 0
+
+  on rising(sys):
+    if ticks == half_period - 1:
+      ticks = 0
+      state = ~state
+    else:
+      ticks = ticks + 1
+
+  comb:
+    led = state

@@ -1,0 +1,22 @@
+## A heater with an over-temperature fault and a manual reset.
+module m07_overheat_guard for mcu on arduino_uno_r3
+
+io sensor: adc(resolution: 10) @ A0
+io heater: gpio.output         @ D5
+io ack: gpio.input(pull: up)   @ D2
+
+signal temp: f32 degC
+
+task measure every 10 ms (prio 2):
+  temp = sensor.read() |> scale(0..1023 -> 0..150 degC)
+
+task heat every 100 ms (prio 1):
+  heater.write(temp < 60 degC)
+
+safety:
+  watchdog 100 ms
+  safe_state:
+    heater.write(false)
+  when temp > 100 degC:
+    fault Overheat
+  reset when ack.read()

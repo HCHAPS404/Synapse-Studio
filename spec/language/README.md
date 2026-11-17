@@ -1,6 +1,7 @@
 # The Neuron Language Specification — Edition 2026
 
-Status: **v0.5 draft** (2026-11-16). Normative once frozen at gate G1.
+Status: **v1.0-rc1** (2026-11-16), the release candidate frozen at gate G1. The final
+`v1.0` waits for a review by someone who did not write it (`docs/usability-review.md`).
 Owner: Hell. Reviewers: Martin, `spec-reviewer` agent.
 
 Neuron is a programming language for automation and hardware. One language, one
@@ -53,6 +54,20 @@ interchange standard so that programs, devices and third-party languages can mee
 | Hardware bindings | One keyword for every peripheral: `io name: kind(config) @ location` |
 | Parameter passing | Read-only by default; `mut` for exclusive in-out, marked at the call site |
 | Errors | `Result<T, E>` and `T?` (Option) with `?` propagation; `fault` for safe-state entry; no exceptions |
+
+## Changes from v0.5 to v1.0-rc1
+
+Found while implementing tasks A11 to A13:
+
+- **Path segments.** A segment after the first in a `use` path may be a reserved word,
+  so `use std.test.asserts` is legal (chapter 4, section 4.7).
+- **`NE0106`** (import breaks the standard-library layering) is now reported by the
+  analyzer (chapter 12, section 12.1).
+- **Reference formatter.** The token-based formatter does not break lines at 88 columns
+  yet and has no `--range`; both are scheduled and do not change the rules (chapter 13).
+- **Standard library.** `lib/` holds the base layers written in Neuron (chapter 12,
+  section 12.8), tested against the interpreter's native blocks.
+- **Open items** are listed in `docs/usability-review.md`.
 
 ## Changes from v0.4 to v0.5
 

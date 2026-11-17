@@ -1,0 +1,10 @@
+## A free-running 8-bit counter on a 100 MHz clock.
+module d01_counter for hdl
+clock sys: 100 MHz @ pin(W5)
+
+circuit counter8(value: out bit<8>) on sys:
+  reg count: bit<8> = 0
+  on rising(sys):
+    count = count +% 1
+  comb:
+    value = count

@@ -1,0 +1,39 @@
+## Small numeric helpers that the prelude does not provide.
+module std.core.math for core
+
+## Linear interpolation: `a` at `t = 0.0`, `b` at `t = 1.0`.
+pub fn lerp(a: f32, b: f32, t: f32) -> f32 = a + (b - a) * t
+
+## Maps `x` from the range `in_lo..in_hi` to `out_lo..out_hi` without clamping.
+pub fn map_range(x: f32, in_lo: f32, in_hi: f32, out_lo: f32, out_hi: f32) -> f32:
+  requires in_hi != in_lo
+  return out_lo + (x - in_lo) * (out_hi - out_lo) / (in_hi - in_lo)
+
+## Absolute difference of two unsigned integers (never overflows).
+pub fn abs_diff(a: u32, b: u32) -> u32:
+  if a > b:
+    return a - b
+  return b - a
+
+## `true` when `x` lies in `lo..=hi`.
+pub fn between(x: f32, lo: f32, hi: f32) -> bool = lo <= x and x <= hi
+
+test "lerp":
+  assert lerp(0.0, 10.0, 0.0) == 0.0, "start"
+  assert lerp(0.0, 10.0, 1.0) == 10.0, "end"
+  assert lerp(0.0, 10.0, 0.25) == 2.5, "quarter"
+
+test "map_range":
+  assert map_range(5.0, 0.0, 10.0, 0.0, 100.0) == 50.0, "scales up"
+  assert map_range(0.0, 0.0, 4095.0, 0.0, 120.0) == 0.0, "low end"
+  assert map_range(15.0, 10.0, 20.0, 100.0, 0.0) == 50.0, "inverted output"
+
+test "abs_diff does not overflow":
+  assert abs_diff(3, 10) == 7, "smaller first"
+  assert abs_diff(10, 3) == 7, "larger first"
+  assert abs_diff(0, 4000000000) == 4000000000, "full range"
+
+test "between":
+  assert between(5.0, 0.0, 10.0), "inside"
+  assert between(10.0, 0.0, 10.0), "inclusive end"
+  assert not between(11.0, 0.0, 10.0), "outside"

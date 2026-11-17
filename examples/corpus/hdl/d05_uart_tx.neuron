@@ -1,0 +1,27 @@
+## A UART transmitter, 8N1 at 115200 baud.
+module d05_uart_tx for hdl
+clock clk: 100 MHz @ pin(W5)
+
+circuit tx(data: in bit<8>, start: in bit, line: out bit, busy: out bit) on clk:
+  const divisor = clk.freq / 115200 Bd
+
+  reg shift: bit<10> = 10'b11_1111_1111
+  reg count: bit<4> = 0
+  reg baud: bit<16> = 0
+
+  on rising(clk):
+    if start and count == 0:
+      shift = 1'b1 ++ data ++ 1'b0
+      count = 10
+      baud = 0
+    elif count != 0:
+      if baud == divisor - 1:
+        shift = 1'b1 ++ shift[9:1]
+        count = count - 1
+        baud = 0
+      else:
+        baud = baud + 1
+
+  comb:
+    line = shift[0]
+    busy = count != 0
