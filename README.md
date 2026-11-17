@@ -527,6 +527,7 @@ cargo run -p neuron-cli -- --version
 cargo run -p neuron-cli -- check examples --report --cpu-hz 16000000 --ram 2048
 cargo run -p neuron-cli -- emit-nir examples -o target/examples.nir.json   # canonical IR
 cargo run -p neuron-cli -- print-nir target/examples.nir.json              # IR back to source
+cargo run -p neuron-cli -- run examples/thermostat.neuron --for 1s         # run in simulated time
 
 # Core API
 cd services/core
@@ -563,14 +564,15 @@ SYNAPSE Studio is built spec-first with [Kiro](https://kiro.dev). Everything is 
 | Repository, license, governance, CI (compliance, Rust, Python) | ✅ |
 | Kiro steering and hooks | ✅ |
 | Core API skeleton with `/health` | ✅ |
-| Neuron language specification (edition 2026) | 🚧 draft v0.4 (16 chapters) |
+| Neuron language specification (edition 2026) | 🚧 draft v0.5 (17 chapters) |
 | Lexer, parser | ✅ |
 | Formatter | 📋 |
 | Names, modules and packages; types and units; dialect rules | ✅ (`neuron check`) |
 | SRP ceilings, response-time analysis, memory budget | ✅ (abstract cost model; target timing in B1) |
 | Safe-state checks and model checking of state machines and sequences | ✅ (counterexample traces) |
 | NIR (canonical IR): JSON Schema, printer back to source, round-trip property | ✅ (`neuron emit-nir`, `neuron print-nir`) |
-| Interpreter, conformance vectors | 📋 |
+| Reference interpreter: simulated time, LET signals, safe state, `test` blocks | ✅ (`neuron run`, `neuron test`) |
+| Conformance vectors | 📋 |
 | Device manifests, resource solver, topologies | 📋 |
 | C backend and runtime, LLVM IR, native backends (RV32, Thumb-2, AVR, MSP430) | 📋 |
 | ISA simulators, virtual MCU, debugger | 📋 |

@@ -5,6 +5,7 @@
 #[allow(clippy::large_enum_variant)]
 pub mod ast;
 pub mod diag;
+pub mod format;
 pub mod lexer;
 pub mod line_index;
 pub mod outline;

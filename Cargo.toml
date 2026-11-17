@@ -4,6 +4,8 @@ members = [
   "crates/neuron-syntax",
   "crates/neuron-nir",
   "crates/neuron-sema",
+  "crates/neuron-interp",
+  "crates/neuron-lsp",
   "crates/neuron-cli",
 ]
 

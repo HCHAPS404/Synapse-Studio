@@ -104,3 +104,16 @@ already guarantees.
 
 Files that contain syntax errors are left untouched and the parser diagnostics are
 printed.
+
+## 13.x Status of the reference formatter (v0.5, A11)
+
+The reference formatter (
+euron fmt, crates/neuron-syntax/src/format.rs) is
+token based. It changes only spacing, indentation and blank lines, so comments are
+never lost. Before returning it re-parses its own output and compares the token
+signature with the input. If they differ, it returns the input unchanged and reports
+that it fell back.
+
+Not implemented yet: line breaking at 88 columns and 
+euron fmt --range. Both are
+scheduled after the freeze and do not change the rules above.

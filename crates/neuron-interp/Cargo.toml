@@ -1,0 +1,17 @@
+[package]
+name = "neuron-interp"
+description = "Reference interpreter for Neuron: runs NIR in simulated time (tasks, interrupts, signals, state machines, sequences, faults)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+neuron-nir = { path = "../neuron-nir" }
+neuron-sema = { path = "../neuron-sema" }
+
+[dev-dependencies]
+proptest = { workspace = true }

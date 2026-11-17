@@ -45,6 +45,10 @@ jobs:
       - run: cargo test --workspace
       - name: Analyze the examples package
         run: cargo run --quiet -p neuron-cli -- check examples
+      - name: Examples are formatted
+        run: cargo run --quiet -p neuron-cli -- fmt --check examples
+      - name: Run the tests of the examples package
+        run: cargo run --quiet -p neuron-cli -- test examples
 
   core:
     name: Core API (Python)

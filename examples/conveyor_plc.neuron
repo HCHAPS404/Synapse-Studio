@@ -3,9 +3,10 @@ module conveyor for plc
 scan 10 ms
 
 inputs:
-  start: bool @ %I0.0
-  stop: bool @ %I0.1
+  start: bool  @ %I0.0
+  stop: bool   @ %I0.1
   sensor: bool @ %I0.2
+
 outputs:
   motor: bool @ %Q0.0
 

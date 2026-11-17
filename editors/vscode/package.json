@@ -1,0 +1,42 @@
+{
+  "name": "neuron-language",
+  "displayName": "Neuron Language",
+  "description": "Syntax highlighting, diagnostics, hover, go-to-definition and formatting for the Neuron language (SYNAPSE Studio).",
+  "version": "0.1.0",
+  "publisher": "synapse-studio",
+  "license": "Apache-2.0",
+  "engines": { "vscode": "^1.85.0" },
+  "categories": ["Programming Languages", "Formatters", "Linters"],
+  "main": "./extension.js",
+  "activationEvents": ["onLanguage:neuron"],
+  "contributes": {
+    "languages": [
+      {
+        "id": "neuron",
+        "aliases": ["Neuron", "neuron"],
+        "extensions": [".neuron"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "neuron",
+        "scopeName": "source.neuron",
+        "path": "./syntaxes/neuron.tmLanguage.json"
+      }
+    ],
+    "configuration": {
+      "title": "Neuron",
+      "properties": {
+        "neuron.path": {
+          "type": "string",
+          "default": "neuron",
+          "description": "Path to the `neuron` executable that provides `neuron lsp`."
+        }
+      }
+    }
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
+  }
+}

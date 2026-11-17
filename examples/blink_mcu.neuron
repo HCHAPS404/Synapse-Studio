@@ -1,7 +1,7 @@
 ## Blink an LED and count button presses (Arduino UNO R3 pin names).
 module blink for mcu on arduino_uno_r3
 
-io led: gpio.output @ D13
+io led: gpio.output             @ D13
 io button: gpio.input(pull: up) @ D2
 
 var presses: u16 = 0

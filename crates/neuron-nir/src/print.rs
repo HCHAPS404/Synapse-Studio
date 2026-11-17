@@ -186,7 +186,7 @@ impl Printer {
                 self.line(n, &format!("{pubs}const {name}{t} = {}", expr(value)));
             }
             ItemDef::Var { var } => self.line(n, &format!("{pubs}{}", var_decl(var))),
-            ItemDef::Signal { name, ty, init } => {
+            ItemDef::Signal { name, ty, init, .. } => {
                 let i = init
                     .as_ref()
                     .map_or(String::new(), |e| format!(" = {}", expr(e)));

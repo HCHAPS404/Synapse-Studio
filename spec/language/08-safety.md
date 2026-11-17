@@ -48,7 +48,8 @@ safety:
 - `fault Name` (from any task, rule, fsm or sequence) immediately applies the safe
   state, stops all tasks except `safety` and records the fault.
 - Built-in faults: `Overflow`, `DivideByZero`, `ContractViolation`, `StaleHandle`,
-  `DeadlineMiss`, `StackOverflow`, `Watchdog`, `LinkLost`, `EmergencyStop`.
+  `DeadlineMiss`, `StackOverflow`, `Watchdog`, `LinkLost`, `EmergencyStop`, `LoopBound`
+  (a body that does not end within the interpreter's bound, chapter 17).
 - Leaving the fault state requires an explicit `reset` from the safety logic or a
   power cycle; the reset condition is declared: `reset when ack.rising and not
   estop_active`.

@@ -5,9 +5,9 @@ use std.control.{pid, lowpass}
 
 const target = 60 degC
 
-io sensor: adc(resolution: 12)  @ ADC1.in0(PA0)
-io heater: pwm(freq: 1 kHz)     @ TIM2.ch2(PA1)
-io alarm:  gpio.output          @ PA5
+io sensor: adc(resolution: 12) @ ADC1.in0(PA0)
+io heater: pwm(freq: 1 kHz)    @ TIM2.ch2(PA1)
+io alarm: gpio.output          @ PA5
 
 signal temp: f32 degC
 

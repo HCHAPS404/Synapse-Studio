@@ -139,8 +139,11 @@ pub enum ItemDef {
     Signal {
         /// Name.
         name: String,
-        /// Type.
+        /// Type as written.
         ty: TypeExpr,
+        /// Resolved type, with its unit.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        vty: Option<Type>,
         /// Initial value.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         init: Option<Expr>,

@@ -318,6 +318,11 @@ impl Lower<'_> {
             ItemKind::Signal { name, ty, init } => D::Signal {
                 name: name.name.clone(),
                 ty: self.type_expr(ty),
+                vty: self
+                    .checked
+                    .item_ty
+                    .get(&(self.mi, name.name.clone()))
+                    .map(|t| self.ty(t)),
                 init: self.opt_expr(init),
             },
             ItemKind::Unit { name, def } => D::Unit {

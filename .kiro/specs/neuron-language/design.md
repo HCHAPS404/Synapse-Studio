@@ -40,6 +40,7 @@ platform runtime), never from the grammar.
 | Models of computation, cell time, translation refinement | 14 |
 | Semantic analysis (names, types, dialect rules, time, safety) | 15 |
 | NIR: model, ids, canonical JSON, schema, printer (spec `.kiro/specs/neuron-nir/`) | 16 |
+| Reference interpreter: scheduling, LET, faults, tests (spec `.kiro/specs/neuron-interp/`) | 17 |
 
 ## Key decisions (ADR summary)
 
@@ -56,4 +57,5 @@ platform runtime), never from the grammar.
 ## Correctness properties (become property-based tests)
 
 LEX-1, LEX-2 (02) · UNIT-1 (03) · MEM-1, MEM-2 (05) · SRP-1..3, LET-1 (06) ·
-HW-1 (07) · SAFE-1, SAFE-2 (08) · VIEW-1 (09) · P-FMT (13) · NIR-1 and P-RT (16).
+HW-1 (07) · SAFE-1, SAFE-2 (08) · VIEW-1 (09) · P-FMT (13) · NIR-1 and P-RT (16) ·
+MOC-R1 (14, 17).

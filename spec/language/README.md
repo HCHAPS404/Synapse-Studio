@@ -1,6 +1,6 @@
 # The Neuron Language Specification — Edition 2026
 
-Status: **v0.4 draft** (2026-11-15). Normative once frozen at gate G1.
+Status: **v0.5 draft** (2026-11-16). Normative once frozen at gate G1.
 Owner: Hell. Reviewers: Martin, `spec-reviewer` agent.
 
 Neuron is a programming language for automation and hardware. One language, one
@@ -26,6 +26,7 @@ interchange standard so that programs, devices and third-party languages can mee
 | [15 Semantic analysis](15-analysis.md) | Names and modules, types and units, dialect rules, time and concurrency, safe state and model checking |
 | [16 NIR](16-nir.md) | Intermediate representation: structure, ids, types and units, exact numbers, canonical JSON, printer and round trip, versioning |
 | [NIR schema](../schemas/nir.schema.json) | JSON Schema of NIR (generated, checked in CI) |
+| [17 The reference interpreter](17-interpreter.md) | Running programs in simulated time: scheduling and LET, activities, faults and the safe state, devices outside the package, `test` blocks |
 | [Grammar](../grammar/neuron.ebnf) | Complete EBNF grammar |
 
 ## Conventions used in this specification
@@ -52,6 +53,19 @@ interchange standard so that programs, devices and third-party languages can mee
 | Hardware bindings | One keyword for every peripheral: `io name: kind(config) @ location` |
 | Parameter passing | Read-only by default; `mut` for exclusive in-out, marked at the call site |
 | Errors | `Result<T, E>` and `T?` (Option) with `?` propagation; `fault` for safe-state entry; no exceptions |
+
+## Changes from v0.4 to v0.5
+
+Found while implementing task A10:
+
+- **New chapter 17** defines the reference interpreter: the order of events inside one
+  instant, logical execution time in practice, how each activity runs, faults and
+  reset, the model of devices outside the package, and `test` blocks.
+- **`std.test`.** `drive`, `advance`, `elapsed`, `current_fault` and `state_of` are
+  prelude functions meant for `test` blocks (chapter 17 section 17.8).
+- **Runtime faults.** `LoopBound` (a body executed more than 5 million statements, or a
+  collection or loop larger than 2^20) joins the built-in faults of chapter 8.
+- **`signal` in NIR** carries its resolved type (`vty`), so tools can show its unit.
 
 ## Changes from v0.3 to v0.4
 

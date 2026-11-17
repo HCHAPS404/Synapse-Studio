@@ -139,3 +139,38 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
 - **Follow-up:** the README now shows the status after A9, the NIR commands, and the
   two code samples copied from `examples/` (checked in CI) instead of an older draft
   syntax.
+
+## 2026-11-16 · Task A10 (reference interpreter)
+- **Kiro features:** spec-driven development (new spec `.kiro/specs/neuron-interp`,
+  chapter 17 of the language specification), steering (`rust-style`: no `unwrap`, bounded
+  loops, deterministic order), property-based testing (`proptest`) for SAFE-1 and for
+  totality on mutated programs, agent-run builds through logged scripts
+  (`tools/build-check.ps1`, `tools/ship.ps1`).
+- **Produced:** the `neuron-interp` crate: a discrete-event interpreter of NIR in simulated
+  time with logical execution time for signals, interrupts, state machines, sequences,
+  PLC scans, the safety logic with safe state and reset, function blocks, a model of
+  devices outside the package, scenarios and `test` blocks; `neuron run` and
+  `neuron test`; the prelude functions `drive`, `advance`, `elapsed`, `current_fault` and
+  `state_of`.
+- **Lessons:** the properties found their own mistakes. The first draft of the PLC test
+  expected no output at the first scan, and the interpreter correctly published the
+  initial image, so the spec now says so. Writing the SAFE-1 property forced the
+  definition of "no output changes after a fault" to be precise. A publishing script that
+  checks for deleted files and NUL bytes before committing replaces the earlier
+  commit-everything script, after a damaged drive made a commit that deleted half of the
+  repository (reverted without rewriting history).
+
+## 2026-11-16 · Task A11 (formatter, explain, LSP)
+- **Kiro features:** spec-driven development (new spec `.kiro/specs/neuron-tooling`),
+  steering (`rust-style`), property-based testing (`proptest`) for formatter
+  idempotence, token preservation and totality, agent-run builds through logged scripts.
+- **Produced:** `neuron fmt` (token based, with a self-check that falls back to the
+  input), `neuron explain NE####` (embeds `docs/errors`), `neuron lsp` (diagnostics,
+  hover, go to definition, formatting over the whole workspace), a VS Code and Kiro
+  extension in `editors/vscode`, and `docs/editor-support.md`. CI now checks that the
+  examples are formatted and that their tests pass.
+- **Lessons:** a tree-based printer was rejected because it drops comments; a token
+  based one cannot lose them. The test that widens spacing found that a unit must stay
+  one space from its number, also after a call such as `xyz(1, 2, 3) mm` (`NE0014`);
+  the generator, not the formatter, was wrong. Line breaking at 88 columns is not
+  implemented and is documented as such.

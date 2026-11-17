@@ -1,0 +1,75 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Neuron",
+  "scopeName": "source.neuron",
+  "patterns": [
+    { "include": "#block-comment" },
+    { "include": "#doc-comment" },
+    { "include": "#comment" },
+    { "include": "#string" },
+    { "include": "#hardware-literal" },
+    { "include": "#quantity" },
+    { "include": "#number" },
+    { "include": "#keyword" },
+    { "include": "#contextual" },
+    { "include": "#constant" },
+    { "include": "#type" },
+    { "include": "#operator" }
+  ],
+  "repository": {
+    "block-comment": {
+      "name": "comment.block.neuron",
+      "begin": "#\\[",
+      "end": "\\]#"
+    },
+    "doc-comment": {
+      "name": "comment.block.documentation.neuron",
+      "match": "##.*$"
+    },
+    "comment": {
+      "name": "comment.line.number-sign.neuron",
+      "match": "#.*$"
+    },
+    "string": {
+      "name": "string.quoted.double.neuron",
+      "begin": "(?:r|b)?\"",
+      "end": "\"",
+      "patterns": [
+        { "name": "constant.character.escape.neuron", "match": "\\\\(?:[nrt\\\\\"0{}]|x[0-9A-Fa-f]{2}|u\\{[0-9A-Fa-f]+\\})" },
+        { "name": "meta.interpolation.neuron", "match": "\\{[^}\"]*\\}" }
+      ]
+    },
+    "hardware-literal": {
+      "name": "constant.other.address.neuron",
+      "match": "%[IQM][XBWDL]?[0-9]+(?:\\.[0-9]+)?|\\b[0-9]+'[bhd][0-9A-Fa-f_]+"
+    },
+    "quantity": {
+      "name": "constant.numeric.quantity.neuron",
+      "match": "\\b[0-9][0-9_]*(?:\\.[0-9]+)?(?:[eE][+-]?[0-9]+)? (?:%|[A-Za-zµΩ°][A-Za-z0-9µΩ°]*(?:\\^-?[0-9]+)?(?:[*/][A-Za-zµΩ°][A-Za-z0-9µΩ°]*(?:\\^-?[0-9]+)?)*)(?![A-Za-z0-9_])"
+    },
+    "number": {
+      "name": "constant.numeric.neuron",
+      "match": "\\b(?:0x[0-9A-Fa-f_]+|0b[01_]+|0o[0-7_]+|[0-9][0-9_]*(?:\\.[0-9]+)?(?:[eE][+-]?[0-9]+)?)\\b"
+    },
+    "keyword": {
+      "name": "keyword.control.neuron",
+      "match": "\\b(?:and|as|assert|atomic|break|cell|class|const|continue|elif|else|emit|enum|extern|fault|fn|for|if|in|interface|io|is|let|loop|match|module|mut|not|on|or|pass|pub|requires|ensures|invariant|return|safety|self|signal|struct|task|test|then|trusted|type|use|var|verify|when|while)\\b"
+    },
+    "contextual": {
+      "name": "keyword.other.neuron",
+      "match": "\\b(?:every|offset|prio|deadline|core|reads|writes|stack|interrupt|after|fsm|state|initial|final|entry|exit|do|sequence|step|parallel|branch|run|until|timeout|wait|safe_state|watchdog|rate|reset|never|always|implies|eventually_within|max|unit|clocks|from|regs|uses|asm|scan|inputs|outputs|memory|retain|rung|clock|circuit|reg|wire|comb|rising|falling|sync|via|instance|frame|tool|point|move|ptp|linear|arc|to|speed|accel|blend|display|screen|bind|at|size|row|column|grid|theme|device|link|within|zone|mutex|between|place|event|tag)\\b"
+    },
+    "constant": {
+      "name": "constant.language.neuron",
+      "match": "\\b(?:true|false|none)\\b"
+    },
+    "type": {
+      "name": "entity.name.type.neuron",
+      "match": "\\b[A-Z][A-Za-z0-9_]*\\b"
+    },
+    "operator": {
+      "name": "keyword.operator.neuron",
+      "match": "\\|>|\\?\\?|->|=>|\\.\\.=?|[+\\-*/%&|^~<>=!]=?|\\+%|\\+\\||[?@]"
+    }
+  }
+}

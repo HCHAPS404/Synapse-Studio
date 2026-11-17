@@ -72,8 +72,35 @@ pub const STD_BLOCKS: &[&str] = &[
 
 /// Free functions of the standard library.
 pub const STD_FUNCTIONS: &[&str] = &[
-    "abs", "min", "max", "clamp", "sin", "cos", "tan", "asin", "acos", "atan", "atan2", "sqrt",
-    "exp", "log", "log10", "floor", "ceil", "round", "pow", "hypot", "sign", "now", "scale",
+    "abs",
+    "min",
+    "max",
+    "clamp",
+    "sin",
+    "cos",
+    "tan",
+    "asin",
+    "acos",
+    "atan",
+    "atan2",
+    "sqrt",
+    "exp",
+    "log",
+    "log10",
+    "floor",
+    "ceil",
+    "round",
+    "pow",
+    "hypot",
+    "sign",
+    "now",
+    "scale",
+    // `std.test`: legal in `test` blocks (spec 17 section 17.6).
+    "drive",
+    "advance",
+    "elapsed",
+    "current_fault",
+    "state_of",
 ];
 
 /// Constructors for geometry and results.

@@ -1784,8 +1784,19 @@
               "type": "string"
             },
             "ty": {
-              "description": "Type.",
+              "description": "Type as written.",
               "$ref": "#/$defs/TypeExpr"
+            },
+            "vty": {
+              "description": "Resolved type, with its unit.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Type"
+                },
+                {
+                  "type": "null"
+                }
+              ]
             }
           },
           "required": [

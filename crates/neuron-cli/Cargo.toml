@@ -16,3 +16,5 @@ path = "src/main.rs"
 [dependencies]
 neuron-syntax = { path = "../neuron-syntax" }
 neuron-sema = { path = "../neuron-sema" }
+neuron-interp = { path = "../neuron-interp" }
+neuron-lsp = { path = "../neuron-lsp" }

@@ -22,6 +22,20 @@ usage:
                                     analyze and write the program as canonical NIR JSON
                                     (stdout by default); nothing is written on errors
   neuron print-nir <file.nir.json>  print NIR back as Neuron source
+  neuron fmt [--check] [--stdin] <file|dir>...
+                                    rewrite files in the canonical layout; `--check` only
+                                    lists the files that would change (exit code 1)
+  neuron explain <NE####>           the long explanation of a diagnostic
+  neuron lsp                        language server on standard input and output
+  neuron run [options] <file|dir>...
+                                    run the program in simulated time and print what it does
+  neuron test <file|dir>...         run the `test` blocks of the program
+
+run options:
+  --for <time>        simulated time to run, such as `2 s` or `500ms` (default 1 s)
+  --scenario <file>   scripted inputs (one `at 100 ms: button = true` per line)
+  --jitter <seed>     random execution delays, to check that signals do not depend on them
+  --action-time <t>   time a device action takes in the model (default 100 ms)
 
 check options:
   --cpu-hz <n>     CPU clock in Hz: enables worst-case execution time analysis
@@ -182,6 +196,246 @@ fn cmd_emit_nir(args: &[String]) -> ExitCode {
         None => print!("{text}"),
     }
     ExitCode::SUCCESS
+}
+
+/// `neuron explain NE####`: the long explanation of a diagnostic.
+fn cmd_explain(code: &str) -> ExitCode {
+    match neuron_cli::explain::explain(code) {
+        Some(text) => {
+            print!("{text}");
+            ExitCode::SUCCESS
+        }
+        None => {
+            eprintln!("error: `{code}` is not a known diagnostic code (see spec/language/10-diagnostics.md)");
+            ExitCode::from(1)
+        }
+    }
+}
+
+/// `neuron fmt [--check] [--stdin] <file|dir>...`: the canonical formatter.
+fn cmd_fmt(args: &[String]) -> ExitCode {
+    let mut check = false;
+    let mut stdin = false;
+    let mut paths: Vec<String> = Vec::new();
+    for a in args {
+        match a.as_str() {
+            "--check" => check = true,
+            "--stdin" => stdin = true,
+            other => paths.push(other.to_string()),
+        }
+    }
+    if stdin {
+        let mut src = String::new();
+        if let Err(e) = std::io::Read::read_to_string(&mut std::io::stdin(), &mut src) {
+            eprintln!("error: cannot read standard input: {e}");
+            return ExitCode::from(2);
+        }
+        return match neuron_syntax::format::format_source(&src) {
+            Ok(f) => {
+                print!("{}", f.text);
+                ExitCode::SUCCESS
+            }
+            Err(diags) => {
+                for d in &diags {
+                    eprint!("{}", d.render("<stdin>", &src));
+                }
+                ExitCode::from(1)
+            }
+        };
+    }
+    if paths.is_empty() {
+        eprintln!("error: `fmt` needs at least one file or directory\n\n{USAGE}");
+        return ExitCode::from(2);
+    }
+    let mut files: Vec<PathBuf> = Vec::new();
+    for p in &paths {
+        let path = Path::new(p);
+        if path.is_dir() {
+            if let Err(e) = collect(path, &mut files) {
+                eprintln!("error: cannot read {p}: {e}");
+                return ExitCode::from(2);
+            }
+        } else {
+            files.push(path.to_path_buf());
+        }
+    }
+    let (mut changed, mut same, mut broken) = (0usize, 0usize, 0usize);
+    for f in &files {
+        let shown = f.to_string_lossy().into_owned();
+        let src = match read(&shown) {
+            Ok(s) => s,
+            Err(code) => return code,
+        };
+        match neuron_syntax::format::format_source(&src) {
+            Err(diags) => {
+                broken += 1;
+                for d in &diags {
+                    eprint!("{}", d.render(&shown, &src));
+                }
+            }
+            Ok(out) if out.text == src => same += 1,
+            Ok(out) => {
+                changed += 1;
+                if check {
+                    println!("would reformat {shown}");
+                } else if let Err(e) = std::fs::write(f, out.text) {
+                    eprintln!("error: cannot write {shown}: {e}");
+                    return ExitCode::from(2);
+                } else {
+                    println!("formatted {shown}");
+                }
+            }
+        }
+    }
+    eprintln!("{changed} changed, {same} unchanged, {broken} with errors");
+    if broken > 0 || (check && changed > 0) {
+        ExitCode::from(1)
+    } else {
+        ExitCode::SUCCESS
+    }
+}
+
+/// Analyzes the given files and packages. Prints the diagnostics; returns the analysis
+/// only when there are no errors.
+fn analyze_or_exit(paths: &[String]) -> Result<neuron_sema::Analysis, ExitCode> {
+    let (sources, manifest) = load(paths, true)?;
+    let analysis = analyze(sources, manifest.as_deref(), &SemaOptions::default());
+    eprint!("{}", analysis.render());
+    if analysis.nir.is_none() {
+        eprintln!("error: the program has errors, so it cannot run");
+        return Err(ExitCode::from(1));
+    }
+    Ok(analysis)
+}
+
+/// `neuron run <file|dir>... [--for 2s] [--scenario file] [--jitter seed]`
+fn cmd_run(args: &[String]) -> ExitCode {
+    let mut paths: Vec<String> = Vec::new();
+    let mut opts = neuron_interp::Options::default();
+    let mut scenario: Option<String> = None;
+    let mut it = args.iter();
+    while let Some(a) = it.next() {
+        match a.as_str() {
+            "--for" | "--scenario" | "--jitter" | "--action-time" => {
+                let Some(v) = it.next() else {
+                    eprintln!("error: `{a}` needs a value\n\n{USAGE}");
+                    return ExitCode::from(2);
+                };
+                match a.as_str() {
+                    "--for" => match neuron_interp::parse_duration(v) {
+                        Ok(ns) => opts.end_ns = ns,
+                        Err(e) => {
+                            eprintln!("error: --for: {e}");
+                            return ExitCode::from(2);
+                        }
+                    },
+                    "--action-time" => match neuron_interp::parse_duration(v) {
+                        Ok(ns) => opts.action_ns = ns,
+                        Err(e) => {
+                            eprintln!("error: --action-time: {e}");
+                            return ExitCode::from(2);
+                        }
+                    },
+                    "--jitter" => {
+                        let Ok(seed) = v.parse::<u64>() else {
+                            eprintln!("error: --jitter needs a number");
+                            return ExitCode::from(2);
+                        };
+                        opts.jitter = Some(neuron_interp::Jitter {
+                            seed,
+                            max_ns: opts.base_tick_ns,
+                        });
+                    }
+                    _ => scenario = Some(v.clone()),
+                }
+            }
+            other => paths.push(other.to_string()),
+        }
+    }
+    if paths.is_empty() {
+        eprintln!("error: `run` needs at least one file or directory\n\n{USAGE}");
+        return ExitCode::from(2);
+    }
+    let analysis = match analyze_or_exit(&paths) {
+        Ok(a) => a,
+        Err(code) => return code,
+    };
+    let Some(nir) = analysis.nir else {
+        return ExitCode::from(1);
+    };
+    let mut interp = match neuron_interp::Interp::new(nir, opts) {
+        Ok(i) => i,
+        Err(e) => {
+            eprintln!("error: {e}");
+            return ExitCode::from(1);
+        }
+    };
+    if let Some(file) = scenario {
+        let text = match read(&file) {
+            Ok(t) => t,
+            Err(code) => return code,
+        };
+        match neuron_interp::parse_scenario(&text) {
+            Ok(sc) => interp.load_scenario(&sc),
+            Err(e) => {
+                eprintln!("error: {file}: {e}");
+                return ExitCode::from(2);
+            }
+        }
+    }
+    interp.run();
+    print!("{}", neuron_interp::render(interp.trace()));
+    eprintln!(
+        "ran {} of simulated time, {} observations{}",
+        neuron_interp::fmt_time(interp.now_ns()),
+        interp.trace().len(),
+        interp
+            .current_fault()
+            .map_or(String::new(), |f| format!(", in fault {f}"))
+    );
+    ExitCode::SUCCESS
+}
+
+/// `neuron test <file|dir>...`: runs every `test` block.
+fn cmd_test(args: &[String]) -> ExitCode {
+    if args.is_empty() {
+        eprintln!("error: `test` needs at least one file or directory\n\n{USAGE}");
+        return ExitCode::from(2);
+    }
+    let analysis = match analyze_or_exit(args) {
+        Ok(a) => a,
+        Err(code) => return code,
+    };
+    let Some(nir) = &analysis.nir else {
+        return ExitCode::from(1);
+    };
+    let reports = neuron_interp::run_tests(nir, &neuron_interp::Options::default());
+    let mut failed = 0usize;
+    for r in &reports {
+        let file = &analysis.paths[r.module];
+        if r.passed {
+            println!("PASS  {file}: {}", r.name);
+        } else {
+            failed += 1;
+            let place = r.at.map_or(String::new(), |(m, span)| {
+                let text = &analysis.texts[m];
+                let (line, col) = LineIndex::new(text).line_col(text, span[0]);
+                format!(" ({}:{line}:{col})", analysis.paths[m])
+            });
+            println!("FAIL  {file}: {}: {}{place}", r.name, r.message);
+        }
+    }
+    println!(
+        "{} test(s), {} passed, {} failed",
+        reports.len(),
+        reports.len() - failed,
+        failed
+    );
+    if failed == 0 {
+        ExitCode::SUCCESS
+    } else {
+        ExitCode::from(1)
+    }
 }
 
 /// `neuron print-nir <file.nir.json>`: prints NIR back as Neuron source.
@@ -362,6 +616,27 @@ fn main() -> ExitCode {
         },
         Some("check") => cmd_check(&args[1..]),
         Some("emit-nir") => cmd_emit_nir(&args[1..]),
+        Some("lsp") => {
+            let stdin = std::io::stdin();
+            match neuron_lsp::serve(stdin.lock(), std::io::stdout().lock()) {
+                Ok(0) => ExitCode::SUCCESS,
+                Ok(_) => ExitCode::from(1),
+                Err(e) => {
+                    eprintln!("error: language server: {e}");
+                    ExitCode::from(2)
+                }
+            }
+        }
+        Some("fmt") => cmd_fmt(&args[1..]),
+        Some("explain") => match args.get(1) {
+            Some(code) => cmd_explain(code),
+            None => {
+                eprintln!("error: `explain` needs a code such as NE0201\n\n{USAGE}");
+                ExitCode::from(2)
+            }
+        },
+        Some("run") => cmd_run(&args[1..]),
+        Some("test") => cmd_test(&args[1..]),
         Some("print-nir") => match args.get(1) {
             Some(path) => cmd_print_nir(path),
             None => {
