@@ -11,6 +11,8 @@ static inline void nrt_crit_leave(nrt_crit_t s) { (void)s; }
 
 /* The host has no registers: the arguments are ignored. */
 #define NRT_PIN(port, ddr, pin, bit) NULL, NULL, NULL, (uint8_t)(1u << (bit))
+/* A pin of a flat GPIO bank (RP2040, ESP32-S3): its number. */
+#define NRT_GPIO(n) NULL, NULL, NULL, (uint8_t)(n)
 
 struct nrt_app;
 int nrt_main(const struct nrt_app *app, int argc, char **argv);

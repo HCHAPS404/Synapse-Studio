@@ -1,6 +1,6 @@
 schema = 1
 name = "baremetal-stm32"
-source = "Planned port of runtime/neuron-rt to STM32 parts (task B5)."
+source = "runtime/neuron-rt/port/stm32f4: bare-metal port for the STM32F4 family (task B5). Registers from the public reference manual."
 trust = "community"
 kind = "baremetal"
 port = "stm32"

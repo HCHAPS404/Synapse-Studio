@@ -9,6 +9,7 @@ Update the **Status** column when a task changes state and note it in
 | Mark | Meaning |
 |---|---|
 | ✅ | done |
+| ✅🔌 | done and verified without hardware; the acceptance on the real device is pending (a hardware session, You) |
 | 🚧 | in progress |
 | ⬜ | not started |
 | **H** | Hell (lead: language, compiler, backends, std, verification, core services, daemon, hardware, AI) |
@@ -100,12 +101,20 @@ on this phase.
 | B1 | Target model | `targets/arch|chips|boards|runtimes/*.toml`, SVD import, pin/alternate-function solver, clock-tree solver | NE0601, NE0603, NE0605, NE0606; files for UNO, Mega, Pico, Pico 2 W, ESP32-S3, XIAO S3, N657 | A7 | 19–20 nov | ✅ `neuron-target`, 8 boards, pin and clock solvers, HW-1/CLK-1/TGT-1 tests, `neuron check` runs the hardware checks. SVD import stays B1b (after G2); N657 file is a placeholder |
 | B2 | MIR and C backend | HIR/NIR → MIR (SSA) → portable C; source maps | Golden files; generated C compiles with `-Wall -Werror` | A9, B1 | 19–21 nov | ✅ `neuron-mir` (a structured typed tree; SSA moves to B8) and `neuron-codegen-c`; host builds match the interpreter trace; `match`, enums, arrays, classes, `sequence` and native blocks give NE0610 |
 | B3 | Runtime `neuron-rt` (C) | Startup, static SRP scheduler, timers, interrupt dispatch, safe state, watchdog, panic/fault | Runs on host (tests) and on AVR | B2 | 20–21 nov | ✅ `runtime/neuron-rt`: core, host port, AVR port (UNO, Mega); run-to-completion tasks, interrupts with atomic sections |
-| B4 | `std.hal` per family + build/flash | `gpio`, `uart`, `timer`, `adc`, `pwm`, `i2c`, `spi`; `neuron build`, `neuron flash` (avrdude, UF2, esptool, probe-rs/OpenOCD) | **G2** on UNO R3 | B3 | 20–21 nov | 🟡 `neuron targets`, `emit-c`, `build` (UNO, Mega, `--host`), `flash` (avrdude); gpio/uart/adc/pwm/interrupts. G2 needs the UNO on USB (You); i2c, spi, UF2, esptool, probe-rs come with B5 |
-| B5 | More boards (support tiers) | Mega, Pico, ESP32-S3/XIAO (ESP-IDF runtime port), Pico 2 W (CYW43 LED via SDK), N657 (FSBL boot), boards from the second lab | Same blink/UART/IRQ program on each; tier table in docs | B4 | 21–25 nov | 🟡 Mega builds; tier table in `docs/targets.md`; Pico, Pico 2 W, ESP32-S3, XIAO, NUCLEO are `described` (checked and C emitted, no runtime port yet) |
-| B6 | ISA simulators (virtual MCU) | AVR and Thumb-2 (M0+) simulators running the real binaries; peripheral models for GPIO/UART/timer | Same trace on simulator and hardware | B2 | 22–26 nov | 🟡 `neuron-sim-avr` runs the avr-gcc firmware and matches the interpreter (MOC-A1); `neuron-sim-thumb` (ARMv6-M, SysTick, NVIC, SIO GPIO) tested with hand-assembled programs. Hardware comparison waits for G2; RP2040 firmware waits for its port |
-| B7 | `hdl` dialect → Verilog + constraints | Synthesizable Verilog, CDC synchronizers, XDC/PCF; verilator/iverilog checks; FPGA flashing (openFPGALoader or vendor tool) | Counter + PWM + UART TX on the lab FPGA; MCU↔FPGA UART link | A9 | 21–23 nov | ⬜ |
-| B8 | Native backends | AVR first, then RV32IMC (Pico 2 W RISC-V cores), then Thumb-2; assembler, linker, ELF/HEX | Blink without external compiler on at least one board | B2 | 24–30 nov | ⬜ |
-| B9 | `ui` dialect, first displays | `std.display`: SSD1306 (I2C), ILI9341/ST7789 (SPI), HD44780; render strategy chosen from RAM | Dashboard on ESP32-S3 with a TFT; NE0604 on UNO if it does not fit | B4 | 25–29 nov | ⬜ |
+| B4 | `std.hal` per family + build/flash | `gpio`, `uart`, `timer`, `adc`, `pwm`, `i2c`, `spi`; `neuron build`, `neuron flash` (avrdude, UF2, esptool, probe-rs/OpenOCD) | **G2** on UNO R3 | B3 | 20–21 nov | ✅🔌 `neuron targets`, `emit-c`, `build` (`--host`, `--native`), `emit-verilog`, `flash` with avrdude, the UF2 drive, probe-rs/OpenOCD/st-flash, esptool and openFPGALoader; gpio, uart, adc, pwm, interrupts; I2C and SPI display bus on AVR and ESP-IDF. 🔌 G2: the UNO on USB (You) |
+| B5 | More boards (support tiers) | Mega, Pico, ESP32-S3/XIAO (ESP-IDF runtime port), Pico 2 W (CYW43 LED via SDK), N657 (FSBL boot), boards from the second lab | Same blink/UART/IRQ program on each; tier table in docs | B4 | 21–25 nov | ✅🔌 ports for RP2040/RP2350 (bare metal, RAM UF2), STM32F4 (NUCLEO-F446RE) and ESP32-S3 (ESP-IDF project); the RP2040 firmware matches the interpreter in the Thumb simulator; tier table in `docs/targets.md`. N657 stays a placeholder (FSBL boot). 🔌 Same program on each real board (session I2) |
+| B6 | ISA simulators (virtual MCU) | AVR and Thumb-2 (M0+) simulators running the real binaries; peripheral models for GPIO/UART/timer | Same trace on simulator and hardware | B2 | 22–26 nov | ✅🔌 `neuron-sim-avr` runs the avr-gcc and the native firmware; `neuron-sim-thumb` runs the RP2040 firmware (RESETS, XOSC, CLOCKS, IO_BANK0 interrupts, UART0 modelled); both match the interpreter. 🔌 Comparison with the real boards (G2, I2) |
+| B7 | `hdl` dialect → Verilog + constraints | Synthesizable Verilog, CDC synchronizers, XDC/PCF; verilator/iverilog checks; FPGA flashing (openFPGALoader or vendor tool) | Counter + PWM + UART TX on the lab FPGA; MCU↔FPGA UART link | A9 | 21–23 nov | ✅🔌 `neuron-codegen-hdl`: Verilog-2005, `NE0702` and two-flop synchronizers, PCF/XDC for two generic boards, iverilog/yosys/nextpnr/Vivado/openFPGALoader drivers; corpus goldens, iverilog simulation and yosys synthesis in CI. 🔌 The lab FPGA (session I3) |
+| B8 | Native backends | AVR first, then RV32IMC (Pico 2 W RISC-V cores), then Thumb-2; assembler, linker, ELF/HEX | Blink without external compiler on at least one board | B2 | 24–30 nov | ✅🔌 `neuron-native-avr`: assembler, Intel HEX and a code generator for the UNO (tasks, interrupts, fsm, signals, checked arithmetic); `neuron build --native`; images match the interpreter in the AVR simulator. RV32IMC and Thumb-2 native come later. 🔌 Native blink on the real UNO (with G2) |
+| B9 | `ui` dialect, first displays | `std.display`: SSD1306 (I2C), ILI9341/ST7789 (SPI), HD44780; render strategy chosen from RAM | Dashboard on ESP32-S3 with a TFT; NE0604 on UNO if it does not fit | B4 | 25–29 nov | ✅🔌 `neuron-ui` and `runtime/neuron-rt/ui`: SSD1306, ILI9341, ST7789, HD44780; label, gauge, bar, slider, led, button; strategy from the RAM and NE0604 (the TFT panel on the UNO); the firmware's bus traffic rebuilds the reference image pixel for pixel. 🔌 The dashboard on the ESP32-S3 TFT (ESP-IDF and the panel) |
+
+### Pending from Phase B
+
+| Item | Owner | Action |
+|---|---|---|
+| Local check before each push | H | `powershell -NoProfile -ExecutionPolicy Bypass -File tools\phase-check.ps1 [-Message "..."]` runs what CI runs, then commits and pushes (6–10 min warm) |
+| `neuron test examples` on the whole package | H | m06, p03 and p09 fail only when the package is tested as a whole; each corpus folder passes (CI tests per folder). Find the interaction |
+| G2 on the UNO, I2 boards, I3 FPGA, ESP32-S3 TFT dashboard | You | Commands in `docs/phase-b-prerequisites.md` |
 
 ---
 

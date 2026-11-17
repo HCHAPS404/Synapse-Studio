@@ -5,7 +5,8 @@
  * semantics of the reference interpreter (spec chapter 17): fixed priorities, run to
  * completion, logical execution time for signals, safe state on a fault.
  *
- * Ports: define NRT_PORT_AVR (microcontroller) or NRT_HOST (simulated time and a scenario,
+ * Ports: NRT_PORT_AVR (ATmega328P, ATmega2560), NRT_PORT_RP2040 / NRT_PORT_RP2350,
+ * NRT_PORT_STM32F4, NRT_PORT_ESP_IDF (ESP32-S3), or NRT_HOST (simulated time and a scenario,
  * used by the differential tests).
  */
 #ifndef NRT_H
@@ -17,10 +18,16 @@
 
 #if defined(NRT_PORT_AVR)
 #include "nrt_port_avr.h"
+#elif defined(NRT_PORT_RP2040) || defined(NRT_PORT_RP2350)
+#include "nrt_port_rp.h"
+#elif defined(NRT_PORT_STM32F4)
+#include "nrt_port_stm32f4.h"
+#elif defined(NRT_PORT_ESP_IDF)
+#include "nrt_port_esp_idf.h"
 #elif defined(NRT_HOST)
 #include "nrt_port_host.h"
 #else
-#error "define NRT_PORT_AVR or NRT_HOST"
+#error "define one of NRT_PORT_AVR, NRT_PORT_RP2040, NRT_PORT_RP2350, NRT_PORT_STM32F4, NRT_PORT_ESP_IDF or NRT_HOST"
 #endif
 
 /* ---- faults -------------------------------------------------------------------- */

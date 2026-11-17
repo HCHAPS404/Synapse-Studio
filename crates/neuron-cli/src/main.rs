@@ -35,12 +35,21 @@ usage:
   neuron emit-c <file|dir>... [--board b] [-o dir]
                                     check the program against its board and print the C
                                     (with `-o`, write it with the runtime sources)
-  neuron build <file|dir>... [--board b] [--out dir] [--host]
-                                    check, generate C and compile the firmware
-                                    (default build/<board>/app.hex); `--host` builds a
-                                    host executable that runs in simulated time
-  neuron flash <file|dir>... --port <port> [--board b]
-                                    build and write the firmware to the board (avrdude)
+  neuron build <file|dir>... [--board b] [--out dir] [--host | --native]
+                                    check, generate C and compile the firmware for the board
+                                    (default build/<board>/): app.hex (AVR), app.elf/app.bin/
+                                    app.uf2 (RP2040, RP2350, STM32), an idf.py project (ESP32-S3);
+                                    `--host` builds an executable that runs in simulated time;
+                                    `--native` uses the native AVR backend (no external compiler);
+                                    for an hdl program and an FPGA board, Verilog, constraints
+                                    and (with yosys/nextpnr or Vivado) the bitstream
+  neuron emit-verilog <file|dir>... [--board fpga] [-o dir]
+                                    print the Verilog of the hdl modules, or write top.v and the
+                                    constraint file of the board
+  neuron flash <file|dir>... [--board b] [--port <port> | --drive <dir>] [--native]
+                                    build and write the board: avrdude (AVR, --port), the UF2
+                                    drive (RP2040/RP2350, --drive or found), probe-rs/OpenOCD/
+                                    st-flash (STM32), esptool (ESP32-S3, --port), openFPGALoader
 
 run options:
   --for <time>        simulated time to run, such as `2 s` or `500ms` (default 1 s)
@@ -487,7 +496,9 @@ struct HwArgs {
     board: Option<String>,
     out: Option<String>,
     port: Option<String>,
+    drive: Option<String>,
     host: bool,
+    native: bool,
 }
 
 fn parse_hw_args(cmd: &str, args: &[String]) -> Result<HwArgs, ExitCode> {
@@ -495,7 +506,7 @@ fn parse_hw_args(cmd: &str, args: &[String]) -> Result<HwArgs, ExitCode> {
     let mut it = args.iter();
     while let Some(a) = it.next() {
         match a.as_str() {
-            "--board" | "-o" | "--out" | "--port" => {
+            "--board" | "-o" | "--out" | "--port" | "--drive" => {
                 let Some(v) = it.next() else {
                     eprintln!("error: `{a}` needs a value\n\n{USAGE}");
                     return Err(ExitCode::from(2));
@@ -503,10 +514,12 @@ fn parse_hw_args(cmd: &str, args: &[String]) -> Result<HwArgs, ExitCode> {
                 match a.as_str() {
                     "--board" => h.board = Some(v.clone()),
                     "--port" => h.port = Some(v.clone()),
+                    "--drive" => h.drive = Some(v.clone()),
                     _ => h.out = Some(v.clone()),
                 }
             }
             "--host" => h.host = true,
+            "--native" => h.native = true,
             other => h.paths.push(other.to_string()),
         }
     }
@@ -558,10 +571,10 @@ fn cmd_emit_c(args: &[String]) -> ExitCode {
         return ExitCode::SUCCESS;
     };
     let dir = PathBuf::from(dir);
-    let port = if p.target.arch.isa == "avr" && !h.host {
-        neuron_codegen_c::Port::Avr
-    } else {
-        neuron_codegen_c::Port::Host
+    let port = match neuron_codegen_c::Port::for_target(&p.target.runtime.port, &p.target.chip.name)
+    {
+        Some(port) if !h.host => port,
+        _ => neuron_codegen_c::Port::Host,
     };
     let mut files: Vec<(String, String)> = vec![
         ("app.c".into(), p.emitted.c.clone()),
@@ -584,63 +597,295 @@ fn cmd_emit_c(args: &[String]) -> ExitCode {
     ExitCode::SUCCESS
 }
 
-/// Builds for the board (or for the host with `--host`). Returns the HEX image.
-fn build(h: &HwArgs) -> Result<(neuron_cli::hw::Prepared, PathBuf), ExitCode> {
+/// What a build produced.
+enum Built {
+    /// Intel HEX for avrdude.
+    Hex(PathBuf),
+    /// A bare-metal Arm image.
+    Arm(neuron_codegen_c::ArmBuild),
+    /// The build folder of an ESP-IDF project.
+    Idf(PathBuf),
+    /// A host executable.
+    Host,
+}
+
+fn fail(e: impl std::fmt::Display) -> ExitCode {
+    eprintln!("error: {e}");
+    ExitCode::from(1)
+}
+
+/// Builds for the board (or for the host with `--host`, or natively with `--native`).
+fn build(h: &HwArgs) -> Result<(neuron_cli::hw::Prepared, Built), ExitCode> {
+    use neuron_codegen_c::Port;
     let p = prepare_hw(h)?;
     let dir = out_dir(h, &p);
+    let board = p.target.board.name.clone();
     if h.host {
-        return match neuron_codegen_c::build_host(&p.emitted, &dir) {
-            Ok(exe) => {
-                eprintln!("built {} for the host (simulated time)", exe.display());
-                eprintln!("run it with: {} --for 2000 [scenario-file]", exe.display());
-                Ok((p, exe))
-            }
-            Err(e) => {
-                eprintln!("error: {e}");
-                Err(ExitCode::from(1))
-            }
-        };
+        let exe = neuron_codegen_c::build_host(&p.emitted, &dir).map_err(fail)?;
+        eprintln!("built {} for the host (simulated time)", exe.display());
+        eprintln!("run it with: {} --for 2000 [scenario-file]", exe.display());
+        return Ok((p, Built::Host));
     }
-    if p.target.board.tier != neuron_target::Tier::Runtime || p.target.arch.isa != "avr" {
+    if h.native {
+        let n = neuron_native_avr::compile(&p.program).map_err(|diags| {
+            for d in &diags {
+                eprintln!("error[{}]: {}", d.code, d.message);
+                if let Some(help) = &d.help {
+                    eprintln!("  = help: {help}");
+                }
+            }
+            ExitCode::from(1)
+        })?;
+        std::fs::create_dir_all(&dir).map_err(fail)?;
+        let hex = dir.join("app.hex");
+        std::fs::write(&hex, &n.hex).map_err(fail)?;
+        std::fs::write(dir.join("app.lst"), &n.listing).map_err(fail)?;
         eprintln!(
-            "error: `{}` is a `described` board: its pins, clocks and rates were checked, but the runtime \
-             has no port for `{}` yet.\nUse `neuron emit-c` for the C, `--host` for a host build, or \
-             `neuron run` for the interpreter. Boards that build: `neuron targets`.",
-            p.target.board.name, p.target.chip.name
+            "built {} for {board} with the native backend: {} bytes of flash, {} bytes of SRAM for data (listing in app.lst)",
+            hex.display(),
+            n.words * 2,
+            n.ram_bytes
         );
-        return Err(ExitCode::from(1));
+        return Ok((p, Built::Hex(hex)));
     }
-    match neuron_codegen_c::build_avr(&p.emitted, &p.target.chip.mcu, p.program.sysclk_hz, &dir) {
-        Ok(b) => {
+    let port = Port::for_target(&p.target.runtime.port, &p.target.chip.name);
+    match (p.target.board.tier, port) {
+        (neuron_target::Tier::Described, _) | (_, None) => {
             eprintln!(
-                "built {} for {} ({} at {} Hz)",
+                "error: `{board}` is a `described` board: its pins, clocks and rates were checked, but the runtime \
+                 has no port for `{}` yet.\nUse `neuron emit-c` for the C, `--host` for a host build, or \
+                 `neuron run` for the interpreter. Boards that build: `neuron targets`.",
+                p.target.chip.name
+            );
+            Err(ExitCode::from(1))
+        }
+        (_, Some(Port::Avr)) => {
+            let b = neuron_codegen_c::build_avr(
+                &p.emitted,
+                &p.target.chip.mcu,
+                p.program.sysclk_hz,
+                &dir,
+            )
+            .map_err(fail)?;
+            eprintln!(
+                "built {} for {board} ({} at {} Hz)",
                 b.hex.display(),
-                p.target.board.name,
                 p.target.chip.mcu,
                 p.program.sysclk_hz
             );
             if !b.size_report.trim().is_empty() {
                 eprintln!("{}", b.size_report.trim_end());
             }
-            Ok((p, b.hex))
+            Ok((p, Built::Hex(b.hex)))
         }
-        Err(e) => {
-            eprintln!("error: {e}");
-            Err(ExitCode::from(1))
+        (_, Some(Port::EspIdf)) => {
+            match neuron_codegen_c::build_esp_idf(&p.emitted, &p.program.name, &dir) {
+                Ok(build_dir) => {
+                    eprintln!("built the ESP-IDF project in {}", dir.display());
+                    Ok((p, Built::Idf(build_dir)))
+                }
+                Err(neuron_codegen_c::BuildError::ToolMissing { .. }) => {
+                    eprintln!(
+                    "wrote the ESP-IDF project to {}; ESP-IDF is not installed here, so it was not compiled.\n\
+                     With ESP-IDF: cd {} && idf.py set-target esp32s3 && idf.py build",
+                    dir.display(),
+                    dir.display()
+                );
+                    Err(ExitCode::from(1))
+                }
+                Err(e) => Err(fail(e)),
+            }
+        }
+        (_, Some(port)) => {
+            if let Some(io) = p
+                .program
+                .ios
+                .iter()
+                .find(|io| matches!(io.kind, neuron_mir::IoK::Pwm | neuron_mir::IoK::Adc))
+            {
+                eprintln!(
+                    "error[NE0610]: `{}` ({:?}) is not supported by the `{}` runtime port yet; gpio, interrupts and uart are",
+                    io.name, io.kind, p.target.runtime.name
+                );
+                return Err(ExitCode::from(1));
+            }
+            let b = neuron_codegen_c::build_arm(&p.emitted, port, p.program.sysclk_hz, &dir)
+                .map_err(fail)?;
+            eprintln!(
+                "built {} for {board} ({} at {} Hz)",
+                b.elf.display(),
+                p.target.chip.name,
+                p.program.sysclk_hz
+            );
+            if let Some(u) = &b.uf2 {
+                eprintln!("UF2 image: {}", u.display());
+            }
+            if !b.size_report.trim().is_empty() {
+                eprintln!("{}", b.size_report.trim_end());
+            }
+            Ok((p, Built::Arm(b)))
         }
     }
 }
 
-/// `neuron build <file|dir>... [--board b] [--out dir] [--host]`
+/// The analysis of the paths, when every module is an `hdl` module.
+fn hdl_program(h: &HwArgs) -> Result<Option<neuron_nir::Nir>, ExitCode> {
+    let (sources, manifest) = load(&h.paths, true)?;
+    let analysis = analyze(sources, manifest.as_deref(), &SemaOptions::default());
+    let Some(nir) = analysis.nir else {
+        eprint!("{}", analysis.render());
+        eprintln!("error: the program has errors, so nothing was built");
+        return Err(ExitCode::from(1));
+    };
+    let hdl = !nir.modules.is_empty() && nir.modules.iter().all(|m| m.dialect == "hdl");
+    Ok(hdl.then_some(nir))
+}
+
+/// The Verilog flow: Verilog, constraints and, when asked and possible, the bitstream.
+fn hdl_flow(
+    h: &HwArgs,
+    nir: &neuron_nir::Nir,
+    bitstream: bool,
+) -> Result<Option<(PathBuf, neuron_codegen_hdl::FpgaBoard)>, ExitCode> {
+    let v = neuron_codegen_hdl::emit_verilog(nir).map_err(|diags| {
+        for d in &diags {
+            eprintln!("error[{}]: {} ({})", d.code, d.message, d.file);
+            if let Some(help) = &d.help {
+                eprintln!("  = help: {help}");
+            }
+        }
+        ExitCode::from(1)
+    })?;
+    let board = match &h.board {
+        Some(b) => match neuron_codegen_hdl::FpgaBoard::builtin(b) {
+            Some(board) => Some(board),
+            None => {
+                eprintln!(
+                    "error[NE0607]: `{b}` is not an FPGA board (FPGA boards: {})",
+                    neuron_codegen_hdl::FpgaBoard::names().join(", ")
+                );
+                return Err(ExitCode::from(1));
+            }
+        },
+        None => None,
+    };
+    let top = v.modules.last().cloned().unwrap_or_default();
+    let Some(out) = h
+        .out
+        .clone()
+        .map(PathBuf::from)
+        .or_else(|| board.as_ref().map(|b| Path::new("build").join(&b.name)))
+    else {
+        print!("{}", v.text);
+        return Ok(None);
+    };
+    std::fs::create_dir_all(&out).map_err(fail)?;
+    std::fs::write(out.join("top.v"), &v.text).map_err(fail)?;
+    let Some(board) = board else {
+        eprintln!(
+            "wrote {} (top module `{top}`); pass `--board` for the constraints",
+            out.join("top.v").display()
+        );
+        return Ok(None);
+    };
+    let constraints = neuron_codegen_hdl::emit_constraints(&v, &top, &board).map_err(|diags| {
+        for d in &diags {
+            eprintln!("error[{}]: {}", d.code, d.message);
+        }
+        ExitCode::from(1)
+    })?;
+    let ext = match board.family {
+        neuron_codegen_hdl::Family::Ice40 => "pcf",
+        neuron_codegen_hdl::Family::Xc7 => "xdc",
+    };
+    std::fs::write(out.join(format!("top.{ext}")), &constraints).map_err(fail)?;
+    eprintln!(
+        "wrote top.v and top.{ext} for `{top}` on {} to {}",
+        board.name,
+        out.display()
+    );
+    if !bitstream {
+        return Ok(None);
+    }
+    match neuron_codegen_hdl::tools::build_bitstream(&v.text, &constraints, &top, &board, &out) {
+        Ok(b) => {
+            eprintln!("built the bitstream {}", b.file.display());
+            Ok(Some((b.file, board)))
+        }
+        Err(e @ neuron_codegen_hdl::tools::ToolError::Missing { .. }) => {
+            eprintln!(
+                "{e}\nThe Verilog and the constraints are ready in {}.",
+                out.display()
+            );
+            Err(ExitCode::from(1))
+        }
+        Err(e) => Err(fail(e)),
+    }
+}
+
+/// `neuron emit-verilog <file|dir>... [--board fpga] [-o dir]`
+fn cmd_emit_verilog(args: &[String]) -> ExitCode {
+    let h = match parse_hw_args("emit-verilog", args) {
+        Ok(h) => h,
+        Err(code) => return code,
+    };
+    match hdl_program(&h) {
+        Ok(Some(nir)) => match hdl_flow(&h, &nir, false) {
+            Ok(_) => ExitCode::SUCCESS,
+            Err(code) => code,
+        },
+        Ok(None) => {
+            eprintln!("error: `emit-verilog` needs `hdl` modules (`module m for hdl`)");
+            ExitCode::from(1)
+        }
+        Err(code) => code,
+    }
+}
+
+/// `neuron build <file|dir>... [--board b] [--out dir] [--host | --native]`
 fn cmd_build(args: &[String]) -> ExitCode {
     let h = match parse_hw_args("build", args) {
         Ok(h) => h,
         Err(code) => return code,
     };
+    match hdl_program(&h) {
+        Ok(Some(nir)) => {
+            return match hdl_flow(&h, &nir, h.board.is_some()) {
+                Ok(_) => ExitCode::SUCCESS,
+                Err(code) => code,
+            }
+        }
+        Ok(None) => {}
+        Err(code) => return code,
+    }
     match build(&h) {
         Ok(_) => ExitCode::SUCCESS,
         Err(code) => code,
     }
+}
+
+/// The mass-storage drive of a board in UF2 boot mode, when one is mounted.
+fn find_uf2_drive() -> Option<PathBuf> {
+    let mut candidates: Vec<PathBuf> = Vec::new();
+    if cfg!(windows) {
+        for letter in b'D'..=b'Z' {
+            candidates.push(PathBuf::from(format!("{}:\\", letter as char)));
+        }
+    } else {
+        for base in ["/media", "/run/media", "/Volumes"] {
+            if let Ok(users) = std::fs::read_dir(base) {
+                for u in users.flatten() {
+                    candidates.push(u.path());
+                    if let Ok(vols) = std::fs::read_dir(u.path()) {
+                        candidates.extend(vols.flatten().map(|v| v.path()));
+                    }
+                }
+            }
+        }
+    }
+    candidates
+        .into_iter()
+        .find(|d| d.join("INFO_UF2.TXT").is_file())
 }
 
 /// `neuron flash <file|dir>... --port COM3 [--board b]`: builds and writes the board.
@@ -653,33 +898,99 @@ fn cmd_flash(args: &[String]) -> ExitCode {
         eprintln!("error: `--host` builds cannot be flashed");
         return ExitCode::from(2);
     }
-    let Some(port) = h.port.clone() else {
+    // FPGA: build the bitstream, then openFPGALoader.
+    match hdl_program(&h) {
+        Ok(Some(nir)) => {
+            if h.board.is_none() {
+                eprintln!("error: flashing an FPGA needs `--board` (`neuron targets` lists the FPGA boards)");
+                return ExitCode::from(2);
+            }
+            return match hdl_flow(&h, &nir, true) {
+                Ok(Some((bit, board))) => match neuron_codegen_hdl::tools::flash_fpga(&bit, &board)
+                {
+                    Ok(log) => {
+                        eprintln!("{}\ndone", log.trim_end());
+                        ExitCode::SUCCESS
+                    }
+                    Err(e) => fail(e),
+                },
+                Ok(None) => ExitCode::from(1),
+                Err(code) => code,
+            };
+        }
+        Ok(None) => {}
+        Err(code) => return code,
+    }
+    let tool = {
+        // Decide before building, so that a missing port is reported at once.
+        let reg = match registry() {
+            Ok(r) => r,
+            Err(code) => return code,
+        };
+        let (sources, manifest) = match load(&h.paths, true) {
+            Ok(x) => x,
+            Err(code) => return code,
+        };
+        let nir = analyze(sources, manifest.as_deref(), &SemaOptions::default()).nir;
+        let board = h.board.clone().or_else(|| {
+            nir.as_ref()
+                .and_then(|n| n.modules.iter().find_map(|m| m.target.clone()))
+        });
+        board
+            .and_then(|b| reg.resolve(&b).ok())
+            .and_then(|t| t.board.programmer.map(|p| p.tool))
+            .unwrap_or_else(|| "avrdude".into())
+    };
+    let tool = if h.native {
+        "avrdude".to_string()
+    } else {
+        tool
+    };
+    if matches!(tool.as_str(), "avrdude" | "esptool") && h.port.is_none() {
         eprintln!("error: `flash` needs `--port` (such as COM3 or /dev/ttyACM0)\n\n{USAGE}");
         return ExitCode::from(2);
-    };
-    let (p, hex) = match build(&h) {
+    }
+    let (p, built) = match build(&h) {
         Ok(x) => x,
         Err(code) => return code,
     };
-    let Some(prog) = &p.target.board.programmer else {
-        eprintln!(
-            "error: `{}` does not say how it is programmed",
-            p.target.board.name
-        );
-        return ExitCode::from(1);
+    let board = p.target.board.name.clone();
+    eprintln!("flashing {board} with {tool} ...");
+    let result = match (tool.as_str(), &built) {
+        ("avrdude", Built::Hex(hex)) => {
+            let prog = p.target.board.programmer.clone();
+            let opts = neuron_codegen_c::FlashOptions {
+                mcu: p.target.chip.mcu.clone(),
+                programmer: prog
+                    .as_ref()
+                    .and_then(|x| x.protocol.clone())
+                    .unwrap_or_else(|| "arduino".into()),
+                port: h.port.clone().unwrap_or_default(),
+                baud: prog.as_ref().and_then(|x| x.baud).unwrap_or(115_200),
+            };
+            neuron_codegen_c::flash_avr(hex, &opts)
+        }
+        ("uf2", Built::Arm(b)) => {
+            let drive = h.drive.clone().map(PathBuf::from).or_else(find_uf2_drive);
+            match (drive, &b.uf2) {
+                (Some(d), Some(u)) => neuron_codegen_c::flash_uf2(u, &d),
+                (None, _) => Err(neuron_codegen_c::BuildError::Io(
+                    "no UF2 drive found: hold BOOTSEL while plugging the board in, or pass `--drive`".into(),
+                )),
+                (_, None) => Err(neuron_codegen_c::BuildError::Io("the build made no UF2 file".into())),
+            }
+        }
+        ("swd", Built::Arm(b)) => {
+            neuron_codegen_c::flash_stm32(&b.elf, &b.bin, &p.target.chip.name)
+        }
+        ("esptool", Built::Idf(dir)) => {
+            neuron_codegen_c::flash_esptool(dir, &h.port.clone().unwrap_or_default())
+        }
+        (other, _) => Err(neuron_codegen_c::BuildError::Io(format!(
+            "flashing `{board}` with `{other}` is not supported"
+        ))),
     };
-    if prog.tool != "avrdude" {
-        eprintln!("error: flashing with `{}` is not supported yet", prog.tool);
-        return ExitCode::from(1);
-    }
-    let opts = neuron_codegen_c::FlashOptions {
-        mcu: p.target.chip.mcu.clone(),
-        programmer: prog.protocol.clone().unwrap_or_else(|| "arduino".into()),
-        port,
-        baud: prog.baud.unwrap_or(115_200),
-    };
-    eprintln!("flashing {} through {} ...", p.target.board.name, opts.port);
-    match neuron_codegen_c::flash_avr(&hex, &opts) {
+    match result {
         Ok(log) => {
             eprintln!("{}", log.trim_end());
             eprintln!("done");
@@ -910,6 +1221,7 @@ fn main() -> ExitCode {
         Some("run") => cmd_run(&args[1..]),
         Some("targets") => cmd_targets(&args[1..]),
         Some("emit-c") => cmd_emit_c(&args[1..]),
+        Some("emit-verilog") => cmd_emit_verilog(&args[1..]),
         Some("build") => cmd_build(&args[1..]),
         Some("flash") => cmd_flash(&args[1..]),
         Some("test") => cmd_test(&args[1..]),

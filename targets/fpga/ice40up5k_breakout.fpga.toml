@@ -1,0 +1,13 @@
+schema = 1
+name = "ice40up5k_breakout"
+source = "Generic iCE40 UltraPlus 5K breakout (SG48 package, 12 MHz oscillator on pin 35). Pin numbers from the public package pinout; no vendor files copied."
+trust = "community"
+family = "ice40"
+part = "up5k"
+package = "sg48"
+loader_args = ["-b", "ice40_generic"]
+note = "Open tool flow: yosys, nextpnr-ice40, icepack, openFPGALoader."
+pins = [
+  "2", "3", "4", "6", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "23", "25",
+  "26", "27", "28", "31", "32", "34", "35", "36", "37", "38", "39", "40", "41", "42", "43", "44", "45", "46", "47", "48",
+]

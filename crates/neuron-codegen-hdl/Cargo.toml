@@ -1,0 +1,20 @@
+[package]
+name = "neuron-codegen-hdl"
+description = "The hdl dialect to synthesizable Verilog and FPGA constraints (task B7)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+neuron-nir = { path = "../neuron-nir" }
+serde = { workspace = true }
+thiserror = { workspace = true }
+toml = "0.8"
+
+[dev-dependencies]
+neuron-sema = { path = "../neuron-sema" }
+proptest = { workspace = true }

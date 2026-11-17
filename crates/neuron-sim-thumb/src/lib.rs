@@ -11,10 +11,14 @@
 //!   `SET`/`CLR`/`XOR` aliases, `GPIO_OE`), with every output change recorded;
 //! - `WFI` that skips idle time up to the next event.
 //!
-//! Other peripheral addresses (`0x4000_0000` to `0x5fff_ffff`) read as zero and ignore
-//! writes, so start-up code that only writes configuration runs. Code that waits for a
-//! status bit of those peripherals does not finish: they are not modelled. This is
-//! documented in `docs/targets.md` and is the boundary of the simulator today.
+//! - the RP2040 peripherals the neuron-rt port waits on: RESETS (`RESET_DONE` follows the
+//!   released resets), the crystal oscillator (`STATUS.STABLE`), the clock muxes
+//!   (`*_SELECTED`), the edge interrupts of IO_BANK0 (IRQ 13) and the UART0 data register.
+//!
+//! Other peripheral registers (`0x4000_0000` to `0x5fff_ffff`) keep what is written to them,
+//! so start-up code that writes configuration runs; their hardware behavior is not modelled.
+//! A RAM image (as the RP2040 boot ROM loads from a UF2 file) is loaded with `load_ram` and
+//! started with `reset_at`.
 //!
 //! ```
 //! use neuron_sim_thumb::{Config, Thumb, Stop};
@@ -159,7 +163,47 @@ pub struct Thumb {
     sleeping: bool,
     /// Address of the instruction being executed.
     cur: u32,
+    /// RP2040 peripherals that start-up code waits on, and the other registers as storage.
+    rp: RpPeriph,
 }
+
+/// The RP2040 peripheral behavior that the neuron-rt port needs: resets that complete,
+/// a crystal oscillator that becomes stable, clock muxes that report their selection, edge
+/// interrupts of IO_BANK0 and the UART0 transmit register.
+#[derive(Debug, Clone)]
+struct RpPeriph {
+    regs: std::collections::BTreeMap<u32, u32>,
+    resets: u32,
+    xosc_on: bool,
+    clk_ref: u32,
+    clk_sys: u32,
+    intr: [u32; 4],
+    inte: [u32; 4],
+    uart: Vec<(u64, u8)>,
+}
+
+impl Default for RpPeriph {
+    fn default() -> RpPeriph {
+        RpPeriph {
+            regs: std::collections::BTreeMap::new(),
+            resets: 0x01ff_ffff,
+            xosc_on: false,
+            clk_ref: 0,
+            clk_sys: 0,
+            intr: [0; 4],
+            inte: [0; 4],
+            uart: Vec::new(),
+        }
+    }
+}
+
+const RP_RESETS: u32 = 0x4000_c000;
+const RP_CLOCKS: u32 = 0x4000_8000;
+const RP_XOSC: u32 = 0x4002_4000;
+const RP_IO_BANK0: u32 = 0x4001_4000;
+const RP_UART0: u32 = 0x4003_4000;
+/// NVIC number of IO_IRQ_BANK0 on the RP2040.
+const RP_IO_IRQ: u32 = 13;
 
 fn add_with_carry(x: u32, y: u32, carry: bool) -> (u32, bool, bool) {
     let unsigned = u64::from(x) + u64::from(y) + u64::from(carry);
@@ -203,7 +247,105 @@ impl Thumb {
             inputs: Vec::new(),
             sleeping: false,
             cur: 0,
+            rp: RpPeriph::default(),
         }
+    }
+
+    /// Copies bytes into the RAM at `offset` from its base (a RAM image, as the RP2040 boot
+    /// ROM loads one from a UF2 file).
+    pub fn load_ram(&mut self, offset: u32, bytes: &[u8]) -> Result<(), SimError> {
+        let start = offset as usize;
+        let end = start + bytes.len();
+        if end > self.ram.len() {
+            return Err(SimError::Unmapped {
+                addr: self.cfg.ram_base.wrapping_add(end as u32),
+                pc: 0,
+            });
+        }
+        self.ram[start..end].copy_from_slice(bytes);
+        Ok(())
+    }
+
+    /// Starts an image whose vector table is at `base`: VTOR, SP and PC from the table.
+    pub fn reset_at(&mut self, base: u32) -> Result<(), SimError> {
+        self.vtor = base;
+        self.r[13] = self.read(base, 4)? & !3;
+        self.r[15] = self.read(base + 4, 4)? & !1;
+        self.r[14] = 0xffff_ffff;
+        self.ipsr = 0;
+        self.primask = false;
+        Ok(())
+    }
+
+    /// Bytes written to the UART0 data register, with the cycle of each write.
+    pub fn uart_output(&self) -> &[(u64, u8)] {
+        &self.rp.uart
+    }
+
+    fn read_periph(&mut self, addr: u32) -> u32 {
+        match addr {
+            a if a == RP_RESETS => self.rp.resets,
+            a if a == RP_RESETS + 8 => !self.rp.resets & 0x01ff_ffff,
+            a if a == RP_XOSC + 4 => {
+                if self.rp.xosc_on {
+                    0x8000_0000
+                } else {
+                    0
+                }
+            }
+            a if a == RP_CLOCKS + 0x38 => 1 << (self.rp.clk_ref & 3),
+            a if a == RP_CLOCKS + 0x44 => 1 << (self.rp.clk_sys & 1),
+            a if (RP_IO_BANK0 + 0xf0..RP_IO_BANK0 + 0x100).contains(&a) => {
+                self.rp.intr[((a - RP_IO_BANK0 - 0xf0) / 4) as usize]
+            }
+            a if (RP_IO_BANK0 + 0x100..RP_IO_BANK0 + 0x110).contains(&a) => {
+                self.rp.inte[((a - RP_IO_BANK0 - 0x100) / 4) as usize]
+            }
+            a if (RP_IO_BANK0 + 0x120..RP_IO_BANK0 + 0x130).contains(&a) => {
+                let i = ((a - RP_IO_BANK0 - 0x120) / 4) as usize;
+                self.rp.intr[i] & self.rp.inte[i]
+            }
+            a if a == RP_UART0 + 0x18 => 0, // transmit FIFO never full
+            a => self.rp.regs.get(&a).copied().unwrap_or(0),
+        }
+    }
+
+    fn write_periph(&mut self, addr: u32, value: u32) {
+        match addr {
+            a if a == RP_RESETS => self.rp.resets = value & 0x01ff_ffff,
+            a if a == RP_XOSC => self.rp.xosc_on = (value >> 12) & 0xfff == 0xfab,
+            a if a == RP_CLOCKS + 0x30 => self.rp.clk_ref = value,
+            a if a == RP_CLOCKS + 0x3c => self.rp.clk_sys = value,
+            a if (RP_IO_BANK0 + 0xf0..RP_IO_BANK0 + 0x100).contains(&a) => {
+                self.rp.intr[((a - RP_IO_BANK0 - 0xf0) / 4) as usize] &= !value;
+                self.update_io_irq();
+            }
+            a if (RP_IO_BANK0 + 0x100..RP_IO_BANK0 + 0x110).contains(&a) => {
+                self.rp.inte[((a - RP_IO_BANK0 - 0x100) / 4) as usize] = value;
+                self.update_io_irq();
+            }
+            a if a == RP_UART0 => self.rp.uart.push((self.cycles, value as u8)),
+            a => {
+                self.rp.regs.insert(a, value);
+            }
+        }
+    }
+
+    /// IO_IRQ_BANK0 is level sensitive: pending while an enabled edge is latched.
+    fn update_io_irq(&mut self) {
+        let active = (0..4).any(|i| self.rp.intr[i] & self.rp.inte[i] != 0);
+        if active {
+            self.pending |= 1 << (16 + RP_IO_IRQ);
+        }
+    }
+
+    /// Latches the edge bits of IO_BANK0 for a change of an input pin.
+    fn latch_edge(&mut self, pin: u8, level: bool) {
+        let i = usize::from(pin / 8);
+        let shift = 4 * u32::from(pin % 8);
+        let bit = if level { 0x8 } else { 0x4 };
+        self.rp.intr[i] |= bit << shift;
+        self.update_io_irq();
     }
 
     /// Copies bytes into the program memory at `offset` from its base.
@@ -344,7 +486,7 @@ impl Thumb {
             return Ok(self.read_scs(addr - SCS_BASE));
         }
         if (0x4000_0000..0x6000_0000).contains(&addr) {
-            return Ok(0);
+            return Ok(self.read_periph(addr));
         }
         Err(self.fault_unmapped(addr))
     }
@@ -405,6 +547,7 @@ impl Thumb {
             return Ok(());
         }
         if (0x4000_0000..0x6000_0000).contains(&addr) {
+            self.write_periph(addr, value);
             return Ok(());
         }
         Err(self.fault_unmapped(addr))
@@ -482,10 +625,14 @@ impl Thumb {
                 break;
             }
             self.inputs.remove(0);
+            let before = self.gpio_in & (1 << pin) != 0;
             if level {
                 self.gpio_in |= 1 << pin;
             } else {
                 self.gpio_in &= !(1 << pin);
+            }
+            if before != level {
+                self.latch_edge(pin, level);
             }
         }
     }

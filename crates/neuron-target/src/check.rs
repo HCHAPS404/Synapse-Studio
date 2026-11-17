@@ -398,6 +398,14 @@ fn bind_io(
     b.pin = Some(pin.name.clone());
     b.port = pin.port.as_ref().and_then(|p| p.chars().next());
     b.bit = pin.bit;
+    // Chips with one flat GPIO bank (RP2040, RP2350, ESP32-S3) number their pins `GPIOn`:
+    // the number is the bit, and there is no port letter.
+    if b.port.is_none() && b.bit.is_none() {
+        b.bit = pin
+            .name
+            .strip_prefix("GPIO")
+            .and_then(|n| n.parse::<u8>().ok());
+    }
 
     let ok = match (&required, pin_function_class(&kind)) {
         (Some(path), _) => pin.functions.iter().any(|f| f == path),

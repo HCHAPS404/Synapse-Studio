@@ -192,13 +192,16 @@ name = "neuron-cli"
 version = "0.0.1"
 dependencies = [
  "neuron-codegen-c",
+ "neuron-codegen-hdl",
  "neuron-interp",
  "neuron-lsp",
  "neuron-mir",
+ "neuron-native-avr",
  "neuron-nir",
  "neuron-sema",
  "neuron-syntax",
  "neuron-target",
+ "neuron-ui",
 ]
 
 [[package]]
@@ -209,9 +212,22 @@ dependencies = [
  "neuron-mir",
  "neuron-nir",
  "neuron-sema",
+ "neuron-sim-thumb",
  "neuron-target",
  "proptest",
  "thiserror",
+]
+
+[[package]]
+name = "neuron-codegen-hdl"
+version = "0.0.1"
+dependencies = [
+ "neuron-nir",
+ "neuron-sema",
+ "proptest",
+ "serde",
+ "thiserror",
+ "toml",
 ]
 
 [[package]]
@@ -240,6 +256,20 @@ dependencies = [
  "neuron-nir",
  "neuron-syntax",
  "neuron-target",
+]
+
+[[package]]
+name = "neuron-native-avr"
+version = "0.0.1"
+dependencies = [
+ "neuron-interp",
+ "neuron-mir",
+ "neuron-nir",
+ "neuron-sema",
+ "neuron-sim-avr",
+ "neuron-target",
+ "proptest",
+ "thiserror",
 ]
 
 [[package]]
@@ -300,6 +330,18 @@ dependencies = [
  "serde",
  "thiserror",
  "toml",
+]
+
+[[package]]
+name = "neuron-ui"
+version = "0.0.1"
+dependencies = [
+ "neuron-codegen-c",
+ "neuron-mir",
+ "neuron-nir",
+ "neuron-sema",
+ "neuron-target",
+ "proptest",
 ]
 
 [[package]]

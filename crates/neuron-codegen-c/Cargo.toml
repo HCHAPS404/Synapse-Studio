@@ -18,4 +18,5 @@ thiserror = { workspace = true }
 neuron-nir = { path = "../neuron-nir" }
 neuron-sema = { path = "../neuron-sema" }
 neuron-interp = { path = "../neuron-interp" }
+neuron-sim-thumb = { path = "../neuron-sim-thumb" }
 proptest = { workspace = true }

@@ -20,6 +20,10 @@ by git), because long command output in an IDE terminal can be cut off.
 | `promote-main.ps1` | Fast-forwards `main` to `develop` | `out/promote-main.log` |
 | `check-kiro-not-ignored.ps1` | Fails if `.kiro` is gitignored (also runs in CI) | console |
 | `rebuild-venv.ps1` | Recreates the Python virtual environment of `services/core` | `out/venv.log` |
+| `job.ps1 -Cmd "..." [-Log name.log]` | Runs one command detached from the editor terminal with the C toolchains on `PATH`; use with `Start-Process -WindowStyle Hidden`. The log ends with `JOB END exit=<code>` | `out/<name>.log` |
+| `phase-check.ps1 [-Message "..." \| -MessageFile f]` | Everything CI runs, including the `neuron` CLI checks on examples, corpus and lib, plus smoke runs of `build --native`, `emit-verilog` and `targets`; with a message it then calls `ship.ps1`. 6–10 min warm | `out/phase-check.log` |
+| `install-toolchains.ps1` | Downloads gcc (w64devkit), avr-gcc 7.3.0, avrdude and arm-none-eabi-gcc into `%USERPROFILE%\toolchains`, each checked with SHA-256 | console |
+| `gen-targets.ps1` | Regenerates the regular chip, board and runtime files in `targets/` | console |
 | `probe-toolchains.ps1` | Lists installed MCU toolchains (for task B1) | `out/toolchains.log` |
 
 Diagnostic codes are checked by a test (`crates/neuron-sema/tests/catalogue.rs`), not by a

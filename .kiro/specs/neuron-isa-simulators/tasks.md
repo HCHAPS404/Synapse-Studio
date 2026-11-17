@@ -8,8 +8,9 @@
       runs in the simulator and matches the interpreter, plus random presses (property).
 - [x] 4. `neuron-sim-thumb`: ARMv6-M instruction set, exceptions, SysTick, NVIC, SIO GPIO;
       tests with hand-assembled programs and a flags property test.
-- [ ] 5. Run RP2040 firmware built from Neuron in the Thumb simulator (needs the RP2040
-      runtime port of B5 and an `arm-none-eabi-gcc` toolchain).
-- [ ] 6. Expose both simulators to the digital twin as virtual devices (F7, with the WASM
-      build).
+- [x] 5. Run RP2040 firmware built from Neuron in the Thumb simulator: the RP2040 port
+      of B5 built with `arm-none-eabi-gcc` runs from a RAM image and its pins match the
+      interpreter (`crates/neuron-codegen-c/tests/b5_ports.rs`).
+- [ ] 6. Expose both simulators to the digital twin as virtual devices (F7, with Martin,
+      once the engine WASM API exists; tracked in Phase F, not in Phase B).
 - [x] 7. Evidence entry in `docs/kiro-log.md`.

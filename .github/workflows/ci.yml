@@ -40,13 +40,18 @@ jobs:
         with:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
-      - name: C toolchains for the backend tests (host gcc, avr-gcc)
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends gcc-avr avr-libc binutils-avr
+      - name: Toolchains for the backend tests (avr-gcc, arm-none-eabi-gcc, iverilog, yosys)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends gcc-avr avr-libc binutils-avr \
+            gcc-arm-none-eabi libnewlib-arm-none-eabi binutils-arm-none-eabi iverilog yosys
       - run: cargo fmt --all -- --check
       - run: cargo clippy --workspace --all-targets -- -D warnings
-      - name: Tests (the C backend and simulator tests must not skip)
+      - name: Tests (the backend, port, FPGA and simulator tests must not skip)
         env:
           NEURON_REQUIRE_TOOLCHAIN: "1"
+          NEURON_REQUIRE_ARM: "1"
+          NEURON_REQUIRE_HDL: "1"
         run: cargo test --workspace
       - name: Analyze the examples package
         run: cargo run --quiet -p neuron-cli -- check examples

@@ -9,7 +9,6 @@ analyses belong to later tasks. They are documented now so that the numbers are 
 | NE0107 | `neuron.lock` is stale or a content hash does not match | package manager |
 | NE0602 | register field access violates its access rights | typed registers (after B6) |
 | NE0701 | link latency budget cannot be met | D3 |
-| NE0702 | clock-domain crossing without a synchronizer | B7 |
 | NE0703 | tag mapped to incompatible types or units on two devices | D3 |
 | NE0801 | incompatible voltage levels without isolation or level shifting | D4 |
 | NE0804 | robot target outside the workspace or the joint limits | C3, D4 |

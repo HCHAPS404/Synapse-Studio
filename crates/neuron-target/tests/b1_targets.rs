@@ -55,14 +55,26 @@ fn tgt_1_every_description_loads_and_validates() {
 }
 
 #[test]
-fn the_runtime_boards_are_the_uno_and_the_mega() {
+fn every_board_has_its_support_tier() {
     let reg = Registry::builtin().unwrap();
-    let tiers: Vec<_> = reg
-        .boards()
-        .filter(|b| b.tier == Tier::Runtime)
-        .map(|b| b.name.clone())
-        .collect();
-    assert_eq!(tiers, ["arduino_mega_2560", "arduino_uno_r3"]);
+    let of = |tier: Tier| -> Vec<String> {
+        reg.boards()
+            .filter(|b| b.tier == tier)
+            .map(|b| b.name.clone())
+            .collect()
+    };
+    assert_eq!(
+        of(Tier::Runtime),
+        [
+            "arduino_mega_2560",
+            "arduino_uno_r3",
+            "nucleo_f446re",
+            "raspberry_pi_pico",
+            "raspberry_pi_pico_2w"
+        ]
+    );
+    assert_eq!(of(Tier::Sdk), ["esp32_s3_devkit", "xiao_esp32s3"]);
+    assert_eq!(of(Tier::Described), ["nucleo_n657x0_q"]);
 }
 
 #[test]

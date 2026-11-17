@@ -14,6 +14,8 @@ pub struct Emitted {
     pub c: String,
     /// JSON: `{"files": [...], "lines": [[c_line, file, line], ...]}`.
     pub map_json: String,
+    /// The program has a display: the ui runtime and the bus of the port are needed.
+    pub ui: bool,
 }
 
 struct Em<'a> {
@@ -29,10 +31,22 @@ struct Em<'a> {
     in_isr: bool,
     atomic: bool,
     ret: Option<Ty>,
+    ui: Option<(&'a str, u32)>,
 }
 
 /// Generates the C file for a program.
 pub fn emit_c(p: &Program) -> Emitted {
+    emit(p, None)
+}
+
+/// Generates the C file for a program with a display: `ui_section` is the C of
+/// `neuron_ui::emit_ui_c` (it defines `ui_task`), run every `ui_period_ms` at the lowest
+/// priority.
+pub fn emit_c_ui(p: &Program, ui_section: &str, ui_period_ms: u32) -> Emitted {
+    emit(p, Some((ui_section, ui_period_ms)))
+}
+
+fn emit<'a>(p: &'a Program, ui: Option<(&'a str, u32)>) -> Emitted {
     let mut io_names: Vec<String> = Vec::new();
     for (i, io) in p.ios.iter().enumerate() {
         let base = format!("IO_{}", io.name);
@@ -60,6 +74,7 @@ pub fn emit_c(p: &Program) -> Emitted {
         in_isr: false,
         atomic: false,
         ret: None,
+        ui,
     };
     em.all();
     let mut map = String::from("{\"files\":[");
@@ -79,7 +94,11 @@ pub fn emit_c(p: &Program) -> Emitted {
     map.push_str("]}");
     let mut c = em.out.join("\n");
     c.push('\n');
-    Emitted { c, map_json: map }
+    Emitted {
+        c,
+        map_json: map,
+        ui: ui.is_some(),
+    }
 }
 
 fn c_string(s: &str) -> String {
@@ -217,6 +236,11 @@ impl<'a> Em<'a> {
             self.rule_fn(&format!("rule{k}"), r);
         }
         self.safety();
+        if let Some((section, _)) = self.ui {
+            for line in section.lines() {
+                self.out.push(line.to_string());
+            }
+        }
         self.tables();
     }
 
@@ -243,6 +267,10 @@ impl<'a> Em<'a> {
                     if matches!(io.kind, IoK::GpioIn | IoK::GpioOut | IoK::Pwm) =>
                 {
                     format!("NRT_PIN(PORT{port}, DDR{port}, PIN{port}, {bit})")
+                }
+                // A flat GPIO bank: the pin number (RP2040, RP2350, ESP32-S3).
+                (None, Some(bit)) if matches!(io.kind, IoK::GpioIn | IoK::GpioOut | IoK::Pwm) => {
+                    format!("NRT_GPIO({bit})")
                 }
                 _ => "NULL, NULL, NULL, 0".to_string(),
             };
@@ -671,6 +699,11 @@ impl<'a> Em<'a> {
         for k in 0..p.rules.len() {
             rows.push(format!(
                 "{{ \"when\", 10u, 0u, 1, 0, 0u, NULL, rule{k}_step, NULL }}"
+            ));
+        }
+        if let Some((_, period)) = self.ui {
+            rows.push(format!(
+                "{{ \"ui\", {period}u, 0u, 0, 0, 0u, NULL, ui_task, NULL }}"
             ));
         }
         let n = rows.len();

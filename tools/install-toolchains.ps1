@@ -70,6 +70,21 @@ try {
     Move-Item $inner.FullName $dest
     L "extracted $tool $($entry.version)"
   }
+  # ---- Arm GCC (xPack) for the RP2040, RP2350 and STM32 ports ----------------------------
+  $arm = Join-Path $Root 'arm-none-eabi'
+  if (-not (Test-Path (Join-Path $arm 'bin/arm-none-eabi-gcc.exe'))) {
+    $ver = '15.2.1-1.1'
+    $zip = Join-Path $dl "xpack-arm-none-eabi-gcc-$ver-win32-x64.zip"
+    # Digest published with the GitHub release asset.
+    Get-Verified "https://github.com/xpack-dev-tools/arm-none-eabi-gcc-xpack/releases/download/v$ver/xpack-arm-none-eabi-gcc-$ver-win32-x64.zip" `
+      $zip 'bae6a3d1667697ce750c3b13d6d26d80973ecedc2cc87bf04869e83447fd93ea'
+    $tmp = Join-Path $dl 'x_arm'
+    if (Test-Path $tmp) { Remove-Item $tmp -Recurse -Force }
+    Expand-Archive -Path $zip -DestinationPath $tmp
+    $inner = Get-ChildItem $tmp | Select-Object -First 1
+    Move-Item $inner.FullName $arm
+    L "extracted arm-none-eabi-gcc $ver"
+  } else { L "arm-none-eabi-gcc already present" }
   L "DONE"
 } catch {
   L "FAILED: $($_.Exception.Message)"

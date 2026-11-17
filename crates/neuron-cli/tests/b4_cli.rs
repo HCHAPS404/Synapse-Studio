@@ -167,9 +167,10 @@ fn board_override_retargets_to_the_mega() {
 
 #[test]
 fn described_boards_are_checked_but_not_built() {
+    // The N657 board is a placeholder: described and checked, no runtime port.
     let src = BLINK
-        .replace("arduino_uno_r3", "raspberry_pi_pico")
-        .replace("D13", "GP25");
+        .replace("arduino_uno_r3", "nucleo_n657x0_q")
+        .replace("D13", "PA5");
     let dir = scratch("pico", &[("blink.neuron", &src)]);
     let o = neuron(&["emit-c", "blink.neuron"], &dir);
     assert!(o.status.success(), "{}", text(&o));
@@ -194,6 +195,55 @@ fn a_host_build_runs_in_simulated_time() {
         out.contains("led = true") && out.contains("led = false"),
         "{out}"
     );
+}
+
+#[test]
+fn a_native_build_needs_no_compiler() {
+    let dir = scratch("native", &[("blink.neuron", BLINK)]);
+    let o = neuron(&["build", "blink.neuron", "--native", "--out", "n"], &dir);
+    assert!(o.status.success(), "{}", text(&o));
+    let hex = std::fs::read_to_string(dir.join("n/app.hex")).unwrap();
+    assert!(hex.trim_end().ends_with(":00000001FF"));
+    assert!(dir.join("n/app.lst").is_file());
+}
+
+#[test]
+fn emit_verilog_writes_the_design_and_its_constraints() {
+    let src = include_str!("../../../examples/pwm_hdl.neuron");
+    let dir = scratch("verilog", &[("pwm.neuron", src)]);
+    let o = neuron(&["emit-verilog", "pwm.neuron"], &dir);
+    assert!(o.status.success(), "{}", text(&o));
+    assert!(String::from_utf8_lossy(&o.stdout).contains("module pwm ("));
+    let o = neuron(
+        &[
+            "emit-verilog",
+            "pwm.neuron",
+            "--board",
+            "artix7_35t_board",
+            "-o",
+            "fpga",
+        ],
+        &dir,
+    );
+    assert!(o.status.success(), "{}", text(&o));
+    let xdc = std::fs::read_to_string(dir.join("fpga/top.xdc")).unwrap();
+    assert!(xdc.contains("PACKAGE_PIN W5"), "{xdc}");
+    let t = text(&neuron(&["targets"], &dir));
+    assert!(
+        t.contains("ice40up5k_breakout") && t.contains("artix7_35t_board"),
+        "{t}"
+    );
+}
+
+#[test]
+fn a_screen_on_the_uno_that_cannot_fit_is_ne0604() {
+    let src = include_str!("../../../examples/panel_ui.neuron")
+        .replace("esp32_s3_devkit", "arduino_uno_r3");
+    let dir = scratch("ne0604", &[("panel.neuron", &src)]);
+    let o = neuron(&["emit-c", "panel.neuron"], &dir);
+    let t = text(&o);
+    assert!(!o.status.success(), "{t}");
+    assert!(t.contains("NE0604"), "{t}");
 }
 
 #[test]

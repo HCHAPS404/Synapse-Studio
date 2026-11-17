@@ -308,7 +308,7 @@ void nrt_core_end(uint32_t now) {
 
 /* `nrt_run` is the entry point on the target: the port provides the tick. */
 void nrt_run(const nrt_app *app) {
-#if defined(NRT_PORT_AVR)
+#if !defined(NRT_HOST)
   nrt_core_init(app);
   nrt_hal_start();
   uint32_t last = 0;

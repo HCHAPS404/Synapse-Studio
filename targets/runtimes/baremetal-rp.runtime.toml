@@ -1,6 +1,6 @@
 schema = 1
 name = "baremetal-rp"
-source = "Planned port of runtime/neuron-rt to the RP2040 and RP2350 (task B5)."
+source = "runtime/neuron-rt/port/rp: bare-metal port for the RP2040 and RP2350 (task B5). Registers from the public datasheets."
 trust = "community"
 kind = "baremetal"
 port = "rp"

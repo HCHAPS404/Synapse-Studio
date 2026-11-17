@@ -1,111 +1,116 @@
-# Targets and the C backend (Phase B, tasks B1 to B6)
+# Targets and code generators (Phase B, tasks B1 to B9)
 
-This page says what runs where today. It is the reference for the `NE0610` and
-"described board" messages of the tool.
+This page says what runs where today. It is the reference for the `NE0610` and "described
+board" messages of the tool. The FPGA flow is in `docs/hdl.md`, the native AVR backend in
+`docs/native-backend.md`, the displays in `docs/ui.md`.
 
 ## How a program reaches a board
 
 ```
-.neuron ─ analysis ─▶ NIR ─ hardware checks ─▶ bindings ─ lowering ─▶ MIR ─▶ C ─ avr-gcc ─▶ app.hex ─ avrdude ─▶ board
-          (A4–A8)          (neuron-target, B1)            (neuron-mir, B2)  (neuron-codegen-c, B2–B4)
+.neuron ─ analysis ─▶ NIR ─ hardware checks ─▶ bindings ─ lowering ─▶ MIR ─┬─▶ C ─ gcc ─▶ image ─ flash tool ─▶ board
+          (A4–A8)          (neuron-target, B1)            (neuron-mir, B2)  │   (neuron-codegen-c, B2–B5; neuron-ui, B9)
+                                                                            └─▶ AVR machine code (neuron-native-avr, B8)
+hdl modules ─▶ Verilog + constraints (neuron-codegen-hdl, B7) ─ yosys/nextpnr or Vivado ─▶ bitstream ─ openFPGALoader ─▶ FPGA
 ```
 
 | Command | What it does |
 |---|---|
-| `neuron targets [board]` | Lists the boards with their tier, or prints one board (pins and their functions, clocks, runtime, programmer). |
+| `neuron targets [board]` | Lists the boards (MCU and FPGA) with their tier, or prints one board. |
 | `neuron check prog.neuron` | Semantic analysis plus the hardware checks against the board after `on` (`NE0601`–`NE0608`). |
-| `neuron emit-c prog.neuron [-o dir]` | Prints the generated C, or writes it with the runtime sources and the source map (`app.map.json`). |
-| `neuron build prog.neuron [--board b] [--out dir]` | Builds `build/<board>/app.hex` and `app.elf` and prints the memory use. |
-| `neuron build prog.neuron --host` | Builds a host executable of the same C that runs in simulated time and prints the trace format of `neuron run`. |
-| `neuron flash prog.neuron --port COM3` | Builds, then writes the board with `avrdude` (protocol and speed from the board file). |
+| `neuron emit-c prog.neuron [-o dir]` | Prints the generated C, or writes it with the runtime of the board's port. |
+| `neuron build prog.neuron [--board b] [--out dir]` | Builds the firmware of the board (table below). |
+| `neuron build prog.neuron --host` | A host executable of the same C that runs in simulated time. |
+| `neuron build prog.neuron --native` | UNO firmware from the native backend, with no external tool. |
+| `neuron emit-verilog prog.neuron [--board fpga] [-o dir]` | Verilog, and the PCF/XDC of an FPGA board. |
+| `neuron flash prog.neuron [--port P \| --drive D]` | Builds and writes the board with its programmer. |
 
-`--board` replaces the board named in the source, so one program can be checked
-against several boards.
+`--board` replaces the board named in the source, so one program can be checked against
+several boards.
 
 ## Boards
 
-Every board file has `trust = "community"`: the facts come from public documentation
-and have not been checked on the device by the maintainers yet.
+Every board file has `trust = "community"`: the facts come from public documentation and
+have not been checked on the device by the maintainers yet.
 
-| Board | Chip | Tier | What works |
-|---|---|---|---|
-| `arduino_uno_r3` | ATmega328P, 16 MHz | runtime | check, emit-c, build, flash, AVR simulator |
-| `arduino_mega_2560` | ATmega2560, 16 MHz | runtime | check, emit-c, build, flash |
-| `raspberry_pi_pico` | RP2040 | described | check, emit-c, host build |
-| `raspberry_pi_pico_2w` | RP2350 | described | check, emit-c, host build |
-| `esp32_s3_devkit` | ESP32-S3 | described | check, emit-c, host build |
-| `xiao_esp32s3` | ESP32-S3 | described | check, emit-c, host build |
-| `nucleo_f446re` | STM32F446 | described | check, emit-c, host build |
-| `nucleo_n657x0_q` | STM32N657 | described | check only; placeholder (pin list incomplete, external flash, crystal to be confirmed) |
+| Board | Chip | Tier | Build output | Flash | Checked without hardware |
+|---|---|---|---|---|---|
+| `arduino_uno_r3` | ATmega328P, 16 MHz | runtime | `app.hex` (avr-gcc or `--native`) | avrdude | C build, AVR simulator, native backend |
+| `arduino_mega_2560` | ATmega2560, 16 MHz | runtime | `app.hex` | avrdude | C build |
+| `raspberry_pi_pico` | RP2040, 12 MHz crystal | runtime | `app.elf`, `app.bin`, `app.uf2` (RAM image) | UF2 drive | C build, Thumb simulator against the interpreter |
+| `raspberry_pi_pico_2w` | RP2350, 12 MHz crystal | runtime | `app.elf`, `app.bin`, `app.uf2` | UF2 drive | C build (not simulated) |
+| `nucleo_f446re` | STM32F446, 16 MHz HSI | runtime | `app.elf`, `app.bin` (flash image) | probe-rs, OpenOCD or st-flash | C build (not simulated) |
+| `esp32_s3_devkit` | ESP32-S3 | sdk | an `idf.py` project, built when ESP-IDF is installed | esptool | project generation |
+| `xiao_esp32s3` | ESP32-S3 | sdk | an `idf.py` project | esptool | project generation |
+| `nucleo_n657x0_q` | STM32N657 | described | — | — | pins and clocks only (placeholder) |
 
-*Described* means the pins, the clock tree and the derived rates are checked, and the
-C is generated, but the runtime has no port for the chip yet, so `neuron build` stops
-with a clear message. The ports for RP2040 and ESP32-S3 are the next step of B5.
+FPGA boards: `artix7_35t_board` (XDC) and `ice40up5k_breakout` (PCF); see `docs/hdl.md`.
 
-`neuron flash` has been run against the tool chain only; the first flash of a real UNO
-is gate G2 and needs the board on a USB port.
+**Tiers.** *runtime*: the tool builds the image and knows how to flash it. *sdk*: the port is
+written against the vendor SDK; the tool writes the SDK project and builds it when the SDK
+is installed. *described*: pins, clocks and rates are checked and the C is generated, but
+there is no runtime port, so `neuron build` stops with a clear message.
+
+**What is not verified yet.** No image has run on a real board: that is the hardware gate
+G2 (UNO) and session I2 (the others). The Pico image is run by `neuron-sim-thumb`, which
+models the RP2040 behavior the port depends on; the RP2350, STM32 and ESP32-S3 images are
+built but not executed. The RAM UF2 start (the boot ROM taking SP and PC from the vector
+table at `0x20000000`) and the RP2350 image definition block need confirmation on the boards.
+
+## Runtime ports (`runtime/neuron-rt/port/`)
+
+| Port | GPIO | Edge interrupts | Tick | UART TX | PWM / ADC | Display bus |
+|---|---|---|---|---|---|---|
+| `avr` | ✔ | INT0–INT7 | timer 0 CTC | UART0, ring buffer | timers 1/2, ADC | TWI, SPI |
+| `rp` (RP2040, RP2350) | SIO | IO_BANK0 | SysTick | UART0 on GP0 | not yet (`NE0610`) | not yet |
+| `stm32f4` | ✔ | EXTI | SysTick | USART2 on PA2 | not yet (`NE0610`) | not yet |
+| `esp_idf` | gpio driver | GPIO ISR service | esp_timer | uart driver | not yet | I2C, SPI drivers |
+| `host` | simulated | from the scenario | simulated time | traced | traced | traced (`BUS` lines) |
+
+The core (`nrt_core.c`) follows the scheduling rules of the interpreter
+(`crates/neuron-interp/src/sched.rs`): in each millisecond, signal commits first, then inputs
+and interrupts, the safety poll, task releases, and the ready tasks by priority. A release
+that falls in a fault is dropped; a fault aborts the activity.
 
 ## The subset of the C backend
 
 The interpreter (`neuron run`) runs every valid program. The C backend translates this
 subset and reports anything else as `NE0610`, naming the construct; it never drops code.
 
-Supported:
+Supported: `task ... every` and `task ... on <event>`, priorities, `deadline`, `signal` with
+its logical execution time; `on interrupt <pin>.rising|falling|change`; `fsm` with `when` and
+`after`, `when` rules; `safety:` with `safe_state`, `watchdog`, rules, `reset when` and
+`on fault`; `gpio`, `pwm`, `adc`, `uart` (`print` with `{name}`); integers with overflow
+checks, `f32` quantities in SI base units, `bool`; `if`, `for` over a constant range, bounded
+`while`; user functions with scalar parameters, `scale`, `abs`, `min`, `max`, `clamp`; one
+`display` with its first `screen` (B9).
 
-- `task ... every` and `task ... on <event>`, priorities, `deadline`, `signal` with its
-  logical execution time;
-- `on interrupt <pin>.rising|falling|change` (external interrupts), with data shared
-  between interrupts and tasks made `volatile` and updated atomically;
-- `fsm` with `when` and `after` transitions, `when` rules;
-- `safety:` with `safe_state`, `watchdog`, rules, `reset when` and `on fault`;
-- `gpio.input`, `gpio.output` (`write`, `toggle`, `read`, edges), `pwm` (`duty`),
-  `adc` (`read`), `uart` (`print` with `{name}` interpolation);
-- integers with overflow checks (a fault, like in the interpreter), `f32` quantities
-  in SI base units, `bool`; `if`, `for` over a constant range, bounded `while`;
-- user functions with scalar parameters, `scale`, `abs`, `min`, `max`, `clamp`.
-
-Not yet (`NE0610`): `match`, classes, enums, arrays, `sequence`, and the native function
-blocks of the standard library (`ton`, `tof`, `pid`, `debounce`, `hysteresis`, ...).
-
-Integer arithmetic is computed in 64 bits and checked against the declared type, so an
-overflow faults on the chip at the same point as in the interpreter. Units are erased:
-a quantity is an `f32` in SI base units.
-
-## Runtime
-
-`runtime/neuron-rt` is C99 and builds with `-Wall -Wextra -Werror`.
-
-- `nrt_core.c` follows the scheduling rules of the interpreter
-  (`crates/neuron-interp/src/sched.rs`): in each millisecond, signal commits first, then
-  inputs and interrupts, the safety poll, task releases, and the ready tasks by
-  priority. A release that falls in a fault is dropped; a fault aborts the activity.
-- The AVR port uses `timer0` in CTC mode for the 1 ms tick (so `timer0` pins are not
-  available for PWM, `NE0601`), `INT0`–`INT7`, a UART transmit ring buffer, PWM on
-  `timer1` and `timer2`, the ADC, the watchdog and idle sleep.
-- The host port runs in simulated time: `app_host --for <ms> [scenario-file]`.
+Not yet (`NE0610`): `match`, classes, enums, arrays, `sequence`, the native function blocks
+(`ton`, `tof`, `pid`, `debounce`, `hysteresis`, ...).
 
 ## How it is tested
 
-- `crates/neuron-target/tests/b1_targets.rs`: every target file loads (TGT-1), exclusive
-  ownership (HW-1, property test), clock solutions respect the limits (CLK-1, property
-  test), each hardware code.
-- `crates/neuron-codegen-c/tests/b2_codegen.rs`: the host build of the generated C gives
-  the same trace as the interpreter (blink, interrupts, fsm, signals, events, faults and
-  reset, random button presses as a property test); golden C files in
-  `conformance/golden/c/`; UNO and Mega builds without warnings.
-- `crates/neuron-sim-avr/tests/b6_avr.rs`: the firmware that avr-gcc builds runs in the
-  ATmega328P simulator, and its pins change at the same milliseconds as the
-  interpreter's outputs (blink, button interrupt, traffic light, two tasks with a
-  signal, interrupt priorities, ADC with float math and the watchdog, UART text, PWM
-  compare value, random presses as a property test).
-- `crates/neuron-cli/tests/b4_cli.rs`: the commands, run as a user runs them.
+| Test file | What it shows |
+|---|---|
+| `crates/neuron-target/tests/b1_targets.rs` | Target files load (TGT-1), exclusive ownership (HW-1), clock solutions (CLK-1), each hardware code, the tier of every board. |
+| `crates/neuron-codegen-c/tests/b2_codegen.rs` | Host builds of the C give the interpreter's trace; goldens; UNO and Mega builds. |
+| `crates/neuron-codegen-c/tests/b5_ports.rs` | RP2040 firmware in the Thumb simulator matches the interpreter (blink, interrupt, fsm, signal, UART); STM32 and RP2350 images build; UF2 format; ESP-IDF project. |
+| `crates/neuron-sim-avr/tests/b6_avr.rs` | avr-gcc firmware in the ATmega328P simulator matches the interpreter. |
+| `crates/neuron-sim-thumb/tests/b6_thumb.rs` | ARMv6-M core, SysTick, NVIC, GPIO with hand-assembled programs. |
+| `crates/neuron-codegen-hdl/tests/b7_hdl.rs` | Verilog goldens, constraints, `NE0702`, iverilog simulation, yosys synthesis. |
+| `crates/neuron-native-avr/tests/b8_native.rs` | Native images in the AVR simulator match the interpreter. |
+| `crates/neuron-ui/tests/b9_ui.rs` | Firmware display traffic rebuilds the reference image pixel for pixel; strategies and `NE0604`. |
+| `crates/neuron-cli/tests/b4_cli.rs` | The commands, run as a user runs them. |
+
+CI installs avr-gcc, arm-none-eabi-gcc, iverilog and yosys, and sets `NEURON_REQUIRE_*` so
+none of these tests can skip there.
 
 ## Toolchains
 
-`tools/install-toolchains.ps1` installs gcc (w64devkit), avr-gcc and avrdude under
-`%USERPROFILE%\toolchains`, verifying every download with SHA-256, and
-`. .\tools\toolchain-env.ps1` puts them on `PATH` for the session. On Linux CI the
-packages `gcc-avr` and `avr-libc` are used. See `docs/phase-b-prerequisites.md`.
+`tools/install-toolchains.ps1` installs gcc (w64devkit), avr-gcc, avrdude and
+arm-none-eabi-gcc under `%USERPROFILE%\toolchains`, verifying every download with SHA-256,
+and `. .\tools\toolchain-env.ps1` puts them on `PATH` for the session. ESP-IDF, OpenOCD,
+probe-rs, yosys, nextpnr and openFPGALoader are optional and found on `PATH`. See
+`docs/phase-b-prerequisites.md`.
 
-This is a design aid. The generated firmware is not certified for safety functions, and
-a hardwired emergency stop stays the authority.
+This is a design aid. The generated firmware is not certified for safety functions, and a
+hardwired emergency stop stays the authority.

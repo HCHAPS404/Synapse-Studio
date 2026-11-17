@@ -27,6 +27,9 @@ pub enum Tier {
     Runtime,
     /// Described and checked (pins, clocks); no runtime port yet.
     Described,
+    /// The runtime port is written against the vendor SDK; the tool generates the SDK project
+    /// and builds it when the SDK is installed.
+    Sdk,
 }
 
 /// Instruction set architecture.

@@ -83,7 +83,18 @@ fn write_sources(e: &Emitted, port: Port, dir: &Path) -> Result<Vec<PathBuf>, Bu
     std::fs::write(&app, &e.c).map_err(io_err)?;
     std::fs::write(dir.join("app.map.json"), &e.map_json).map_err(io_err)?;
     let mut sources = vec![app];
-    for f in runtime_files(port) {
+    let mut files = runtime_files(port);
+    if e.ui {
+        match crate::runtime::ui_files(port) {
+            Some(ui) => files.extend(ui),
+            None => {
+                return Err(BuildError::Io(format!(
+                    "displays are not supported by the {port:?} runtime port yet (NE0610); the AVR and ESP-IDF ports have the display bus"
+                )))
+            }
+        }
+    }
+    for f in files {
         let path = dir.join(f.name);
         std::fs::write(&path, f.text).map_err(io_err)?;
         if f.name.ends_with(".c") {
@@ -189,6 +200,259 @@ pub fn build_avr(e: &Emitted, mcu: &str, f_cpu: u64, dir: &Path) -> Result<AvrBu
         hex,
         size_report,
     })
+}
+
+/// The files of an Arm build.
+#[derive(Debug, Clone)]
+pub struct ArmBuild {
+    /// ELF image.
+    pub elf: PathBuf,
+    /// Raw binary from the load address of the image.
+    pub bin: PathBuf,
+    /// UF2 file for the boards that load one (RP2040, RP2350).
+    pub uf2: Option<PathBuf>,
+    /// Output of `arm-none-eabi-size`.
+    pub size_report: String,
+    /// Address the binary is loaded at.
+    pub load_address: u32,
+}
+
+/// CPU flags, linker script and load address of an Arm port.
+fn arm_profile(port: Port) -> Option<(&'static [&'static str], &'static str, u32, Option<u32>)> {
+    match port {
+        Port::Rp2040 => Some((
+            &["-mcpu=cortex-m0plus", "-mthumb"],
+            "rp_ram.ld",
+            0x2000_0000,
+            Some(crate::uf2::FAMILY_RP2040),
+        )),
+        Port::Rp2350 => Some((
+            &["-mcpu=cortex-m33", "-mthumb", "-mfloat-abi=soft"],
+            "rp_ram.ld",
+            0x2000_0000,
+            Some(crate::uf2::FAMILY_RP2350_ARM_S),
+        )),
+        Port::Stm32f4 => Some((
+            &["-mcpu=cortex-m4", "-mthumb", "-mfloat-abi=soft"],
+            "stm32f446.ld",
+            0x0800_0000,
+            None,
+        )),
+        _ => None,
+    }
+}
+
+/// Builds the firmware for a bare-metal Arm port (RP2040, RP2350, STM32F4) with
+/// `arm-none-eabi-gcc` and `-Wall -Wextra -Werror`.
+pub fn build_arm(e: &Emitted, port: Port, f_cpu: u64, dir: &Path) -> Result<ArmBuild, BuildError> {
+    let Some((cpu, ld, load, family)) = arm_profile(port) else {
+        return Err(BuildError::Io(format!(
+            "{port:?} is not a bare-metal Arm port"
+        )));
+    };
+    let gcc =
+        find_tool("NEURON_ARM_GCC", &["arm-none-eabi-gcc"]).ok_or(BuildError::ToolMissing {
+            tool: "arm-none-eabi-gcc".into(),
+            env: "NEURON_ARM_GCC",
+        })?;
+    let sources = write_sources(e, port, dir)?;
+    let elf = dir.join("app.elf");
+    let bin = dir.join("app.bin");
+    let mut cmd = Command::new(&gcc);
+    cmd.args(cpu)
+        .args([
+            "-std=c99",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-Os",
+            "-ffunction-sections",
+            "-fdata-sections",
+            "-nostartfiles",
+            "-Wl,--gc-sections",
+        ])
+        .arg(format!("-D{}", port.define()))
+        .arg(format!("-DF_CPU={f_cpu}u"))
+        .arg("-I")
+        .arg(dir)
+        .arg("-T")
+        .arg(dir.join(ld))
+        .arg("-o")
+        .arg(&elf)
+        .args(&sources)
+        .arg("-lgcc");
+    run("arm-none-eabi-gcc", &mut cmd)?;
+    let beside = |name: &str| -> PathBuf {
+        let sibling = gcc.with_file_name(format!("{name}{}", std::env::consts::EXE_SUFFIX));
+        if sibling.is_file() {
+            sibling
+        } else {
+            PathBuf::from(name)
+        }
+    };
+    run(
+        "arm-none-eabi-objcopy",
+        Command::new(beside("arm-none-eabi-objcopy"))
+            .args(["-O", "binary"])
+            .arg(&elf)
+            .arg(&bin),
+    )?;
+    let size_report = run(
+        "arm-none-eabi-size",
+        Command::new(beside("arm-none-eabi-size")).arg(&elf),
+    )
+    .unwrap_or_default();
+    let uf2 = match family {
+        Some(fam) => {
+            let bytes = std::fs::read(&bin).map_err(io_err)?;
+            let path = dir.join("app.uf2");
+            std::fs::write(&path, crate::uf2::uf2(&bytes, load, fam)).map_err(io_err)?;
+            Some(path)
+        }
+        None => None,
+    };
+    Ok(ArmBuild {
+        elf,
+        bin,
+        uf2,
+        size_report,
+        load_address: load,
+    })
+}
+
+/// Copies a UF2 file to the mass-storage drive of a board in boot mode (`RPI-RP2`, `RP2350`).
+/// `drive` is the mount point or drive letter (`E:`, `/media/user/RPI-RP2`).
+pub fn flash_uf2(uf2: &Path, drive: &Path) -> Result<String, BuildError> {
+    if !drive.is_dir() {
+        return Err(BuildError::Io(format!(
+            "{} is not a mounted drive; hold BOOTSEL while plugging the board in, then pass its drive",
+            drive.display()
+        )));
+    }
+    let dest = drive.join("app.uf2");
+    std::fs::copy(uf2, &dest).map_err(io_err)?;
+    Ok(format!("copied {} to {}", uf2.display(), dest.display()))
+}
+
+/// Writes a flash image to an STM32 board with the first tool found: `probe-rs`, `openocd`
+/// or `st-flash`.
+pub fn flash_stm32(elf: &Path, bin: &Path, chip: &str) -> Result<String, BuildError> {
+    if let Some(p) = find_tool("NEURON_PROBE_RS", &["probe-rs"]) {
+        return run(
+            "probe-rs",
+            Command::new(p)
+                .args(["download", "--chip", &chip.to_ascii_uppercase()])
+                .arg(elf),
+        );
+    }
+    if let Some(o) = find_tool("NEURON_OPENOCD", &["openocd"]) {
+        let program = format!(
+            "program {} verify reset exit",
+            elf.display().to_string().replace('\\', "/")
+        );
+        return run(
+            "openocd",
+            Command::new(o).args([
+                "-f",
+                "interface/stlink.cfg",
+                "-f",
+                "target/stm32f4x.cfg",
+                "-c",
+                &program,
+            ]),
+        );
+    }
+    if let Some(s) = find_tool("NEURON_ST_FLASH", &["st-flash"]) {
+        return run(
+            "st-flash",
+            Command::new(s)
+                .args(["--reset", "write"])
+                .arg(bin)
+                .arg("0x08000000"),
+        );
+    }
+    Err(BuildError::ToolMissing {
+        tool: "probe-rs, openocd or st-flash".into(),
+        env: "NEURON_PROBE_RS",
+    })
+}
+
+/// The files of an ESP-IDF project that builds the program: `(relative path, text)`.
+pub fn esp_idf_project(e: &Emitted, name: &str) -> Vec<(String, String)> {
+    let mut files = vec![
+        (
+            "CMakeLists.txt".to_string(),
+            format!(
+                "# Generated by neuron. Build with: idf.py set-target esp32s3 && idf.py build\ncmake_minimum_required(VERSION 3.16)\ninclude($ENV{{IDF_PATH}}/tools/cmake/project.cmake)\nproject({name})\n"
+            ),
+        ),
+        (
+            "main/CMakeLists.txt".to_string(),
+            format!(
+                "idf_component_register(SRCS \"app.c\" \"nrt_core.c\" \"nrt_port_esp_idf.c\"{}\n                       INCLUDE_DIRS \".\"\n                       REQUIRES driver esp_timer)\ntarget_compile_definitions(${{COMPONENT_LIB}} PRIVATE NRT_PORT_ESP_IDF)\n",
+                if e.ui { " \"nrt_ui.c\" \"nrt_bus_esp_idf.c\"" } else { "" }
+            ),
+        ),
+        ("main/app.c".to_string(), e.c.clone()),
+        ("main/app.map.json".to_string(), e.map_json.clone()),
+    ];
+    let mut rt = runtime_files(Port::EspIdf);
+    if e.ui {
+        rt.extend(crate::runtime::ui_files(Port::EspIdf).unwrap_or_default());
+    }
+    for f in rt {
+        files.push((format!("main/{}", f.name), f.text.to_string()));
+    }
+    files
+}
+
+/// Writes the ESP-IDF project and runs `idf.py build` when ESP-IDF is installed.
+pub fn build_esp_idf(e: &Emitted, name: &str, dir: &Path) -> Result<PathBuf, BuildError> {
+    for (rel, text) in esp_idf_project(e, name) {
+        let path = dir.join(rel);
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent).map_err(io_err)?;
+        }
+        std::fs::write(&path, text).map_err(io_err)?;
+    }
+    let idf =
+        find_tool("NEURON_IDF_PY", &["idf.py"]).filter(|_| std::env::var_os("IDF_PATH").is_some());
+    let Some(idf) = idf else {
+        return Err(BuildError::ToolMissing {
+            tool: "ESP-IDF (idf.py with IDF_PATH)".into(),
+            env: "IDF_PATH",
+        });
+    };
+    run(
+        "idf.py",
+        Command::new(&idf)
+            .current_dir(dir)
+            .args(["set-target", "esp32s3"]),
+    )?;
+    run("idf.py", Command::new(&idf).current_dir(dir).arg("build"))?;
+    Ok(dir.join("build"))
+}
+
+/// Writes an ESP32-S3 image with `esptool`.
+pub fn flash_esptool(build_dir: &Path, port: &str) -> Result<String, BuildError> {
+    let tool =
+        find_tool("NEURON_ESPTOOL", &["esptool", "esptool.py"]).ok_or(BuildError::ToolMissing {
+            tool: "esptool".into(),
+            env: "NEURON_ESPTOOL",
+        })?;
+    run(
+        "esptool",
+        Command::new(tool).current_dir(build_dir).args([
+            "--chip",
+            "esp32s3",
+            "-p",
+            port,
+            "-b",
+            "460800",
+            "write_flash",
+            "@flash_args",
+        ]),
+    )
 }
 
 /// The part name `avrdude` uses for a chip.

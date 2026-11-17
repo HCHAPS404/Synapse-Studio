@@ -255,3 +255,31 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
 - **Lessons:** the AVR simulator agreed with the interpreter on the first full run, which
   checks the AVR port, the compiler flags and the tick timer together without a board.
   The Thumb simulator cannot run Neuron firmware until the RP2040 runtime port exists.
+
+## 2026-11-17 · Tasks B5 (ports), B6 (completion), B7, B8 and B9 (Phase B closed)
+- **Kiro features:** spec-driven development (new specs `.kiro/specs/neuron-ports`,
+  `neuron-hdl`, `neuron-native`, `neuron-ui`, written before each crate), steering
+  (`rust-style`, `codegen-safety-rules`, `conventions`), property-based testing,
+  differential testing against the reference interpreter, detached logged jobs
+  (`tools/job.ps1`) after the editor terminal proved unreliable.
+- **Produced:**
+  - B5: runtime ports for RP2040 and RP2350 (RAM UF2, 12 MHz crystal), STM32F4 (HSI
+    16 MHz, flash image) and an ESP-IDF project generator; `Tier::Sdk`; UF2 writer;
+    `neuron build` and `neuron flash` dispatch by tier and programmer (`avrdude`, `uf2`,
+    `swd`, `esptool`). The RP2040 firmware runs in `neuron-sim-thumb` and matches the
+    interpreter, which closes B6.
+  - B7: crate `neuron-codegen-hdl` (hdl dialect to Verilog-2005, source map,
+    `NE0702` for clock-domain crossings without a synchronizer, `two_ff` synchronizer,
+    XDC and PCF constraints for two generic FPGA boards, Icarus Verilog and Yosys
+    drivers) and `neuron emit-verilog`.
+  - B8: crate `neuron-native-avr`, a native ATmega328P backend (own assembler and Intel
+    HEX writer) for an integer subset, run in `neuron-sim-avr` against the interpreter.
+  - B9: crate `neuron-ui` (widget tree from the ui dialect, framebuffer or band render
+    strategy chosen from RAM, `NE0604` when neither fits, 5x7 font, SSD1306, ST7735-class
+    TFT and HD44780 drivers, C renderer in `runtime/neuron-rt/ui`, host emulators).
+- **Lessons:** the tier line is drawn honestly: what runs without a board is verified in
+  simulators, and the device steps (gate G2, I2 boards, I3 FPGA, ESP-IDF on a real
+  ESP32-S3) are marked pending instead of done. A label collision between a signal and
+  a task in the native backend (`task_` prefix) was found by the differential test and
+  fixed with an `act_` prefix. A job runner that redirected only the last command of an
+  `a && b` chain lost clippy output; the command is now grouped before redirection.

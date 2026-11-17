@@ -19,9 +19,27 @@ Items marked **You** cannot be done by the agent.
 | `avr-gcc` and `avr-libc` | build firmware for UNO and Mega | `avr-gcc --version` |
 | `avrdude` | flash the UNO and Mega | `avrdude -?` |
 | Arduino UNO R3 and a USB cable | gate G2 | the board appears as a COM port in Device Manager |
+| `arm-none-eabi-gcc` (xPack 15.2.1, installed by `tools/install-toolchains.ps1`) | RP2040, RP2350 and STM32F4 firmware | `arm-none-eabi-gcc --version` |
+| ESP-IDF 5.x (optional) | build the generated ESP32-S3 project | `idf.py --version` |
+| probe-rs, OpenOCD or st-flash (optional) | flash the NUCLEO-F446RE over SWD | `probe-rs --version` |
+| esptool (optional, ships with ESP-IDF) | flash the ESP32-S3 | `esptool.py version` |
+| Icarus Verilog and Yosys (optional locally, installed in CI) | simulate and synthesize the emitted Verilog | `iverilog -V`, `yosys -V` |
+| nextpnr-ice40 / icepack, or Vivado, and openFPGALoader (optional) | bitstream and FPGA flashing (session I3) | `openFPGALoader --help` |
 
 Quick way on Windows: install the Arduino IDE or `arduino-cli`; it ships `avr-gcc` and
 `avrdude`. Give the agent the folder of those tools if they are not on `PATH`.
+
+## Status at the end of Phase B (2026-11-17)
+
+Everything in B1–B9 that can run without a board is done and tested. What remains
+needs the devices (**You**):
+
+| Session | What to run | Command |
+|---|---|---|
+| G2 | blink, UART and interrupt on the UNO, C and native builds | `neuron flash examples/corpus/mcu/m01_blink.neuron --port COMx` (add `--native` for B8) |
+| I2 | the same program on Mega, Pico, Pico 2 W, NUCLEO-F446RE, ESP32-S3, XIAO | `neuron flash <file> --board <board> [--port COMx \| --drive E:]` |
+| I3 | counter, PWM and UART TX on the lab FPGA | `neuron flash examples/corpus/hdl/d01_counter.neuron --board <fpga>` |
+| B9 | the dashboard on an ESP32-S3 with a TFT | install ESP-IDF, then `neuron flash <ui package> --board esp32_s3_devkit --port COMx` |
 
 ## Decisions taken
 

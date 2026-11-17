@@ -26,12 +26,15 @@ pub struct Prepared {
     pub program: Program,
     /// The generated C and its source map.
     pub emitted: Emitted,
+    /// The screen, when the package has a `ui` module.
+    pub ui: Option<neuron_ui::UiApp>,
 }
 
 fn tier_name(t: Tier) -> &'static str {
     match t {
         Tier::Runtime => "runtime",
         Tier::Described => "described",
+        Tier::Sdk => "sdk",
     }
 }
 
@@ -73,9 +76,21 @@ pub fn targets_table(reg: &Registry) -> String {
         ));
     }
     out.push_str(
-        "\n`runtime` boards build and flash with `neuron build` / `neuron flash`; `described` boards\n\
+        "\n`runtime` boards build and flash with `neuron build` / `neuron flash`; `sdk` boards get a\n\
+         vendor-SDK project that `neuron build` compiles when the SDK is installed; `described` boards\n\
          are checked (pins, clocks, rates) but have no runtime port yet. See docs/targets.md.\n",
     );
+    out.push_str(
+        "\nFPGA boards (hdl modules, `neuron emit-verilog` and `neuron build --board <fpga>`)\n",
+    );
+    for name in neuron_codegen_hdl::FpgaBoard::names() {
+        if let Some(b) = neuron_codegen_hdl::FpgaBoard::builtin(name) {
+            out.push_str(&format!(
+                "{:<25} {:<12} {:<11} {}\n",
+                b.name, b.part, b.package, b.trust
+            ));
+        }
+    }
     out
 }
 
@@ -196,7 +211,24 @@ pub fn prepare(
     paths: &[String],
     texts: &[String],
 ) -> Result<Prepared, String> {
-    let hw = check(reg, nir);
+    let mut hw = check(reg, nir);
+    // A package with a screen only: the board comes from the ui module.
+    if hw.target.is_none() {
+        if let Some(board) = nir
+            .modules
+            .iter()
+            .find(|m| m.dialect == "ui")
+            .and_then(|m| m.target.clone())
+        {
+            match reg.resolve(&board) {
+                Ok(t) => {
+                    hw.sysclk_hz = t.board.sysclk_hz.unwrap_or(t.board.crystal_hz);
+                    hw.target = Some(t);
+                }
+                Err(e) => return Err(format!("error[NE0607]: {e}")),
+            }
+        }
+    }
     let render_all = |diags: &[Diag]| -> String {
         let mut s = String::new();
         for d in diags {
@@ -225,7 +257,18 @@ pub fn prepare(
             text: t.clone(),
         })
         .collect();
-    let lowered = lower(nir, &hw, &sources);
+    let mut lowered = lower(nir, &hw, &sources);
+    if lowered.program.board.is_none() {
+        lowered.program.board = Some(target.board.name.clone());
+        lowered.program.sysclk_hz = hw.sysclk_hz;
+        if lowered.program.name.is_empty() {
+            lowered.program.name = nir
+                .modules
+                .first()
+                .map(|m| m.name.clone())
+                .unwrap_or_default();
+        }
+    }
     if !lowered.diags.is_empty() {
         return Err(format!(
             "{}error: {} construct(s) outside the subset of the C backend; nothing was built\n\
@@ -241,10 +284,25 @@ pub fn prepare(
             problems.join("\n  ")
         ));
     }
-    let emitted = emit_c(&lowered.program);
+    let ui = neuron_ui::lower_ui(nir, target.chip.ram_bytes, Some(&lowered.program)).map_err(
+        |diags| {
+            format!(
+                "{}error: {} problem(s) in the ui module; nothing was built",
+                render_all(&diags),
+                diags.len()
+            )
+        },
+    )?;
+    let emitted = match &ui {
+        Some(app) => {
+            neuron_codegen_c::emit_c_ui(&lowered.program, &neuron_ui::emit_ui_c(app), app.period_ms)
+        }
+        None => emit_c(&lowered.program),
+    };
     Ok(Prepared {
         target,
         program: lowered.program,
         emitted,
+        ui,
     })
 }
