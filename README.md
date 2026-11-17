@@ -640,6 +640,108 @@ accounts, forms, recordings and posts.
 | AI assistant and AI Driver Builder | 📋 |
 | Desktop and mobile apps | 📋 |
 
+### Calendar per person (17 nov → 4 dec)
+
+Targets, not promises: when a row slips, update `docs/roadmap.md` and tell the other
+person in the daily sync. **Bold** rows unblock the other person.
+
+**Hell**
+
+| Dates | Work | Output | Unblocks |
+|---|---|---|---|
+| 17–18 nov | **E1** compiler bindings (WASM build of parser, checker and diagnostics; PyO3 module) | `packages/wasm-glue`, `neuron_py` | Martin's editor (G3) |
+| 17 nov | I1 reconnaissance session (You): inventory, measurements, photos | `docs/lab/inventory.md` | D3, E6 |
+| 18–20 nov | **E4 protocol** for the twin and relay (WebSocket messages, JSON Schema) | `spec/protocols/relay.md` | Martin's web and mobile (G5, G8) |
+| 19–21 nov | **E2** Core API: projects, builds, guest mode; OpenAPI and generated `sdk-ts` | `services/core`, `packages/sdk-ts` | Martin's web app |
+| 20–22 nov | I2: gate G2 on the UNO, then every board | photos, traces, roadmap rows B4–B6 ✅ | G3 gate |
+| 21–29 nov | E5 Edge Daemon (serial, Modbus, S7, MQTT, CAN, flashing, signed packages, local E-STOP) | `services/edge-daemon` | I5–I7, G7 |
+| 22 nov | C1 emitter framework and fidelity report | `crates/neuron-emit` | C2–C4 |
+| 22–23 nov | I3: Verilog on the lab FPGA, MCU↔FPGA link | roadmap row B7 ✅ | route C |
+| 22–29 nov | C5 importers (ST, Ladder, SPEL+, C and Verilog subsets) | `crates/neuron-import` | route B |
+| 23–25 nov | C2 IEC 61131-3 emitters; D1 manifests; D2 partitioner | ST/SCL/PLCopen output | **F7 virtual PLC** |
+| 24 nov | DG-1 desktop decision with Martin | ADR in `docs/adr/` | G7 |
+| 24–26 nov | D3 links and timing; E3 auth and RBAC | NE0701, Latch+ACK | D4 |
+| 25–27 nov | C3 robot emitter; H1 AI provider layer | SPEL+ output | **F7 virtual robot** |
+| 25–26 nov | I5 PLC session | vendor import check | — |
+| 26–28 nov | D4 cell safety, D5 dossier, C4 Python/ROS 2, C6 Micro-Kernel, E6, E7 deployment, H2 | public URL | G6 judge path |
+| 27–28 nov | I6 robot arms; H3 AI Driver Builder | — | — |
+| 28–29 nov | I7 laboratory plants; **F7 with Martin** (MCU, FPGA, PLC, robot adapters) | mixed real and virtual mode | F8 |
+| 29 nov | **G4 feature freeze** | — | — |
+| 29 nov–1 dec | J2 security, J4 resilience, J5 clean install; I8 video (You) | — | — |
+| 1–3 dec | K2 Kiro write-up, K3 Devpost text, K7 release branch and compliance | submission on 3 dec | — |
+
+**Martin**
+
+| Dates | Work | Output | Unblocks |
+|---|---|---|---|
+| now (was 15–17 nov) | G1 design system; F1 engine kernel | `packages/ui-kit`, `crates/synapse-engine-core` | everything below |
+| **17–18 nov** | **F2 engine WASM API and `.scene.json` schema** (overdue: Hell needs it for F7) | `spec/engine/api.md`, `spec/schemas/scene.schema.json` | **Hell's virtual devices** |
+| 17–20 nov | G2 IDE shell (dockview, explorer, palette, problems panel, offline PWA) | `apps/web` | G3 |
+| 16–22 nov | F3 renderer (Three.js, gizmos, overlays) | 3D view | F8 |
+| 18–21 nov | F4 kinematics (6-axis, SCARA) | FK/IK with property tests | F7 robot |
+| 19–21 nov | G3 Monaco editor with Neuron grammar and WASM diagnostics (needs E1) | live `NE####` in the browser | G4 |
+| 19–24 nov | F5 physics (contacts, conveyors, grippers) | bottling physics | F8 |
+| 20–26 nov | G4 graphical views (blocks, FSM/GRAFCET, Ladder, pin view, clock tree) | VIEW-1 property | G5 |
+| 22–25 nov | F6 pneumatics, drives, sensors, electrical rules | device models | F8 |
+| 23–28 nov | F8 scenarios for routes A–D and fault injection | `scenes/*.scene.json` | G6 |
+| 24 nov | DG-1 desktop decision with Hell | ADR | G7 |
+| 24–29 nov | F7 with Hell; G5 inspectors (source maps, bus monitor, scope, virtual display) | running line highlighted | G6 |
+| 24–30 nov | G7 desktop app (with Hell) | installers | J5 |
+| 26–30 nov | **G6 virtual lab for judges**; G8 Android app | "Try the virtual lab", APK | J1, K3 |
+| 27–29 nov | F9 recording and replay | replays of lab sessions | video |
+| 29 nov–1 dec | J1 Playwright judge path, J3 performance and accessibility, J5 clean install | green judge path | submission |
+
+### Hand-offs between Hell and Martin
+
+| What | From → To | Due | Format | Status |
+|---|---|---|---|---|
+| NIR schema | Hell → Martin | 15 nov | `spec/schemas/nir.schema.json` | ✅ |
+| Virtual MCUs (AVR, RP2040) | Hell → Martin | ready | `crates/neuron-sim-avr`, `crates/neuron-sim-thumb` | ✅ |
+| Virtual displays | Hell → Martin | ready | `crates/neuron-ui` (`render`, `emu`) | ✅ |
+| Verilog for the virtual FPGA | Hell → Martin | ready | `neuron emit-verilog` + map | ✅ |
+| Engine WASM API | Martin → Hell | 17 nov | `spec/engine/api.md` + `VirtualDevice` trait | ⬜ overdue |
+| `.scene.json` | Martin → both | 18 nov | `spec/schemas/scene.schema.json` | ⬜ |
+| Compiler in the browser | Hell → Martin | 21 nov | `packages/wasm-glue` (E1) | ⬜ |
+| Twin and relay WebSocket protocol | Hell → Martin | 20 nov | `spec/protocols/relay.md` (E4) | ⬜ |
+| Core API OpenAPI + `sdk-ts` | Hell → Martin | 21 nov | generated, never hand-written (E2) | ⬜ |
+| Virtual PLC and robot code | Hell → Martin | 25–27 nov | emitted ST and SPEL+ (C2, C3) | ⬜ |
+
+### How to take a task
+
+1. Pull `develop` and create a branch: `feat/<area>-<topic>` (for example
+   `feat/engine-kernel`, `feat/web-shell`, `feat/emit-iec`).
+2. Write or update the spec in `.kiro/specs/<feature>/` (`requirements.md`,
+   `design.md`, `tasks.md`) and commit it first (`spec(...)`).
+3. Implement in small commits: `git commit -s -m "feat(engine): ..."`.
+4. Run the checks: `powershell -File tools\phase-check.ps1` (Rust and CLI) and, for the
+   web, `pnpm lint && pnpm test`.
+5. Open a PR into `develop` that references the spec and the task ID.
+6. When CI is green: set the row to ✅ in `docs/roadmap.md` and in this README, and
+   append an entry to `docs/kiro-log.md`.
+
+### Definition of done
+
+- Spec approved, in `.kiro/specs/`.
+- Tests: unit tests and property-based tests (proptest, Hypothesis or fast-check) for
+  every invariant.
+- `cargo fmt`, `clippy -D warnings`, `ruff`, `pyright` or `pnpm lint` clean.
+- Docs updated; every new `NE####` code has an entry in `docs/errors/`.
+- Everything in English; Spanish only in the `es` locale.
+- CI green; evidence in `docs/kiro-log.md`; status updated in the roadmap.
+- Works without hardware (virtual lab first); no IEC 61508 or ISO 13849 claims.
+
+### Risks and mitigations
+
+| Risk | Impact | Mitigation | Owner |
+|---|---|---|---|
+| Phases F and G have not started, and the engine API is overdue | The virtual lab (G6) is what judges see first | Martin does F1/F2 first, then G2/G3; Hell keeps the simulators and the UI emulators ready to plug in | Martin |
+| E1 (compiler in WASM) is late | G3 has no diagnostics | E1 is Hell's next task (17–18 nov) | Hell |
+| Lab hardware or time is not available | G2/G3 gates and the video | Everything is verified in simulators; hardware sessions add evidence but do not block the virtual lab | You |
+| Drive E: corruption (happened three times) | Lost or damaged files | `tools/verify-worktree.ps1`, push often, `tools/ship.ps1` refuses deletions and NUL bytes | Hell |
+| Windows App Control blocks test executables | Local test failures that are not bugs | `tools/test-retry.ps1`; CI on Linux is the reference | Hell |
+| Scope is larger than the time left | Unfinished routes | Feature freeze on 29 nov; Phase L takes whatever does not fit | Both |
+| Hosting cost during judging (until 2027-01-29) | Virtual lab offline | Static site on a CDN plus an offline package; budget cap on Render and AI | Hell |
+
 ### Phases in detail
 
 Each row says what to build ("Do") and what must be true to mark it done ("Done when").
@@ -661,6 +763,10 @@ entry in [`docs/kiro-log.md`](docs/kiro-log.md).
 
 #### Phase A · The Neuron language · Hell · ✅
 
+**Goal:** a working language on the PC: parse, check (types, units, timing, safety),
+run in simulated time and test. **Result:** 17 specification chapters, 50 corpus
+programs in eight dialects, the standard library written in Neuron.
+
 | ID | Task | What exists | Status |
 |---|---|---|---|
 | A1 | Specification and grammar | `spec/language/` (17 chapters), `spec/grammar/neuron.ebnf` | ✅ rc1; independent review pending (You) |
@@ -679,6 +785,11 @@ entry in [`docs/kiro-log.md`](docs/kiro-log.md).
 
 #### Phase B · Direct programming of devices · Hell · ✅ (device acceptance pending)
 
+**Goal:** compile Neuron straight to microcontrollers and FPGAs without vendor IDEs,
+and run that same firmware in instruction-set simulators so it can be checked against
+the interpreter without a board. **Result:** 408 tests pass; every row below works
+without hardware, and the 🔌 column is what the lab sessions still have to show.
+
 | ID | Task | What exists | Pending on hardware |
 |---|---|---|---|
 | B1 | Target model | `neuron-target`: 5 architectures, 7 chips, 8 boards, pin and clock solvers, NE0601–NE0608 | — (SVD import is B1b, N657 is a placeholder) |
@@ -693,6 +804,10 @@ entry in [`docs/kiro-log.md`](docs/kiro-log.md).
 
 #### Phase C · Translation between languages · Hell · 22–29 nov · 📋
 
+**Goal:** import existing PLC, robot, C and Verilog code into Neuron and emit the native
+language of each device, with a fidelity report that says what translated exactly.
+Feeds the virtual PLC and robot (F7) and routes B and C.
+
 | ID | Task | Do | Done when | Depends | Dates |
 |---|---|---|---|---|---|
 | C1 | Emitter framework | Plugin API for emitters; fidelity report per construct (exact, approximate, unsupported); output package with code, config and wiring report | Golden files per emitter in `conformance/golden` | A9 | 22 nov |
@@ -704,6 +819,10 @@ entry in [`docs/kiro-log.md`](docs/kiro-log.md).
 
 #### Phase D · Cell compiler · Hell · 23–28 nov · 📋
 
+**Goal:** compile one `cell` into one program per device, synthesize the links between
+them, prove the timing budgets and check safety across the whole cell (zones, workspace,
+voltages). This is what makes route A, the bottling cell, work.
+
 | ID | Task | Do | Done when | Depends | Dates |
 |---|---|---|---|---|---|
 | D1 | Manifests and capabilities | Manifest schema, trust levels, capability palette, topologies (same class other vendor, replicas, heterogeneous) | The same module is placed on two PLC types | B1 | 23 nov |
@@ -713,6 +832,10 @@ entry in [`docs/kiro-log.md`](docs/kiro-log.md).
 | D5 | Technical dossier | Wiring, I/O list, pin tables, timing diagrams, BOM, test report (PDF) | Generated for the demo cell | D4 | 27–28 nov |
 
 #### Phase E · Services · Hell · 20–29 nov · 📋
+
+**Goal:** put the compiler in the browser (WASM) and behind an API, connect the apps to
+real devices through the Edge Daemon, and deploy a public, login-free environment for
+the judges.
 
 | ID | Task | Do | Done when | Depends | Dates |
 |---|---|---|---|---|---|
@@ -725,6 +848,10 @@ entry in [`docs/kiro-log.md`](docs/kiro-log.md).
 | E7 | Deployment | Render (judging), Neon branches, Vercel; budget until 2027-01-29 | Public URL works with no login | E2 | 25–28 nov |
 
 #### Phase F · Synapse Engine and digital twin · Martin · 15–29 nov · 📋
+
+**Goal:** a deterministic 3D twin, written in Rust and compiled to WASM, whose virtual
+devices run the code Neuron generated. Start with F1 and F2: Hell's virtual devices
+plug into the F2 API. Martin's working guide: [`docs/martin.md`](docs/martin.md).
 
 | ID | Task | Do | Done when | Depends | Dates |
 |---|---|---|---|---|---|
@@ -740,6 +867,10 @@ entry in [`docs/kiro-log.md`](docs/kiro-log.md).
 
 #### Phase G · Client applications · Martin (G7 with Hell) · 15–30 nov · 📋
 
+**Goal:** the web IDE and the "Try the virtual lab" experience that judges use without
+an account, then the desktop app for flashing and the Android remote. English first;
+Spanish as the second locale.
+
 | ID | Task | Do | Done when | Depends | Dates |
 |---|---|---|---|---|---|
 | G1 | Design system | Tokens, light and dark theme, shadcn/ui components, Storybook, `next-intl` (`en` default, `es` secondary), WCAG AA | Storybook builds in CI; no UI strings outside the message files | — | 15–17 nov |
@@ -753,6 +884,10 @@ entry in [`docs/kiro-log.md`](docs/kiro-log.md).
 
 #### Phase H · AI, optional and never in the safety path · Hell · 25–30 nov · 📋
 
+**Goal:** three modes: classic (no AI, the default), an assistant whose proposals the
+user accepts and the verifier checks, and bring-your-own model. AI output goes through
+the same checks as human code.
+
 | ID | Task | Do | Done when | Depends | Dates |
 |---|---|---|---|---|---|
 | H1 | Provider layer | Classic mode (no AI) by default; assistant; bring-your-own model with keys encrypted on the client; public demo on an open-weights model with a spending cap and cache | All three modes selectable; no key ever logged | E2 | 25–27 nov |
@@ -761,6 +896,10 @@ entry in [`docs/kiro-log.md`](docs/kiro-log.md).
 | H4 | Kiro Crew app | Separate repository, e.g. a crew that audits Neuron programs and onboards devices | Repository public and linked | — | 27–30 nov |
 
 #### Phase I · Hardware lab sessions · Hell + You (Martin for twin calibration) · 📋
+
+**Goal:** show the same Neuron programs on real devices, measure real timing to
+calibrate the compiler and the twin, and record the footage for the video. The
+product never depends on these sessions: the virtual lab works without them.
 
 Order: MCU → FPGA and MCU↔FPGA → MCU + SoC + FPGA → PLC → robot arms → lab plants.
 Lab safety in every session: isolated network, hardwired E-STOP, optocouplers or level
@@ -779,6 +918,9 @@ shifters between 3.3 V and 24 V, dry run first, reduced speed for motion.
 
 #### Phase J · Integration and polish · Hell + Martin · 29 nov–1 dec · 📋
 
+**Goal:** routes A–D work end to end in the virtual lab, every commit runs the judge
+path, and a clean machine can install and use everything from the README alone.
+
 | ID | Task | Owner | Done when |
 |---|---|---|---|
 | J1 | End-to-end tests of routes A–D (Playwright "judge path" on every commit) | Martin | Green on `develop` for three days in a row |
@@ -788,6 +930,9 @@ shifters between 3.3 V and 24 V, dry run first, reduced speed for motion.
 | J5 | Clean-machine install of web, desktop and APK; docs pass | Hell + Martin | A third person follows the README with no help |
 
 #### Phase K · Submission and Kiro evidence · continuous, final 1–3 dec · 🚧
+
+**Goal:** a complete Devpost submission one day before the deadline, with the video,
+the "How we used Kiro" write-up and a public repository that passes the compliance check.
 
 | ID | Task | Owner |
 |---|---|---|
@@ -801,6 +946,8 @@ shifters between 3.3 V and 24 V, dry run first, reduced speed for motion.
 | K8 | Judging operations until 2027-01-29: monitoring, budget, urgent fixes only | Hell |
 
 #### Phase L · Backlog after the MVP
+
+Done only if time allows after the feature freeze. Nothing here is promised to judges.
 
 wgpu renderer · VHDL, URScript, RAPID, KRL and G-code · full PLCopen · RV32IMC, Thumb-2
 and MSP430 native backends · full Z3 integration and placement optimizer · OPC UA
