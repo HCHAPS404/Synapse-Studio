@@ -532,7 +532,7 @@ cargo run -p neuron-cli -- targets                                         # boa
 cargo run -p neuron-cli -- build examples/corpus/mcu/m01_blink.neuron --host    # firmware on the PC
 cargo run -p neuron-cli -- build examples/corpus/mcu/m01_blink.neuron --native  # UNO hex, no compiler
 cargo run -p neuron-cli -- flash examples/corpus/mcu/m01_blink.neuron --port COM3   # UNO on USB
-cargo run -p neuron-cli -- emit-verilog examples/corpus/hdl/d01_counter.neuron --board ice40up5k_breakout -o target/hdl
+cargo run -p neuron-cli -- emit-verilog examples/corpus/hdl/d01_counter.neuron --board artix7_35t_board -o target/hdl
 
 # Core API
 cd services/core

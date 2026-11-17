@@ -139,7 +139,7 @@ cargo run -p neuron-cli -- check examples
 cargo run -p neuron-cli -- run examples/corpus/mcu/m01_blink.neuron
 cargo run -p neuron-cli -- emit-nir examples > out/examples.nir.json
 cargo run -p neuron-cli -- build examples/corpus/mcu/m01_blink.neuron --host
-cargo run -p neuron-cli -- emit-verilog examples/corpus/hdl/d01_counter.neuron --board ice40up5k_breakout -o out/hdl
+cargo run -p neuron-cli -- emit-verilog examples/corpus/hdl/d01_counter.neuron --board artix7_35t_board -o out/hdl
 cargo run -p neuron-cli -- targets
 ```
 

@@ -45,7 +45,7 @@ if ($bad -gt 0) { L 'PHASE-CHECK DONE: stopped (CLI checks failed, details above
 L '[3/4] Smoke runs of the Phase B commands (informational)...'
 $smoke = @(
   @('build', 'examples/corpus/mcu/m01_blink.neuron', '--native', '--out', 'out/native'),
-  @('emit-verilog', 'examples/corpus/hdl/d01_counter.neuron', '--board', 'ice40up5k_breakout', '-o', 'out/hdl'),
+  @('emit-verilog', 'examples/corpus/hdl/d01_counter.neuron', '--board', 'artix7_35t_board', '-o', 'out/hdl'),
   @('targets'),
   @('test', 'examples')
 )
