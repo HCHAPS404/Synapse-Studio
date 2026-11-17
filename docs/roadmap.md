@@ -251,6 +251,7 @@ daemon · Yosys/nextpnr flow · drones and sensor networks · community manifest
 | Now | Martin's GitHub username (collaborator + CODEOWNERS) |
 | Now | Protect `main`/`develop`; enable private vulnerability reporting |
 | Now | Check drive E: (`chkdsk E: /scan`) and exclude the project from sync/antivirus scanning |
+| Before 19 nov | Install `avr-gcc` and `avrdude` (or the Arduino IDE) and a host C compiler; see `docs/phase-b-prerequisites.md` |
 | Before 17 nov | Lab preparation and exact device inventory (both labs) |
 | 17 nov | Session I1 (measurements) |
 | By 21 nov | Neon project, Render service (paid), Vercel project |
