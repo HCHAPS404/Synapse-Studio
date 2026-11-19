@@ -2,8 +2,8 @@
 #   powershell -NoProfile -ExecutionPolicy Bypass -File tools\phase-check.ps1                  # checks only
 #   powershell -NoProfile -ExecutionPolicy Bypass -File tools\phase-check.ps1 -MessageFile m.txt  # checks, then ship
 # Steps: build the CLI; `neuron check`, `fmt --check` and `test` on examples, every corpus folder
-# and lib (blocking, as in CI); smoke runs of `build --native`, `emit-verilog`, `targets` and
-# `test examples` (informational); then tools\ship.ps1 (fmt, clippy, all tests, commit -s, push).
+# and lib (blocking, as in CI); smoke runs of `build --native`, `emit-verilog` and `targets`
+# (informational); then tools\ship.ps1 (fmt, clippy, all tests, commit -s, push).
 # Takes 6-10 minutes with a warm build cache, 20-25 minutes after `cargo clean`.
 # Log: out/phase-check.log.
 param([string]$Message = '', [string]$MessageFile = '')
@@ -28,7 +28,7 @@ if ($LASTEXITCODE -ne 0) { L 'PHASE-CHECK DONE: stopped (the CLI does not build,
 $neuron = Join-Path $root 'target\debug\neuron.exe'
 
 L '[2/4] CLI checks that CI runs (blocking)...'
-$steps = @(@('check', 'examples'), @('fmt', '--check', 'examples'))
+$steps = @(@('check', 'examples'), @('fmt', '--check', 'examples'), @('test', 'examples'))
 foreach ($d in Get-ChildItem examples\corpus -Directory) {
   $p = "examples/corpus/$($d.Name)"
   $steps += , @('check', $p); $steps += , @('fmt', '--check', $p); $steps += , @('test', $p)
@@ -46,8 +46,7 @@ L '[3/4] Smoke runs of the Phase B commands (informational)...'
 $smoke = @(
   @('build', 'examples/corpus/mcu/m01_blink.neuron', '--native', '--out', 'out/native'),
   @('emit-verilog', 'examples/corpus/hdl/d01_counter.neuron', '--board', 'artix7_35t_board', '-o', 'out/hdl'),
-  @('targets'),
-  @('test', 'examples')
+  @('targets')
 )
 foreach ($s in $smoke) {
   $out = cmd /c "`"$neuron`" $($s -join ' ') 2>&1" | Out-String

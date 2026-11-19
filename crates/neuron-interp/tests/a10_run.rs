@@ -309,6 +309,51 @@ fn test_blocks_drive_inputs_and_advance_time() {
     }
 }
 
+/// I11 (chapter 17.8): a test runs its own module and what it refers to. `h05` faults at
+/// 2 s on purpose; the traffic light test needs 8 s and must not be stopped by it.
+#[test]
+fn a_fault_in_another_module_does_not_stop_a_test() {
+    let files = [
+        (
+            "a_h05.neuron",
+            include_str!("../../../examples/corpus/host/h05_fault_and_reset.neuron"),
+        ),
+        (
+            "b_m06.neuron",
+            include_str!("../../../examples/corpus/mcu/m06_traffic_light.neuron"),
+        ),
+        (
+            "c_probe.neuron",
+            "module probe for host\n\ntest \"fails on purpose\":\n  advance(10 ms)\n  assert elapsed() > 1.0, \"too early\"\n",
+        ),
+    ];
+    let a = analyze(
+        files
+            .iter()
+            .map(|(p, t)| SourceFile {
+                path: (*p).into(),
+                text: t.replace("\r\n", "\n"),
+            })
+            .collect(),
+        None,
+        &SemaOptions::default(),
+    );
+    let nir = a.nir.clone().unwrap_or_else(|| panic!("{}", a.render()));
+    let r = run_tests(&nir, &Options::default());
+    let light = r
+        .iter()
+        .find(|t| nir.modules[t.module].file == "b_m06.neuron")
+        .expect("the traffic light test runs");
+    assert!(light.passed, "{}", light.message);
+    let probe = r
+        .iter()
+        .find(|t| nir.modules[t.module].file == "c_probe.neuron")
+        .expect("the probe test runs");
+    assert!(!probe.passed);
+    // The location of a failed assertion names the module of the package, not of the scope.
+    assert_eq!(probe.at.map(|(m, _)| m), Some(probe.module));
+}
+
 #[test]
 fn the_same_run_gives_the_same_trace() {
     let sc = "0 ms: sensor = 1800\n200 ms: sensor = 2400\n400 ms: sensor = 1500\n";

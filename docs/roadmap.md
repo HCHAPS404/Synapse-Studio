@@ -113,7 +113,6 @@ on this phase.
 | Item | Owner | Action |
 |---|---|---|
 | Local check before each push | H | `powershell -NoProfile -ExecutionPolicy Bypass -File tools\phase-check.ps1 [-Message "..."]` runs what CI runs, then commits and pushes (6–10 min warm) |
-| `neuron test examples` on the whole package | H | m06, p03 and p09 fail only when the package is tested as a whole; each corpus folder passes (CI tests per folder). Find the interaction |
 | G2 on the UNO, I2 boards, I3 FPGA, ESP32-S3 TFT dashboard | You | Commands in `docs/phase-b-prerequisites.md` |
 
 ---

@@ -283,3 +283,17 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   a task in the native backend (`task_` prefix) was found by the differential test and
   fixed with an `act_` prefix. A job runner that redirected only the last command of an
   `a && b` chain lost clippy output; the command is now grouped before redirection.
+
+## 2026-11-19 · Workspace check, drive repair and the test scope fix (A10.12)
+- **Kiro features:** agent-run readiness check (git, `fsck`, content comparison of every
+  tracked file, toolchains, every test), spec-first fix (`spec/language/17-interpreter.md`
+  §17.8, `.kiro/specs/neuron-interp` requirement I11 and task A10.12), a regression test.
+- **Produced:** a loose USB cable had damaged one git object and one spec file on drive E:;
+  both were restored from GitHub through a reference clone on C:, with a backup of the
+  damaged copies, and `git fsck` and the 410-file comparison came back clean. `neuron test
+  examples` now passes (18 of 18): each `test` block runs its own module and the modules
+  it refers to, and CI runs the whole examples package too.
+- **Lessons:** three long tests failed only when the whole package was tested because
+  three corpus programs fault on purpose (`r02` at 1 s, `r03` at 1.8 s, `h05` at 2 s) and a
+  fault stops the whole program. Testing each folder alone had hidden the cause instead of
+  fixing it; the specification did not say which modules a test runs.

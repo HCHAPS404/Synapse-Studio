@@ -599,7 +599,6 @@ accounts, forms, recordings and posts.
 | Item | Owner | What to do | Command or place |
 |---|---|---|---|
 | Local check before each push | Hell | Run what CI runs (build, `neuron check`/`fmt`/`test` on examples, corpus and lib, fmt, clippy, every test), then commit and push. 6–10 min with a warm cache | `powershell -NoProfile -ExecutionPolicy Bypass -File tools\phase-check.ps1 [-Message "..."]` |
-| `neuron test examples` on the whole package | Hell | Three tests fail only when the examples package is tested as a whole (m06 "then green", p03 "after two seconds", p09 "draining"); each corpus folder passes on its own and CI tests per folder. Find the interaction and fix it | `target\debug\neuron.exe test examples` |
 | Gate G2 | You (Hell) | Blink, UART and an interrupt on the Arduino UNO R3, with the C build and the native build | `neuron flash examples/corpus/mcu/m01_blink.neuron --port COMx` and the same with `--native` |
 | Session I2 | You (Hell) | Same program on Mega, Pico, Pico 2 W, NUCLEO-F446RE, ESP32-S3 and XIAO; compare pins with the simulator trace | `neuron flash <file> --board <board> [--port COMx \| --drive E:]` |
 | Session I3 | You (Hell) | Counter, PWM and UART TX on the lab FPGA, then the MCU↔FPGA UART link | `neuron flash examples/corpus/hdl/d01_counter.neuron --board <fpga>` |

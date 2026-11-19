@@ -57,6 +57,8 @@ jobs:
         run: cargo run --quiet -p neuron-cli -- check examples
       - name: Examples are formatted
         run: cargo run --quiet -p neuron-cli -- fmt --check examples
+      - name: Every test of the examples package passes as one package
+        run: cargo run --quiet -p neuron-cli -- test examples
       - name: Validation corpus is checked, formatted and tested
         run: |
           for d in examples/corpus/*/; do

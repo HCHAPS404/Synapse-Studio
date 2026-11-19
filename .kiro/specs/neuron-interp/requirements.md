@@ -23,6 +23,7 @@ usable without hardware.
 | I6 | Standard function blocks the examples need are available | `ton`, `tof`, `tp`, counters, edge detectors, `sr`/`rs`, `pid`, filters, `ramp`, `hysteresis`, `debounce` |
 | I7 | Devices outside the package are modeled, not ignored | `run` starts an action with BUSY / DONE and timeouts take the declared branch |
 | I8 | Scripted inputs | scenario files (`at 100 ms: button = true`) and the same operations inside `test` blocks |
+| I11 | A `test` block runs its own module and the modules it refers to; a test in a `cell` runs the whole package (chapter 17.8) | a fault in an unrelated module of the same package does not change the result of a test; `neuron test examples` gives the same results as testing each folder |
 | I9 | `neuron run` and `neuron test` | `run` prints the trace; `test` prints PASS / FAIL with the location of a failed assertion and exits 1 on failure |
 | I10 | Total: no panics and no hangs on any valid program | every example, every valid spec program and generated variations run |
 

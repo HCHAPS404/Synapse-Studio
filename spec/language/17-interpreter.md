@@ -178,8 +178,11 @@ longer than the timeout, for example with `--action-time 5s`.
 
 ## 17.8 Tests
 
-A `test` block runs on a fresh copy of the program. Time does not pass until the test
-says so. The functions of `std.test` are legal in these blocks:
+A `test` block runs on a fresh copy of the program made of its own module and the
+modules that module refers to, directly or through other modules. The other modules of
+the package do not run, so a fault in one module cannot stop the test of another. A
+`test` block in a `cell` runs the whole package, because the cell composes it. Time does
+not pass until the test says so. The functions of `std.test` are legal in these blocks:
 
 | Function | Effect |
 |---|---|

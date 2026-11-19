@@ -13,5 +13,6 @@
 | A10.9 | `neuron run`, `neuron test` | I9 | done |
 | A10.10 | Totality: bounds and robustness tests | I10 | done |
 | A10.11 | Chapter 17, README, roadmap | all | done |
+| A10.12 | Test scope: a test runs its module and the modules it refers to, so a fault elsewhere in the package does not stop it (found by `neuron test examples`: three long tests stopped when `r02`, `r03` and `h05` faulted) | I11 | done |
 
 Follow-ups: `hdl` execution (B7), trajectories (C3), class invariants.
