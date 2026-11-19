@@ -24,7 +24,8 @@ when a task finishes; delete sections that become obsolete.
 - Working copy: **`C:\dev\Synapse-Studio`** (primary). `E:\PROYECTOS\HACKATHONES\Kiroween 2026`
   is only a backup: a loose USB cable damaged files five times; on 2026-11-19 `chkdsk /f`
   removed 65 tracked files, restored from git. Do not work on E:.
-- GitHub `HCHAPS404/Synapse-Studio`. `develop` = `21c7fe2` (CI green). `main` = `a04682f`
+- GitHub `HCHAPS404/Synapse-Studio`. `develop` = `d1c963d` (C1 + C2, CI green).
+  The C: clone has `git config user.name hchaps404` and `user.email helmut.chs@gmail.com`. `main` = `a04682f`
   (promote `develop` to `main` at the next gate with `tools/promote-main.ps1`, after asking).
   Tag `phase-b-software` = `a04682f`. Martin's branch: `feat/engine-kernel`.
 - Toolchains: `%USERPROFILE%\toolchains` (w64devkit gcc 16.2, avr-gcc 7.3, avrdude 6.3,
