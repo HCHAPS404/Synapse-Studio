@@ -577,7 +577,7 @@ of truth for status; Martin's working guide is [`docs/martin.md`](docs/martin.md
 | 0 | Foundation: repo, CI, Kiro setup | Hell | 7 | 7 | ✅ | 13–14 nov |
 | A | The Neuron language | Hell | 13 | 13 | ✅ | 14–19 nov |
 | B | Direct programming of devices | Hell | 9 | 9 | ✅ (B4–B9 ✅🔌) | 16–30 nov |
-| C | Translation between languages | Hell | 6 | 0 | 📋 | 22–29 nov |
+| C | Translation between languages | Hell | 6 | 2 | 🚧 (C1 ✅, C2 ✅🔌) | 19–29 nov |
 | D | Cell compiler (multi-device) | Hell | 5 | 0 | 📋 | 23–28 nov |
 | E | Services: Core API, relay, Edge Daemon | Hell | 7 | 0 | 📋 | 20–29 nov |
 | F | Synapse Engine and digital twin | Martin | 9 | 0 | 📋 | 15–29 nov |
@@ -586,7 +586,7 @@ of truth for status; Martin's working guide is [`docs/martin.md`](docs/martin.md
 | I | Hardware lab sessions | Hell + You | 8 | 0 | 📋 | 17 nov–1 dec |
 | J | Integration and polish | Hell + Martin | 5 | 0 | 📋 | 29 nov–1 dec |
 | K | Submission and Kiro evidence | Hell + Martin + You | 8 | K1 ongoing | 🚧 | continuous, 1–3 dec |
-| **Total** | | | **89** | **29** | **33 %** | deadline 4 dec 17:00 COT |
+| **Total** | | | **89** | **31** | **35 %** | deadline 4 dec 17:00 COT |
 
 **Who does what.** **Hell** owns the language, compiler, backends, standard library,
 verification, services, Edge Daemon, hardware and AI. **Martin** owns the engine, the
@@ -632,7 +632,8 @@ accounts, forms, recordings and posts.
 | Device manifests, resource solver, topologies | 📋 |
 | Standard library, base layers (core, units, time, logic, control, test) | ✅ (`lib/`, written in Neuron); HAL, protocols and drivers 📋 |
 | Partitioner, timing analysis, safety verifier, model checking | 📋 |
-| Emitters (IEC, robot, Python/ROS 2) and importers | 📋 |
+| IEC 61131-3 emitters: Structured Text, SCL, PLCopen XML (LD, SFC), with fidelity report and source maps | ✅🔌 (checked in the virtual PLC of `neuron-st`; vendor import in session I5) |
+| Robot and Python/ROS 2 emitters, importers, micro-kernel | 🚧 Phase C in progress |
 | Edge Daemon and hardware-in-the-loop | 📋 |
 | Synapse Engine and virtual devices | 📋 |
 | Web IDE and virtual lab | 📋 |

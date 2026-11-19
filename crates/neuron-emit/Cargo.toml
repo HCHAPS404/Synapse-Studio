@@ -1,0 +1,23 @@
+[package]
+name = "neuron-emit"
+description = "Emitters from NIR to other languages (Phase C): framework, IEC 61131-3, SPEL+-style robot programs, Python, state-table kernels"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+neuron-nir = { path = "../neuron-nir" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+toml = "0.8"
+
+[dev-dependencies]
+neuron-sema = { path = "../neuron-sema" }
+neuron-interp = { path = "../neuron-interp" }
+neuron-st = { path = "../neuron-st" }
+proptest = { workspace = true }
+roxmltree = "0.20"

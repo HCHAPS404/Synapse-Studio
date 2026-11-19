@@ -1,0 +1,13 @@
+[package]
+name = "neuron-st"
+description = "IEC 61131-3 Structured Text subset: parser and a virtual PLC that scans programs in simulated time"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+proptest = { workspace = true }

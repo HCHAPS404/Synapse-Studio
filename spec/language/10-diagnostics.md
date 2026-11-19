@@ -31,6 +31,7 @@ error[NE0201]: cannot add a length to a duration
 | NE07xx | cells, links, clock domains |
 | NE08xx | safety and electrical |
 | NE09xx | verification |
+| NE10xx | translation between languages (emitters, importers, state-table kernels) |
 
 ## 10.2 Initial catalogue
 
@@ -112,6 +113,10 @@ error[NE0201]: cannot add a length to a duration
 | NE0902 | state unreachable |
 | NE0903 | deadlock: state or step without outgoing transition |
 | NE0904 | state machine without exactly one `initial` state |
+| NE1001 | source text of another language cannot be parsed |
+| NE1002 | construct of the source language has no Neuron equivalent |
+| NE1003 | translation is less faithful than the project policy allows |
+| NE1004 | state table beyond the limits of the micro-kernel |
 
 ## 10.3 Initial lints
 

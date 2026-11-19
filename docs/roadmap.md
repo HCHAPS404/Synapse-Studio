@@ -121,8 +121,8 @@ on this phase.
 
 | ID | Task | Deliverable | Acceptance | Depends | Dates | Status |
 |---|---|---|---|---|---|---|
-| C1 | Emitter framework | Plugin API, fidelity report (exact/approximate/unsupported), package with code + config + wiring report | Golden files per emitter | A9 | 22 nov | ⬜ |
-| C2 | IEC 61131-3 emitters | ST (generic and Yaskawa dialect), SCL, PLCopen XML (Ladder/FBD/SFC) | `matiec` compiles ST; import check in the vendor tool during I5 | C1 | 23–25 nov | ⬜ |
+| C1 | Emitter framework | Plugin API, fidelity report (exact/approximate/unsupported), package with code + config + wiring report | Golden files per emitter | A9 | 22 nov | ✅ `neuron-emit`: emitters with manifests, `fidelity.json`, source maps, wiring report, policy (`NE1003`), deterministic output |
+| C2 | IEC 61131-3 emitters | ST (generic and Yaskawa dialect), SCL, PLCopen XML (Ladder/FBD/SFC) | `matiec` compiles ST; import check in the vendor tool during I5 | C1 | 23–25 nov | ✅🔌 ST (generic, yaskawa), SCL, PLCopen XML (LD, SFC); run in the virtual PLC of `neuron-st` and equal to the interpreter for the whole `plc` corpus. 🔌 Import into the vendor tools (I5) |
 | C3 | Robot emitter | SPEL+ program + command-interpreter slave; workspace checks (NE0804) | Runs on the virtual robot; checked on the arm in I6 | C1 | 25–27 nov | ⬜ |
 | C4 | Python / ROS 2 emitter | `host` dialect → Python nodes | Runs on a Raspberry Pi / PC | C1 | 26–28 nov | ⬜ |
 | C5 | Importers | ST and PLCopen Ladder → Neuron; SPEL+ subset; C subset; Verilog subset; fidelity per construct | Round trip by traces (import → run in interpreter → equal outputs) | A9, A10 | 22–29 nov | ⬜ |

@@ -297,3 +297,23 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   three corpus programs fault on purpose (`r02` at 1 s, `r03` at 1.8 s, `h05` at 2 s) and a
   fault stops the whole program. Testing each folder alone had hidden the cause instead of
   fixing it; the specification did not say which modules a test runs.
+
+## 2026-11-19 · Tasks C1 and C2 (emitter framework, IEC 61131-3 emitters)
+- **Kiro features:** spec-driven development (new spec `.kiro/specs/neuron-translate`
+  written before any code, covering C1 to C6), steering (a new always-on
+  `current-work.md` that hands the session state to the next chat), differential testing
+  against the reference interpreter, agent-run builds through logged jobs.
+- **Produced:** crate `neuron-st` (IEC 61131-3 ST subset: parser, and a virtual PLC that
+  scans programs in simulated time with scan-counted or wall-clock timers); crate
+  `neuron-emit` (emitter plugins with manifests, `fidelity.json`, source maps, wiring
+  report, a project policy that refuses worse translations with `NE1003`) and its IEC
+  emitters: Structured Text (generic and a Yaskawa MotionWorks-style profile), Siemens-style
+  SCL with its tag table, and PLCopen XML with LD and SFC bodies. Diagnostics family NE10xx.
+- **Lessons:** running the output instead of reading it settled the semantics: the
+  interpreter advances function blocks at the end of the scan, so the emitter writes the
+  block inputs to shadow variables and calls every block once after the rungs; with that,
+  the ST of every `plc` program of the corpus gives exactly the interpreter's trace. With
+  real IEC timers a flasher cycle is one scan longer per timer, which the test first
+  expected to be 1000 ms and is in fact 1020 ms in the reference (two rungs pass the
+  timer outputs on); the fidelity report now says so. The project moved from the USB
+  drive E: to C: after `chkdsk` removed 65 files; all were restored from git first.

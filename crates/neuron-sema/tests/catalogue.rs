@@ -62,6 +62,8 @@ fn emitted_codes_are_catalogued_and_documented() {
     files(&r.join("crates/neuron-codegen-hdl/src"), "rs", &mut sources);
     files(&r.join("crates/neuron-native-avr/src"), "rs", &mut sources);
     files(&r.join("crates/neuron-ui/src"), "rs", &mut sources);
+    files(&r.join("crates/neuron-emit/src"), "rs", &mut sources);
+    files(&r.join("crates/neuron-st/src"), "rs", &mut sources);
     let mut emitted = BTreeSet::new();
     for f in &sources {
         emitted.extend(codes_in(&std::fs::read_to_string(f).unwrap()));
