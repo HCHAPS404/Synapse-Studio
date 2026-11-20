@@ -921,7 +921,10 @@ fn syntax_errors_are_ne1001_in_every_language() {
     let d = import("cobol", "x", "").unwrap_err();
     assert_eq!(d[0].code, "NE1001");
     assert!(d[0].message.contains("cobol"));
-    assert_eq!(languages(), &["st", "scl", "plcopen", "spel"]);
+    assert_eq!(
+        languages(),
+        &["st", "scl", "plcopen", "spel", "c", "verilog"]
+    );
 }
 
 #[test]

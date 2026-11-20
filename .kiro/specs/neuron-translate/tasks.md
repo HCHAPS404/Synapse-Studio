@@ -15,7 +15,7 @@
 | C4.1 | Python emitter and `neuron_rt.py`, tests in simulated time | T5 | done |
 | C5.1 | ST and PLCopen importers with round trip | T6 | done |
 | C5.2 | SPEL+ importer with round trip | T6 | done |
-| C5.3 | C subset and Verilog subset importers | T6 | open |
+| C5.3 | C subset and Verilog subset importers | T6 | done |
 | C6.1 | State tables, reference executor, word encoding, `NE1004` | T7 | open |
 | C6.2 | ST, C99 and SPEL+ kernels with differential tests | T7 | open |
 | C7 | CLI `emit` and `import`, `docs/translation.md`, roadmap, README, kiro-log | T8, T9 | open |
@@ -93,3 +93,50 @@ arrays, edge contacts of LD, SPEL+ `If` blocks other than `If TW Then GoTo`, poi
 orientation or without a local. SPEL+ input and output bits get the names `din<n>` and `dout<n>`
 (the names are only in the wiring report); labels, frames and tools keep the names of the
 comments the emitter writes.
+
+Results of C5.3 (2026-11-20): `neuron import c` (`crates/neuron-import/src/c.rs`) and
+`neuron import verilog` (`src/verilog.rs`) are hand-written parsers without new dependencies;
+`tests/c53_import.rs` has 14 tests (workspace total 492, baseline 478).
+C: a 16-function file (`gcd`, `lcm` calling `gcd`, `fib`, saturating `sat_add` and `sat_add8`,
+`clamp`, `rotl`, `popcount`, `parity`, `hash8`, `mix`, `abs_diff`, `in_range`, `sign`, `sum_to`,
+`first_multiple` with `continue` and `break`, `#define` and `const` globals, bound comments and
+constant-range `for` loops) is imported with no diagnostics, analyzed, and every function is run
+in the reference interpreter through generated `test` blocks on 572 input rows. The results equal
+those of the same C compiled with the host `gcc` (w64devkit, `NEURON_CC`) in all 572 rows, and
+equal a Rust reference in the same 572 rows. Semantics: `+`, `-`, `*` become `+%`, `-%`, `*%`
+(C unsigned arithmetic), `<<` on an unsigned type becomes `*%` by a power of two, a `for` becomes
+a `while` with its trip count as the bound (Neuron's `for v in a..b` gives `v` the type `index`,
+which does not mix with `i32`), a parameter that the body assigns is copied to a local, and
+conversions are written only when lossless. The `neuron emit-c` output (`blink_mcu.c`) is
+firmware (runtime tables, structs, pointers, `nrt.h`) and there is no C emitter for `core`
+functions yet (the C99 kernel is task C6.2), so there is no Neuron to C to Neuron round trip; the
+test imports that file and checks that every part outside the subset is a located `NE1002`.
+Verilog: the Verilog that `neuron-codegen-hdl` writes for the six `hdl` programs (`pwm_hdl` and
+`d01` to `d05`; `d02` with a half period of 5 and `d05` with a divisor of 4 so that they move) is
+imported, analyzed and emitted again: the second Verilog equals the first (without its comment
+lines) for all six, and a cycle simulator of the NIR circuits (no Verilog simulator is installed;
+`iverilog` is not required by these tests) gives the same output waveform for the original and
+the imported circuit: 6 programs, 3600 cycles, 4200 output values equal. Hand-written modules
+checked against Rust models: a counter with enable and synchronous reset (400 cycles; `if (rst)`
+becomes the reset value of the register, which the backend writes again), an edge detector with
+`assign` (300 cycles) and a combinational ALU with `case`, a parameter and a wire (300 cycles,
+two outputs). Fidelity: each circuit is `exact`; the clock frequency (not in Verilog) is declared
+as 100 MHz (`equivalent`), registers without a value start at 0 (`equivalent`), a sensitivity
+list is read as `@*` (`equivalent`), and a port called `rst` or `reset` that is not a plain
+synchronous reset is renamed `<name>_in` because the backend adds a reset to such a port
+(`equivalent`).
+Not imported, each one a located `NE1002` with an `unsupported` entry (the rest is imported):
+C: pointers, arrays, `struct`/`union`/`enum`, floating point, strings, `goto`, `switch`, `do`,
+`while` and `for` without a bound, recursion (also mutual), `void` functions, mutable globals,
+function-like macros, conditional compilation, a call to a function that was not imported (and
+so every caller of a function that failed), narrowing or sign-changing conversions, mixed
+signed and unsigned operands, `continue` in a `for` that is not a constant range. Verilog:
+latch-inferring combinational blocks, blocking assignments in clocked blocks, non-blocking
+assignments in combinational blocks, asynchronous resets and several clocks, `initial`, tasks,
+functions, `generate`, module instances and primitives, memories, `integer`, bit and part
+select assignments, `x` or `z` digits, signed literals, and arithmetic whose result is wider
+than its operands (Neuron would drop the carry). A syntax error in either language is `NE1001`.
+Deviations: `long` is imported as 64 bits (LP64) and plain `char` as `i8` (both `equivalent`);
+operands narrower than `int` are not promoted (`equivalent`, one entry per file); a Verilog
+output register written by a clocked block gets an internal register `<name>_r` and a `comb`
+copy, so the re-emitted Verilog of a hand-written module is not identical to its source.

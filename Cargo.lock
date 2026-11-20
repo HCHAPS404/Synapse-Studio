@@ -250,6 +250,7 @@ dependencies = [
 name = "neuron-import"
 version = "0.0.1"
 dependencies = [
+ "neuron-codegen-hdl",
  "neuron-emit",
  "neuron-interp",
  "neuron-nir",

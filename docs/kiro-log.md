@@ -383,3 +383,19 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   inside an expression (`until not holding`, `holding == false`) was compared as a
   handle, not read; only a bare `until x` worked. Inputs are now read wherever a value is
   needed. A module called like a keyword (`cell`) is renamed and reported.
+
+## 2026-11-20 · Task C5.3 (C subset and Verilog subset importers)
+- **Kiro features:** spec-driven development (T6 and its out-of-scope list), a sub-agent
+  in a clean context with strict editing rules, differential testing against the host
+  compiler.
+- **Produced:** `c` importer (integer functions with bounded loops become `core`
+  functions; `+ - *` become wrapping operators, as in C) and `verilog` importer (one
+  module with clocked non-blocking registers, `assign` and `case` becomes an `hdl`
+  circuit). Everything outside the subsets is a located `NE1002`.
+- **Results:** 16 imported C functions give the same results as the same C built with
+  gcc on 572 input rows; the six Verilog designs of the corpus re-emit identically after
+  import and give the same 4200 output values over 3600 simulated cycles. Workspace
+  tests: 492.
+- **Lessons:** Neuron's `for` gives its variable the type `index`, so counted C loops
+  become bounded `while` loops; ports named `rst` that are not a plain synchronous reset
+  are renamed, because the backend adds its own reset.

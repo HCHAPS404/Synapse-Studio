@@ -6,6 +6,8 @@
 //! | `scl` | the SCL a `neuron emit scl` run writes (function block and organization block) | a `plc` module |
 //! | `plcopen` | PLCopen XML TC6 2.01 with LD, SFC or ST bodies | a `plc` module |
 //! | `spel` | the SPEL+-style subset of `neuron-spel` | a `robot` module |
+//! | `c` | a C subset: integer functions with bounded loops | a `core` module |
+//! | `verilog` | a Verilog subset: synchronous modules with `assign` and `always` | an `hdl` module |
 //!
 //! Importers write Neuron *source*, not NIR: the result is formatted like hand-written
 //! code and goes through the normal analyzer. Each import returns the source, a fidelity
@@ -23,10 +25,12 @@
 
 #![forbid(unsafe_code)]
 
+mod c;
 mod plcopen;
 mod spel;
 mod st;
 mod util;
+mod verilog;
 
 pub use neuron_emit::{Class, Diag, Fidelity};
 
@@ -60,7 +64,7 @@ impl Imported {
 
 /// The languages `import` reads.
 pub fn languages() -> &'static [&'static str] {
-    &["st", "scl", "plcopen", "spel"]
+    &["st", "scl", "plcopen", "spel", "c", "verilog"]
 }
 
 /// Imports `text` written in `lang` as a module called `name`.
@@ -106,6 +110,8 @@ pub fn import_with(
         })?,
         "plcopen" => plcopen::import(&file, name, &text, opts.scan_ns)?,
         "spel" => spel::import(&file, name, &text)?,
+        "c" => c::import(&file, name, &text)?,
+        "verilog" => verilog::import(&file, name, &text)?,
         other => {
             return Err(vec![Diag {
                 code: "NE1001",

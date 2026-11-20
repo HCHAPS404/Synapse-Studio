@@ -107,7 +107,9 @@ Next, in order:
 5. **C4 done on 2026-11-19**: `python` emitter + `neuron_rt.py` (`tests/c4_python.rs`,
    CI sets `NEURON_REQUIRE_PYTHON=1`; 458 workspace tests). Not supported yet (NE0610):
    ton/tof/counters/pid, fsm, sequence, struct/enum/class, match, Option/Result, `--ros2`.
-6. C5.3: C subset and Verilog subset importers.
+6. **C5.3 done on 2026-11-20**: `c` and `verilog` importers (`tests/c53_import.rs`;
+   492 workspace tests). Sub-agent rule that worked: edit files only with the file
+   tools, never from the shell; poll jobs only with the file reader.
 7. C6: state tables `.nst.json` + word encoding, reference executor, ST/C99/SPEL+ kernels.
 8. C7: CLI `neuron emit <st|scl|plcopen|spel|python|kernel>` and `neuron import <...>`
    (put it in a new `crates/neuron-cli/src/translate.rs`), `docs/translation.md`, CI steps,
