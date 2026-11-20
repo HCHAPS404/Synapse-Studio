@@ -2,7 +2,7 @@
 //! function blocks (timers, counters, edge detectors, filters, PID) and `io` bindings.
 
 use crate::calls::{new_obj, Vals};
-use crate::value::{Obj, Value};
+use crate::value::{round9, Geo, Obj, Value};
 use crate::{fault, Interp, TraceKind, R};
 use neuron_nir::Expr;
 use std::cell::RefCell;
@@ -27,6 +27,26 @@ fn like(template: &Value, si: f64) -> Value {
     match template {
         Value::Qty(_, u) => Value::Qty(si, Rc::clone(u)),
         _ => Value::Real(si),
+    }
+}
+
+/// A geometry component in mm (or deg when `angle`). A quantity is converted from base
+/// units; a plain number is taken as written (the unit that follows scales it later).
+pub(crate) fn geo_comp(v: &Value, angle: bool) -> f64 {
+    match v {
+        Value::Qty(si, _) => round9(if angle { si.to_degrees() } else { si * 1000.0 }),
+        other => other.as_f64().unwrap_or(0.0),
+    }
+}
+
+/// The components of an `xyz`/`rpy` value, or `n` zeros.
+fn geo_vec(v: &Option<Value>, n: usize) -> Vec<f64> {
+    match v {
+        Some(Value::Geo(g)) => match &**g {
+            Geo::Vec { v, .. } | Geo::Joints(v) => v.clone(),
+            _ => vec![0.0; n],
+        },
+        _ => vec![0.0; n],
     }
 }
 
@@ -272,9 +292,26 @@ impl Interp {
             "Err" => Ok(Value::Res(Err(Box::new(a0.unwrap_or(Value::Unit))))),
             "Some" => Ok(Value::Opt(Some(Box::new(a0.unwrap_or(Value::Unit))))),
             "xyz" | "xy" | "rpy" | "joints" => {
-                Ok(Value::Tuple(vals.into_iter().map(|(_, v)| v).collect()))
+                let angle = matches!(name, "rpy" | "joints");
+                let v: Vec<f64> = vals.iter().map(|(_, v)| geo_comp(v, angle)).collect();
+                Ok(Value::Geo(Rc::new(if name == "joints" {
+                    Geo::Joints(v)
+                } else {
+                    Geo::Vec {
+                        kind: name.to_string(),
+                        v,
+                    }
+                })))
             }
-            "frame" | "tool" => Ok(Value::Tuple(vals.into_iter().map(|(_, v)| v).collect())),
+            "frame" => Ok(Value::Geo(Rc::new(Geo::Frame {
+                name: String::new(),
+                origin: geo_vec(&arg(&vals, "origin", 0), 3),
+                rot: geo_vec(&arg(&vals, "rot", 1), 3),
+            }))),
+            "tool" => Ok(Value::Geo(Rc::new(Geo::Tool {
+                offset: geo_vec(&arg(&vals, "offset", 0), 3),
+                payload_kg: round9(num(&arg(&vals, "payload", 1))),
+            }))),
             "drive" => self.test_drive(&vals),
             "advance" => self.test_advance(&vals),
             "elapsed" => r(self.now as f64 / 1.0e9),

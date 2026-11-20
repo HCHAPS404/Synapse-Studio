@@ -39,6 +39,15 @@ when a task finishes; delete sections that become obsolete.
   jobs detached and read their logs: `tools/job.ps1 -Cmd "..." -Log name.log` writes
   `out/name.log` ending with `JOB END exit=N`. Run one cargo job at a time (they block on
   the build lock). The file reader can lag a few seconds behind new files.
+- **How to launch it (agent):** call the shell tool with `run_in_background: true` and the
+  command `powershell -NoProfile -ExecutionPolicy Bypass -File tools\job.ps1 -Cmd "cargo ..." -Log x.log`.
+  Do NOT wrap it in `Start-Process ... -WindowStyle Hidden` from the agent shell: on
+  2026-11-19 that silently never ran (no log file). Read `out/x.log` with the file reader.
+- When the agent shell stops running commands at all (even a one-line `Out-File`),
+  Hell has to restart the editor terminal or Kiro. Both times on 2026-11-19 it died right
+  after a long foreground wait (`Start-Sleep` loops of minutes). Keep foreground commands
+  short (at most `Start-Sleep 30`), and poll a background job by reading its log with the
+  file reader instead of waiting in the shell.
 - `tools/phase-check.ps1 [-MessageFile f]`: everything CI runs (CLI checks on examples,
   corpus and lib, smoke runs), then `tools/ship.ps1` (fmt, clippy, tests, commit -s, push).
 - `tools/verify-worktree.ps1`: compares every tracked file with git (disk damage check).
@@ -79,7 +88,13 @@ Done (C1, C2, committed with "feat(emit,st): IEC 61131-3 emitters ..."):
 Next, in order:
 1. NE0804 becomes implemented by C3 (update `docs/errors/reserved.md` when C3 lands).
 2. C5.1 importers ST and PLCopen (new crate `neuron-import`, roxmltree), round trip by traces.
-4. C3: robot manifests `devices/robots/*.toml` (generic models), NE0804, SPEL+-style emitter
+4. C3 starts with interpreter gaps found on 2026-11-19 (no test covered them):
+   `point`/`frame`/`tool` are opaque (`pallet.xyz(...)` drops its arguments, `p.above` is
+   missing); a `for` runs in one step, so `move`/`wait`/`until` inside a loop never wait
+   (r01, r02, r05); sequence locals (`let p`, loop variable) are cleared at each activation;
+   `until part_ok` on an `io` input may never be true (check). Sequences tick every 1 ms,
+   a motion takes `move_ns` = 1 s. Add a motion observable to the trace. Then:
+   C3: robot manifests `devices/robots/*.toml` (generic models), NE0804, SPEL+-style emitter
    and slave, crate `neuron-spel` (virtual controller), differential tests; C5.2 importer.
 5. C4: Python emitter + `neuron_rt.py`, tests run with Python in simulated time.
 6. C5.3: C subset and Verilog subset importers.

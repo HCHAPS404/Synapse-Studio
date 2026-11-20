@@ -45,6 +45,16 @@ The output is the **trace**, one line per observation, in time order:
 | `STATE` | a state machine or a sequence entered a state or step |
 | `EVENT` | an `emit`, a timeout, or a device action started or finished |
 | `FAULT`, `RESET` | the safety logic (17.6) |
+| `MOVE` | a robot motion started (17.5): name `ptp`, `linear` or `arc`, value the resolved target |
+
+A `MOVE` value is the target as text, with lengths in mm and angles in deg whatever unit
+the program used, and numbers with at most six decimals and no trailing zeros:
+
+```text
+      0.000 ms  MOVE   ptp = joints(0, -30, 60, 0, 60, 0) deg
+   1000.000 ms  MOVE   linear = pallet.xyz(80, 60, 50) mm
+   2000.000 ms  MOVE   arc = board.xyz(0, 50, 0) mm via board.xyz(50, 0, 0) mm
+```
 
 ### Scenarios
 
@@ -131,7 +141,22 @@ action, then the `entry` of the target. At most one fires per evaluation.
 | `wait D` | waits `D` |
 | `-> S` | jumps to step `S` |
 | `parallel:` | runs its branches, continues when all have finished |
-| `move ...` | waits `Options::move_ns` |
+| `move ...` | records a `MOVE` entry, then waits `Options::move_ns` |
+
+`for`, `while` and `loop` statements of a sequence whose body waits (`move`, `wait`,
+`until`, `-> S`) are flattened into the sequence: each wait really waits, `break` and
+`continue` work, and a jump leaves every loop. A loop whose body only waits inside an
+`if` or `match` is not flattened. `let` bindings and loop variables of a sequence keep
+their values between ticks. `until x` on an `io` input reads the input.
+
+In a `robot` module the `step` blocks after the motions are handlers: a step is entered
+by a jump or a timeout (`until c timeout D -> S`), never by falling through from the
+statements above it, so the sequence ends after its last motion.
+
+**Geometry values** (robot). `joints(..) deg`, `xyz(..) mm`, `rpy(..) deg`,
+`frame(origin:, rot:)`, `tool(offset:, payload:)` and `f.xyz(x, y, z) mm` (a point in
+frame `f`) are values with the units above. `p.above(d)` is the point `p` moved `d`
+along the Z axis of its frame.
 
 **PLC scan.** Each scan samples the inputs, runs every `rung` and `when` rule in source
 order, advances the function blocks by the scan time, and then publishes the outputs

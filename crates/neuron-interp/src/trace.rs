@@ -17,6 +17,12 @@ pub enum TraceKind {
     State,
     /// Text printed by the program.
     Log,
+    /// A robot motion started. `name` is `ptp`, `linear` or `arc`; `value` is the
+    /// resolved target as text: `joints(0, -30, 60, 0, 60, 0) deg` for a joint target,
+    /// `pallet.xyz(80, 60, 50) mm` for a point in a frame (lengths in mm, angles in deg,
+    /// numbers with at most six decimals and no trailing zeros). An `arc` motion appends
+    /// ` via <point>`. Rendered as `MOVE  linear = pallet.xyz(80, 60, 50) mm`.
+    Motion,
 }
 
 impl TraceKind {
@@ -30,6 +36,7 @@ impl TraceKind {
             TraceKind::Event => "EVENT",
             TraceKind::State => "STATE",
             TraceKind::Log => "LOG",
+            TraceKind::Motion => "MOVE",
         }
     }
 }

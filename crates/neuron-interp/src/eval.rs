@@ -1,16 +1,40 @@
 //! Evaluation of expressions, statements and patterns.
 
-use crate::value::{parse_num, Closure, UnitInfo, Value};
+use crate::value::{parse_num, round9, Closure, Geo, UnitInfo, Value};
 use crate::{fault, int_kind, Interp, Stop, R};
 use neuron_nir::{Block, Expr, ExprKind, ItemDef, Lit, Pattern, PatternKind, Stmt, StmtKind, Type};
 use std::rc::Rc;
 
 /// Largest array or iteration count the interpreter builds.
-const MAX_ARRAY: usize = 1 << 20;
+pub(crate) const MAX_ARRAY: usize = 1 << 20;
 
 /// Statements one activation may execute before it is stopped as a runaway loop
 /// (`fault LoopBound`).
 const STEP_BUDGET: u64 = 5_000_000;
+
+/// Applies the unit written after a geometry value (`xyz(1, 2, 3) m`): the components
+/// were taken as written, so they are scaled to mm (lengths) or deg (angles).
+fn rescale_geo(g: &Geo, unit: &str) -> Geo {
+    let scale = neuron_sema::units::lookup_unit(unit).map_or(1.0, |u| u.scale.to_f64());
+    let len = |v: &[f64]| -> Vec<f64> { v.iter().map(|x| round9(x * scale * 1000.0)).collect() };
+    let ang =
+        |v: &[f64]| -> Vec<f64> { v.iter().map(|x| round9((x * scale).to_degrees())).collect() };
+    match g {
+        Geo::Vec { kind, v } => Geo::Vec {
+            kind: kind.clone(),
+            v: if kind == "rpy" { ang(v) } else { len(v) },
+        },
+        Geo::Joints(v) => Geo::Joints(ang(v)),
+        Geo::Point { frame, v } => {
+            let l = len(v);
+            Geo::Point {
+                frame: frame.clone(),
+                v: [l[0], l[1], l[2]],
+            }
+        }
+        other => other.clone(),
+    }
+}
 
 /// Range of an integer type.
 pub(crate) fn int_range(kind: &str) -> Option<(i128, i128)> {
@@ -169,7 +193,19 @@ impl Interp {
     fn ev_raw(&mut self, e: &Expr) -> R<Value> {
         match &e.e {
             ExprKind::Lit { lit } => Ok(self.lit(lit)),
-            ExprKind::Quantity { value, si, .. } => {
+            ExprKind::Quantity { value, si, unit } => {
+                if si.is_none() && matches!(value.e, ExprKind::Call { .. }) {
+                    let v = self.ev(value)?;
+                    if let Value::Geo(g) = &v {
+                        return Ok(Value::Geo(Rc::new(rescale_geo(g, &unit.text))));
+                    }
+                    if let (Some(x), Type::Num { unit: Some(u), .. }) = (v.as_f64(), &e.ty) {
+                        let info = self.unit_info(u);
+                        let si = info.to_si(x);
+                        return Ok(Value::Qty(si, info));
+                    }
+                    return Ok(v);
+                }
                 if let (Some(s), Type::Num { unit: Some(u), .. }) = (si, &e.ty) {
                     let info = self.unit_info(u);
                     return Ok(Value::Qty(parse_num(s), info));
@@ -422,6 +458,32 @@ impl Interp {
                 let v = self.ev(value);
                 self.consts_busy.remove(id);
                 let v = v?;
+                self.globals.insert(id.to_string(), v.clone());
+                Ok(v)
+            }
+            ItemDef::Geometry {
+                kind,
+                name: gname,
+                value,
+                ..
+            } => {
+                if !self.consts_busy.insert(id.to_string()) {
+                    return Err(fault("ContractViolation"));
+                }
+                let v = self.ev(value);
+                self.consts_busy.remove(id);
+                let mut v = v?;
+                if kind == "frame" {
+                    if let Value::Geo(g) = &v {
+                        if let Geo::Frame { origin, rot, .. } = &**g {
+                            v = Value::Geo(Rc::new(Geo::Frame {
+                                name: gname.clone(),
+                                origin: origin.clone(),
+                                rot: rot.clone(),
+                            }));
+                        }
+                    }
+                }
                 self.globals.insert(id.to_string(), v.clone());
                 Ok(v)
             }
@@ -1112,7 +1174,7 @@ impl Interp {
         }
     }
 
-    fn loop_bound(&mut self, max: Option<&Expr>) -> R<u64> {
+    pub(crate) fn loop_bound(&mut self, max: Option<&Expr>) -> R<u64> {
         const CAP: u64 = 1_000_000;
         match max {
             Some(e) => {

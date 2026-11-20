@@ -8,6 +8,7 @@
 | C2.2 | ST emitter (generic and yaskawa profiles) with exact and bounded differential tests over the corpus | T3 | done |
 | C2.3 | SCL emitter and tag table | T3 | done |
 | C2.4 | PLCopen XML emitter (LD, SFC, ST bodies) | T3 | done |
+| C3.0 | Reference interpreter runs robot programs as written: geometry values, waits inside loops, sequence locals, `MOVE` trace (spec 17) | T4 | done |
 | C3.1 | Robot manifests, `NE0804` | T4 | open |
 | C3.2 | SPEL+ emitter and slave program | T4 | open |
 | C3.3 | `neuron-spel` virtual controller and differential tests | T4 | open |

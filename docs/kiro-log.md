@@ -317,3 +317,19 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   expected to be 1000 ms and is in fact 1020 ms in the reference (two rungs pass the
   timer outputs on); the fidelity report now says so. The project moved from the USB
   drive E: to C: after `chkdsk` removed 65 files; all were restored from git first.
+
+## 2026-11-19 · Task C3, stage 1 (robot semantics in the reference interpreter)
+- **Kiro features:** sub-agents in a clean context (one read the robot path and found the
+  gaps, a second fixed them), steering (`current-work.md` records the gaps and how to run
+  jobs from the agent shell), a read-only `tools/diagnose.ps1` health check.
+- **Produced:** geometry values (`joints`, `xyz`, `rpy`, `frame`, `tool`, `f.xyz(..)`,
+  `p.above(d)`) in mm and deg; loops that wait inside a sequence are flattened, so `move`,
+  `wait` and `until` in a `for` really wait; sequence locals live across ticks; `until`
+  on an `io` input reads it; a `MOVE` trace entry for every motion (spec 17). Robot steps
+  are handlers, entered only by a jump or a timeout. 11 tests over the six robot programs
+  of the corpus, both branches of `r02` and `r03`.
+- **Lessons:** 423 green tests had not caught that robot programs did not run as written:
+  points were opaque, and a motion inside a loop did not wait. The SPEL+ differential test
+  needs a correct reference, so the interpreter was fixed first. Launching jobs with
+  `Start-Process` from the agent shell silently never ran them; long foreground waits
+  froze the shell twice.

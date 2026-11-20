@@ -1,15 +1,17 @@
 //! Setup, the event loop, and the activities: tasks, interrupts, rules, state machines,
 //! sequences, PLC scans and the safety logic (spec 14 and 17).
 
-use crate::eval::dotted;
+use crate::eval::{dotted, MAX_ARRAY};
 use crate::value::Value;
 use crate::{
-    err, Ctx, Ev, Interp, InterpError, IoState, Ready, SigInfo, Snap, Stop, TraceEvent, TraceKind,
-    R,
+    err, fault, Ctx, Ev, Interp, InterpError, IoState, Ready, SigInfo, Snap, Stop, TraceEvent,
+    TraceKind, R,
 };
 use neuron_nir::{
-    Expr, ItemDef, Rule, SafetyDef, SeqItem, Stmt, StmtKind, TaskAttr, Trigger, VarDecl, Widget,
+    Expr, ItemDef, Pattern, Rule, SafetyDef, SeqItem, Stmt, StmtKind, TaskAttr, Trigger, VarDecl,
+    Widget,
 };
+use std::collections::BTreeMap;
 use std::rc::Rc;
 
 const DEFAULT_RATE_NS: i64 = 10_000_000;
@@ -49,6 +51,48 @@ pub(crate) enum Op {
     Step(String),
     Stmt(Stmt),
     Par(Vec<Vec<Op>>),
+    /// Start of a loop whose body waits. `exit` is the index after its `LoopEnd`.
+    LoopBegin {
+        spec: Box<LoopSpec>,
+        exit: usize,
+    },
+    /// Head of the loop: runs the next iteration or leaves the loop.
+    LoopNext,
+    /// End of the body: back to the `LoopNext` at `head`.
+    LoopEnd {
+        head: usize,
+    },
+}
+
+/// The loop statement behind a flattened loop.
+// Ops hold it boxed and there is one per flattened loop, so the variant sizes do not matter.
+#[allow(clippy::large_enum_variant)]
+#[derive(Debug, Clone)]
+pub(crate) enum LoopSpec {
+    For {
+        pattern: Pattern,
+        iter: Expr,
+    },
+    While {
+        pattern: Option<Pattern>,
+        cond: Expr,
+        max: Option<Expr>,
+    },
+    Loop {
+        max: Option<Expr>,
+    },
+}
+
+/// Progress of one running flattened loop.
+#[derive(Debug)]
+pub(crate) struct LoopState {
+    spec: LoopSpec,
+    exit: usize,
+    head: usize,
+    items: Vec<Value>,
+    idx: usize,
+    n: u64,
+    bound: u64,
 }
 
 /// What a sequence is waiting for.
@@ -72,6 +116,15 @@ pub(crate) struct Runner {
     pub wait: Option<Wait>,
     pub par: Option<Vec<Runner>>,
     pub done: bool,
+    /// Loops being run, innermost last. Cleared by every jump.
+    pub loops: Vec<LoopState>,
+    /// Sequence locals (`let`, loop variables) kept between ticks.
+    pub locals: BTreeMap<String, Value>,
+    pub names: BTreeMap<String, String>,
+    /// `robot` module: a step is entered only by a jump, never by falling through.
+    pub handlers: bool,
+    /// The last jump has not reached its step yet.
+    pub jumped: bool,
 }
 
 /// Runtime state of an activity.
@@ -108,6 +161,71 @@ pub(crate) fn stop_err(s: Stop) -> InterpError {
     }
 }
 
+/// `true` when running the statement can make a sequence wait (through nested loops).
+fn waits(s: &Stmt) -> bool {
+    match &s.s {
+        StmtKind::Move { .. }
+        | StmtKind::Wait { .. }
+        | StmtKind::Until { .. }
+        | StmtKind::Jump { .. } => true,
+        StmtKind::For { body, .. } | StmtKind::While { body, .. } | StmtKind::Loop { body, .. } => {
+            body.stmts.iter().any(waits)
+        }
+        _ => false,
+    }
+}
+
+/// Flattens a statement: a loop that waits becomes `LoopBegin`, `LoopNext`, body,
+/// `LoopEnd`; anything else stays one op.
+fn flatten_stmt(s: &Stmt, out: &mut Vec<Op>) {
+    let (spec, body) = match &s.s {
+        StmtKind::For {
+            pattern,
+            iter,
+            body,
+            ..
+        } if waits(s) => (
+            LoopSpec::For {
+                pattern: pattern.clone(),
+                iter: iter.clone(),
+            },
+            body,
+        ),
+        StmtKind::While {
+            pattern,
+            cond,
+            max,
+            body,
+        } if waits(s) => (
+            LoopSpec::While {
+                pattern: pattern.clone(),
+                cond: cond.clone(),
+                max: max.clone(),
+            },
+            body,
+        ),
+        StmtKind::Loop { max, body } if waits(s) => (LoopSpec::Loop { max: max.clone() }, body),
+        _ => {
+            out.push(Op::Stmt(s.clone()));
+            return;
+        }
+    };
+    let begin = out.len();
+    out.push(Op::LoopBegin {
+        spec: Box::new(spec),
+        exit: 0,
+    });
+    out.push(Op::LoopNext);
+    for st in &body.stmts {
+        flatten_stmt(st, out);
+    }
+    out.push(Op::LoopEnd { head: begin + 1 });
+    let end = out.len();
+    if let Op::LoopBegin { exit, .. } = &mut out[begin] {
+        *exit = end;
+    }
+}
+
 fn flatten(items: &[SeqItem], out: &mut Vec<Op>) {
     for it in items {
         match it {
@@ -126,7 +244,7 @@ fn flatten(items: &[SeqItem], out: &mut Vec<Op>) {
                     .collect();
                 out.push(Op::Par(subs));
             }
-            SeqItem::Stmt { stmt } => out.push(Op::Stmt(stmt.clone())),
+            SeqItem::Stmt { stmt } => flatten_stmt(stmt, out),
         }
     }
 }
@@ -275,6 +393,7 @@ impl Interp {
                         self.acts[a].st = ActState::Seq(Runner {
                             name: name.clone(),
                             ops,
+                            handlers: module.dialect == "robot",
                             ..Runner::default()
                         });
                     }
@@ -687,7 +806,15 @@ impl Interp {
             ActKind::Sequence => {
                 let mut st = std::mem::take(&mut self.acts[a].st);
                 let r = match &mut st {
-                    ActState::Seq(rn) => self.advance(rn),
+                    ActState::Seq(rn) => {
+                        // Sequence locals live across ticks.
+                        self.locals = std::mem::take(&mut rn.locals);
+                        self.names = std::mem::take(&mut rn.names);
+                        let r = self.advance(rn);
+                        rn.locals = std::mem::take(&mut self.locals);
+                        rn.names = std::mem::take(&mut self.names);
+                        r
+                    }
                     _ => Ok(()),
                 };
                 self.acts[a].st = st;
@@ -842,9 +969,107 @@ impl Interp {
             .iter()
             .position(|o| matches!(o, Op::Step(n) if n == target))
         {
-            Some(p) => rn.pc = p,
+            Some(p) => {
+                rn.pc = p;
+                rn.jumped = true;
+            }
             None => rn.done = true,
         }
+        rn.loops.clear();
+    }
+
+    /// Value of a condition. An `io` input reads its current value.
+    fn cond_true(&mut self, e: &Expr) -> R<bool> {
+        match self.ev(e)? {
+            Value::Io(k) => Ok(self.io_read(&k).truthy()),
+            v => Ok(v.truthy()),
+        }
+    }
+
+    /// Runs one `LoopNext`: starts the next iteration or leaves the loop.
+    fn loop_next(&mut self, rn: &mut Runner) -> R<()> {
+        let Some(mut st) = rn.loops.pop() else {
+            rn.pc += 1;
+            return Ok(());
+        };
+        let go = match st.spec.clone() {
+            LoopSpec::For { pattern, .. } => match st.items.get(st.idx).cloned() {
+                Some(item) => {
+                    st.idx += 1;
+                    self.bind_pat(&pattern, &item)?;
+                    true
+                }
+                None => false,
+            },
+            LoopSpec::While { pattern, cond, .. } => {
+                if st.n >= st.bound {
+                    false
+                } else {
+                    let c = self.ev(&cond)?;
+                    let ok = match &pattern {
+                        Some(p) => self.bind_pat(p, &c)?,
+                        None => match c {
+                            Value::Io(k) => self.io_read(&k).truthy(),
+                            other => other.truthy(),
+                        },
+                    };
+                    if ok {
+                        st.n += 1;
+                    }
+                    ok
+                }
+            }
+            LoopSpec::Loop { .. } => {
+                if st.n >= st.bound {
+                    false
+                } else {
+                    st.n += 1;
+                    true
+                }
+            }
+        };
+        if go {
+            rn.pc += 1;
+            rn.loops.push(st);
+        } else {
+            rn.pc = st.exit;
+        }
+        Ok(())
+    }
+
+    /// Starts a flattened loop: evaluates what it iterates over.
+    fn loop_begin(&mut self, rn: &mut Runner, spec: &LoopSpec, exit: usize) -> R<()> {
+        let mut st = LoopState {
+            spec: spec.clone(),
+            exit,
+            head: rn.pc + 1,
+            items: Vec::new(),
+            idx: 0,
+            n: 0,
+            bound: 0,
+        };
+        match spec {
+            LoopSpec::For { iter, .. } => {
+                st.items = match self.ev(iter)? {
+                    Value::Range(lo, hi, inc) => {
+                        let (a, b) = (lo.as_int().unwrap_or(0), hi.as_int().unwrap_or(0));
+                        let end = if inc { b.saturating_add(1) } else { b };
+                        if end.saturating_sub(a) > MAX_ARRAY as i128 {
+                            return Err(fault("LoopBound"));
+                        }
+                        (a..end).map(Value::Int).collect()
+                    }
+                    Value::Array(v) | Value::Tuple(v) => v,
+                    _ => Vec::new(),
+                };
+            }
+            LoopSpec::While { max, .. } | LoopSpec::Loop { max } => {
+                st.bound = self.loop_bound(max.as_ref())?;
+            }
+        }
+        rn.loops.push(st);
+        rn.pc += 1;
+        Ok(())
     }
 
     /// Runs a sequence (or a branch) until it has to wait.
@@ -881,7 +1106,7 @@ impl Interp {
                         deadline,
                         target,
                     } => {
-                        if self.ev(&cond)?.truthy() {
+                        if self.cond_true(&cond)? {
                             rn.wait = None;
                             rn.pc += 1;
                             continue;
@@ -909,9 +1134,19 @@ impl Interp {
             };
             match op {
                 Op::Step(name) => {
+                    if rn.handlers && !rn.jumped {
+                        // Robot programs: the steps after the motions are handlers that
+                        // only a jump or a timeout enters.
+                        rn.done = true;
+                        return Ok(());
+                    }
+                    rn.jumped = false;
                     self.trace_push(TraceKind::State, rn.name.clone(), name);
                     rn.pc += 1;
                 }
+                Op::LoopBegin { spec, exit } => self.loop_begin(rn, &spec, exit)?,
+                Op::LoopNext => self.loop_next(rn)?,
+                Op::LoopEnd { head } => rn.pc = head,
                 Op::Par(branches) => {
                     rn.par = Some(
                         branches
@@ -919,6 +1154,7 @@ impl Interp {
                             .map(|ops| Runner {
                                 name: rn.name.clone(),
                                 ops,
+                                handlers: rn.handlers,
                                 ..Runner::default()
                             })
                             .collect(),
@@ -945,7 +1181,12 @@ impl Interp {
                         rn.wait = Some(Wait::Time(self.now.saturating_add(d)));
                     }
                     StmtKind::Jump { target } => Self::jump(rn, target),
-                    StmtKind::Move { .. } => {
+                    StmtKind::Move { kind, to, via, .. } => {
+                        let mut target = self.ev(to)?.show();
+                        if let Some(v) = via {
+                            target = format!("{target} via {}", self.ev(v)?.show());
+                        }
+                        self.trace_push(TraceKind::Motion, kind.clone(), target);
                         rn.wait = Some(Wait::Time(self.now.saturating_add(self.opts.move_ns)));
                     }
                     _ => {
@@ -954,6 +1195,18 @@ impl Interp {
                             Err(Stop::Return(_)) => {
                                 rn.done = true;
                                 return Ok(());
+                            }
+                            Err(Stop::Break) if !rn.loops.is_empty() => {
+                                if let Some(l) = rn.loops.pop() {
+                                    rn.pc = l.exit;
+                                }
+                                continue;
+                            }
+                            Err(Stop::Continue) if !rn.loops.is_empty() => {
+                                if let Some(l) = rn.loops.last() {
+                                    rn.pc = l.head;
+                                }
+                                continue;
                             }
                             Err(e) => return Err(e),
                         }

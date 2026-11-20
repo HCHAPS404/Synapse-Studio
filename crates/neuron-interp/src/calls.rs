@@ -1,6 +1,7 @@
 //! Calls: user functions, methods, constructors, lambdas and actions of other devices.
 
-use crate::value::{Closure, Obj, Value};
+use crate::builtin::geo_comp;
+use crate::value::{round9, Closure, Geo, Obj, Value};
 use crate::{fault, Ev, HandleState, Interp, Stop, TraceKind, R};
 use neuron_nir::{Arg, CallTarget, Expr, ExprKind, FnBody, FnDecl, ItemDef, Param, Type, TypeExpr};
 use std::cell::RefCell;
@@ -295,6 +296,26 @@ impl Interp {
             (Value::Int(n), "round" | "floor" | "ceil" | "trunc") => Ok(Value::Int(*n)),
             (Value::Int(n), "abs") => Ok(Value::Int(n.saturating_abs())),
             (Value::Real(n), "is_nan") => Ok(Value::Bool(n.is_nan())),
+            (Value::Geo(g), "xyz") => match &**g {
+                Geo::Frame { name, .. } => {
+                    let mut v = [0.0; 3];
+                    for (slot, (_, a)) in v.iter_mut().zip(vals) {
+                        *slot = geo_comp(a, false);
+                    }
+                    Ok(Value::Geo(Rc::new(Geo::Point {
+                        frame: name.clone(),
+                        v,
+                    })))
+                }
+                _ => Err(fault("ContractViolation")),
+            },
+            (Value::Geo(g), "above") => match (&**g, arg0) {
+                (Geo::Point { frame, v }, Some(d)) => Ok(Value::Geo(Rc::new(Geo::Point {
+                    frame: frame.clone(),
+                    v: [v[0], v[1], round9(v[2] + geo_comp(&d, false))],
+                }))),
+                _ => Err(fault("ContractViolation")),
+            },
             _ => Err(fault("ContractViolation")),
         }
     }

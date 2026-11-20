@@ -157,6 +157,79 @@ pub enum Value {
     Fsm(String),
     /// A name from outside the package (a device, a pin, a geometry value).
     Opaque(String),
+    /// A geometry value of the robot dialect (joints, frame, tool, point).
+    Geo(Rc<Geo>),
+}
+
+/// Geometry values of the `robot` dialect. Lengths are stored in millimetres and angles
+/// in degrees (rounded to 1e-9), whatever unit the program wrote them in.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Geo {
+    /// `xyz(..)`, `xy(..)` or `rpy(..)`: `kind` is the constructor name.
+    Vec {
+        /// `xyz`, `xy` or `rpy`.
+        kind: String,
+        /// Components (mm for `xyz` and `xy`, deg for `rpy`).
+        v: Vec<f64>,
+    },
+    /// `joints(..) deg`.
+    Joints(Vec<f64>),
+    /// `frame(origin: .., rot: ..)`; `name` is the declaration name (empty when anonymous).
+    Frame {
+        /// Name of the frame.
+        name: String,
+        /// Origin in mm.
+        origin: Vec<f64>,
+        /// Roll, pitch and yaw in deg.
+        rot: Vec<f64>,
+    },
+    /// `tool(offset: .., payload: ..)`.
+    Tool {
+        /// Tool centre point offset in mm.
+        offset: Vec<f64>,
+        /// Payload in kg.
+        payload_kg: f64,
+    },
+    /// A Cartesian point `frame.xyz(x, y, z) mm`.
+    Point {
+        /// Name of the frame.
+        frame: String,
+        /// Coordinates in the frame, in mm.
+        v: [f64; 3],
+    },
+}
+
+/// Rounds to nine decimals so unit conversions leave no noise.
+pub fn round9(x: f64) -> f64 {
+    (x * 1.0e9).round() / 1.0e9
+}
+
+fn list(v: &[f64]) -> String {
+    v.iter().map(|x| fmt_f64(*x)).collect::<Vec<_>>().join(", ")
+}
+
+impl Geo {
+    /// Deterministic text: `joints(0, -30, 60, 0, 60, 0) deg`, `pallet.xyz(80, 60, 50) mm`.
+    pub fn show(&self) -> String {
+        match self {
+            Geo::Vec { kind, v } => {
+                let u = if kind == "rpy" { "deg" } else { "mm" };
+                format!("{kind}({}) {u}", list(v))
+            }
+            Geo::Joints(v) => format!("joints({}) deg", list(v)),
+            Geo::Frame { origin, rot, .. } => format!(
+                "frame(origin: xyz({}) mm, rot: rpy({}) deg)",
+                list(origin),
+                list(rot)
+            ),
+            Geo::Tool { offset, payload_kg } => format!(
+                "tool(offset: xyz({}) mm, payload: {} kg)",
+                list(offset),
+                fmt_f64(*payload_kg)
+            ),
+            Geo::Point { frame, v } => format!("{frame}.xyz({}) mm", list(v)),
+        }
+    }
 }
 
 impl Value {
@@ -250,6 +323,7 @@ impl Value {
             }
             (Value::Opaque(a), Value::Opaque(b)) => a == b,
             (Value::Io(a), Value::Io(b)) => a == b,
+            (Value::Geo(a), Value::Geo(b)) => a == b,
             (a, b) => match (a.as_f64(), b.as_f64()) {
                 (Some(x), Some(y)) => x == y,
                 _ => false,
@@ -305,6 +379,7 @@ impl Value {
             | Value::Fsm(id) => id.clone(),
             Value::Lambda(_) => "<lambda>".to_string(),
             Value::Opaque(s) => s.clone(),
+            Value::Geo(g) => g.show(),
         }
     }
 }
