@@ -333,3 +333,21 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   needs a correct reference, so the interpreter was fixed first. Launching jobs with
   `Start-Process` from the agent shell silently never ran them; long foreground waits
   froze the shell twice.
+
+## 2026-11-19 · Task C3, stage 2 (robot manifests, SPEL+-style emitter, virtual controller)
+- **Kiro features:** spec-driven development (the C3 mapping table of
+  `.kiro/specs/neuron-translate/design.md` drove the emitter), a sub-agent in a clean
+  context, differential testing against the reference interpreter.
+- **Produced:** generic robot manifests `devices/robots/generic_6axis.toml` and
+  `generic_scara.toml`; `NE0804` for constant targets outside the workspace (checked per
+  iteration in loops with constant bounds) and a run-time `NeuronCheck` for computed
+  targets; the `spel` emitter (program, `NeuronLib.prg`, the TCP slave `NeuronSlave.prg`,
+  fidelity report, source maps, fault table in `wiring.md`); crate `neuron-spel` (parser
+  and a virtual controller with a fixed time per motion).
+- **Results:** every robot program of the corpus gives the same motions and output
+  changes in the virtual controller as in the interpreter, both branches of `r02` and
+  `r03` included: 68 motions and 23 output changes, instants exact, targets within 1e-6.
+  `blend` is reported as `approximate`; motion time as `equivalent`. Workspace tests: 453.
+- **Lessons:** dialect details that need the real controller (network statements, point
+  coordinates, `Motor On`) are marked "to confirm in session I6"; the slave program is
+  only checked as text until then.

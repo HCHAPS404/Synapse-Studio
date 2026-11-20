@@ -19,5 +19,6 @@ toml = "0.8"
 neuron-sema = { path = "../neuron-sema" }
 neuron-interp = { path = "../neuron-interp" }
 neuron-st = { path = "../neuron-st" }
+neuron-spel = { path = "../neuron-spel" }
 proptest = { workspace = true }
 roxmltree = "0.20"

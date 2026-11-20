@@ -237,6 +237,7 @@ dependencies = [
  "neuron-interp",
  "neuron-nir",
  "neuron-sema",
+ "neuron-spel",
  "neuron-st",
  "proptest",
  "roxmltree",
@@ -326,6 +327,13 @@ version = "0.0.1"
 dependencies = [
  "proptest",
  "thiserror",
+]
+
+[[package]]
+name = "neuron-spel"
+version = "0.0.1"
+dependencies = [
+ "proptest",
 ]
 
 [[package]]

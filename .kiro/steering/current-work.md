@@ -45,9 +45,10 @@ when a task finishes; delete sections that become obsolete.
   2026-11-19 that silently never ran (no log file). Read `out/x.log` with the file reader.
 - When the agent shell stops running commands at all (even a one-line `Out-File`),
   Hell has to restart the editor terminal or Kiro. Both times on 2026-11-19 it died right
-  after a long foreground wait (`Start-Sleep` loops of minutes). Keep foreground commands
-  short (at most `Start-Sleep 30`), and poll a background job by reading its log with the
-  file reader instead of waiting in the shell.
+  after a long foreground wait (`Start-Sleep` loops of minutes); a third time it died
+  after a single `Start-Sleep 25` while a cargo job ran. Avoid `Start-Sleep` in the agent
+  shell altogether: poll a background job only by reading its log with the file reader.
+  The file reader keeps working while the shell is frozen.
 - `tools/phase-check.ps1 [-MessageFile f]`: everything CI runs (CLI checks on examples,
   corpus and lib, smoke runs), then `tools/ship.ps1` (fmt, clippy, tests, commit -s, push).
 - `tools/verify-worktree.ps1`: compares every tracked file with git (disk damage check).
@@ -88,7 +89,10 @@ Done (C1, C2, committed with "feat(emit,st): IEC 61131-3 emitters ..."):
 Next, in order:
 1. NE0804 becomes implemented by C3 (update `docs/errors/reserved.md` when C3 lands).
 2. C5.1 importers ST and PLCopen (new crate `neuron-import`, roxmltree), round trip by traces.
-4. C3 starts with interpreter gaps found on 2026-11-19 (no test covered them):
+4. **C3 done on 2026-11-19** (stage 1 = commit `07fd966`; stage 2 = manifests, NE0804,
+   `spel` emitter, `neuron-spel`, `tests/c3_spel.rs`; 453 workspace tests). Open from C3:
+   CLI (C7), SPEL+ importer (C5.2), slave and `NeuronLib.prg` only checked as text.
+   History, for reference: C3 started with interpreter gaps (no test covered them):
    `point`/`frame`/`tool` are opaque (`pallet.xyz(...)` drops its arguments, `p.above` is
    missing); a `for` runs in one step, so `move`/`wait`/`until` inside a loop never wait
    (r01, r02, r05); sequence locals (`let p`, loop variable) are cleared at each activation;

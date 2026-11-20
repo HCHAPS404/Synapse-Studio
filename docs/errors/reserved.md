@@ -11,7 +11,6 @@ analyses belong to later tasks. They are documented now so that the numbers are 
 | NE0701 | link latency budget cannot be met | D3 |
 | NE0703 | tag mapped to incompatible types or units on two devices | D3 |
 | NE0801 | incompatible voltage levels without isolation or level shifting | D4 |
-| NE0804 | robot target outside the workspace or the joint limits | C3, D4 |
 | NE0805 | mutex zone entered without a lock | D4 |
 | NL0001 | naming style | A11 (linter) |
 | NL0201 | unchecked float division in device code | A11 |

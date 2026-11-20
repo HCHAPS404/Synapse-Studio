@@ -27,6 +27,8 @@ mod fidelity;
 pub mod iec;
 pub mod nirx;
 mod package;
+pub mod robot;
+pub mod spel;
 
 pub use fidelity::{Class, Entry, Fidelity, Policy, Summary};
 pub use package::{Mapping, Mark, Package, SourceMap, Src, Writer};
@@ -86,7 +88,7 @@ pub trait Emitter {
 
 /// Names of the built-in emitters.
 pub fn names() -> &'static [&'static str] {
-    &["st", "scl", "plcopen"]
+    &["st", "scl", "plcopen", "spel"]
 }
 
 /// A built-in emitter by name.
@@ -95,6 +97,7 @@ pub fn emitter(name: &str) -> Option<Box<dyn Emitter>> {
         "st" => Box::new(iec::St),
         "scl" => Box::new(iec::Scl),
         "plcopen" => Box::new(iec::PlcOpen),
+        "spel" => Box::new(spel::Spel),
         _ => return None,
     })
 }

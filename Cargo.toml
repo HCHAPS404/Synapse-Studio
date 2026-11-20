@@ -13,6 +13,7 @@ members = [
   "crates/neuron-sim-thumb",
   "crates/neuron-ui",
   "crates/neuron-st",
+  "crates/neuron-spel",
   "crates/neuron-emit",
   "crates/neuron-interp",
   "crates/neuron-lsp",

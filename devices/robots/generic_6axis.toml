@@ -1,0 +1,22 @@
+# Generic six-axis articulated robot (a medium payload class). Numbers are generic and
+# round on purpose: they describe no vendor's product. Replace them with the limits of
+# your robot before using the output on hardware.
+[robot]
+name = "generic_6axis"
+kind = "articulated"
+# Maximum distance from the shoulder point (the J2 axis on the base axis) to the tool flange.
+reach_mm = 700.0
+# Height of the shoulder point above the base plane.
+shoulder_height_mm = 300.0
+# Allowed range of the flange height above the base plane, after applying frames.
+z_min_mm = -100.0
+z_max_mm = 900.0
+# Software limits of J1..J6 as [min, max].
+joint_limits_deg = [
+  [-170.0, 170.0],
+  [-135.0, 65.0],
+  [-60.0, 150.0],
+  [-190.0, 190.0],
+  [-135.0, 135.0],
+  [-360.0, 360.0],
+]

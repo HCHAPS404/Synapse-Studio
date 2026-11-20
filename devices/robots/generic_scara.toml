@@ -1,0 +1,15 @@
+# Generic four-axis SCARA robot (small payload class). Generic numbers, no vendor data.
+[robot]
+name = "generic_scara"
+kind = "scara"
+reach_mm = 500.0
+shoulder_height_mm = 200.0
+z_min_mm = 0.0
+z_max_mm = 250.0
+# J1, J2 and J4 are rotary (degrees); J3 is the linear axis and is checked through z.
+joint_limits_deg = [
+  [-130.0, 130.0],
+  [-145.0, 145.0],
+  [-360.0, 360.0],
+  [-360.0, 360.0],
+]
