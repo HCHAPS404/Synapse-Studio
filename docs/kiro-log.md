@@ -351,3 +351,18 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
 - **Lessons:** dialect details that need the real controller (network statements, point
   coordinates, `Motor On`) are marked "to confirm in session I6"; the slave program is
   only checked as text until then.
+
+## 2026-11-19 · Task C4 (Python emitter for host modules)
+- **Kiro features:** spec-driven development (T5 of `neuron-translate`), a sub-agent in a
+  clean context, differential testing against the reference interpreter.
+- **Produced:** the `python` emitter: one standard-library-only file per `host` module
+  plus `neuron_rt.py` (an event queue in integer nanoseconds, signals with logical
+  execution time, tasks, events, faults and the safe state). `python m.py --test` runs the
+  test blocks in simulated time, `--trace 3s` prints the interpreter's trace format,
+  `--realtime` follows the wall clock. CI installs Python 3.12 and the test must not skip.
+- **Results:** nine host programs (the five of the corpus and four written in the test):
+  168 trace lines byte-equal to the interpreter, 8 test blocks with the same verdicts and
+  messages. Workspace tests: 458.
+- **Lessons:** a plain heap of events reproduced the interpreter's order exactly where an
+  asyncio loop would have added its own ordering. `--ros2` is refused for now; timers,
+  counters, `pid`, `fsm`, `sequence`, `struct` and `match` in host modules are `NE0610`.

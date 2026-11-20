@@ -12,7 +12,7 @@
 | C3.1 | Robot manifests, `NE0804` | T4 | done |
 | C3.2 | SPEL+ emitter and slave program | T4 | done |
 | C3.3 | `neuron-spel` virtual controller and differential tests | T4 | done |
-| C4.1 | Python emitter and `neuron_rt.py`, tests in simulated time | T5 | open |
+| C4.1 | Python emitter and `neuron_rt.py`, tests in simulated time | T5 | done |
 | C5.1 | ST and PLCopen importers with round trip | T6 | open |
 | C5.2 | SPEL+ importer with round trip | T6 | open |
 | C5.3 | C subset and Verilog subset importers | T6 | open |
@@ -46,3 +46,23 @@ across runs and has source maps. Dialect details that need the real controller (
 `/L` suffix, reading a point in `NeuronCheck`, network statements of `NeuronSlave.prg`)
 are marked "to confirm in session I6". Generic manifests: `devices/robots/generic_6axis.toml`
 and `generic_scara.toml`.
+
+Results of C4 (2026-11-19): the five `host` programs of the corpus and four more written in
+`tests/c4_python.rs` (signals with units and priorities, a fault with `reset when`, an event
+task, functions with loops, `f32` and checked integers) are emitted and run with Python 3.12
+(`python <m>.py --trace <T>` and `--test`). The trace text is byte-equal to the reference
+interpreter's in all nine runs: 168 lines in total (h01 5, h05 1, x1 41, x2 76, x3 22,
+x4 23; h02 to h04 have no trace, they only run tests). The nine programs have eight `test`
+blocks; Python reports the same `PASS` or `FAIL <name>: <message>` as `run_tests` for each,
+including a failed assertion and an `Overflow` fault. Output is byte-identical across runs,
+has source maps, uses only the standard library and is ASCII. Runtime: `neuron_rt.py`
+(event queue in integer nanoseconds, logical execution time, tasks `every` and `on`, `when`
+rules with hold, safety with `reset when`, `--test`, `--trace`, `--realtime`). Fidelity: all
+translated constructs are exact; one `equivalent` entry per module (wall-clock mode and the
+interpreter's statement budget are not reproduced), plus `watchdog` (not enforced, as in the
+interpreter), `verify` and the C-library math functions when used. Not translated (`NE0610`
+with location): `struct`, `enum`, `class`, `interface`, state machines, sequences,
+interrupts, `io`, `match`, options and results, lambdas, string interpolation, `mut`
+parameters, `ensures`, bit vectors, `timer and counter` blocks (they belong to `plc`).
+`--ros2` is refused with exit code 2 and recorded as not supported in `wiring.md`; nothing
+needs `rclpy`. CI installs Python 3.12 and sets `NEURON_REQUIRE_PYTHON=1`.

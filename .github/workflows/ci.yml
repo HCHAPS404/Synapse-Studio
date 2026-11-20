@@ -47,8 +47,12 @@ jobs:
             gcc-arm-none-eabi libnewlib-arm-none-eabi binutils-arm-none-eabi iverilog yosys
       - run: cargo fmt --all -- --check
       - run: cargo clippy --workspace --all-targets -- -D warnings
-      - name: Tests (the backend, port, FPGA and simulator tests must not skip)
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Tests (the backend, port, FPGA, simulator and Python tests must not skip)
         env:
+          NEURON_REQUIRE_PYTHON: "1"
           NEURON_REQUIRE_TOOLCHAIN: "1"
           NEURON_REQUIRE_ARM: "1"
           NEURON_REQUIRE_HDL: "1"

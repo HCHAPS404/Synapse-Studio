@@ -100,7 +100,9 @@ Next, in order:
    a motion takes `move_ns` = 1 s. Add a motion observable to the trace. Then:
    C3: robot manifests `devices/robots/*.toml` (generic models), NE0804, SPEL+-style emitter
    and slave, crate `neuron-spel` (virtual controller), differential tests; C5.2 importer.
-5. C4: Python emitter + `neuron_rt.py`, tests run with Python in simulated time.
+5. **C4 done on 2026-11-19**: `python` emitter + `neuron_rt.py` (`tests/c4_python.rs`,
+   CI sets `NEURON_REQUIRE_PYTHON=1`; 458 workspace tests). Not supported yet (NE0610):
+   ton/tof/counters/pid, fsm, sequence, struct/enum/class, match, Option/Result, `--ros2`.
 6. C5.3: C subset and Verilog subset importers.
 7. C6: state tables `.nst.json` + word encoding, reference executor, ST/C99/SPEL+ kernels.
 8. C7: CLI `neuron emit <st|scl|plcopen|spel|python|kernel>` and `neuron import <...>`

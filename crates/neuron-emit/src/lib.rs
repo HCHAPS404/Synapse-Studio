@@ -27,6 +27,7 @@ mod fidelity;
 pub mod iec;
 pub mod nirx;
 mod package;
+pub mod python;
 pub mod robot;
 pub mod spel;
 
@@ -88,7 +89,7 @@ pub trait Emitter {
 
 /// Names of the built-in emitters.
 pub fn names() -> &'static [&'static str] {
-    &["st", "scl", "plcopen", "spel"]
+    &["st", "scl", "plcopen", "spel", "python"]
 }
 
 /// A built-in emitter by name.
@@ -98,6 +99,7 @@ pub fn emitter(name: &str) -> Option<Box<dyn Emitter>> {
         "scl" => Box::new(iec::Scl),
         "plcopen" => Box::new(iec::PlcOpen),
         "spel" => Box::new(spel::Spel),
+        "python" => Box::new(python::Python),
         _ => return None,
     })
 }
