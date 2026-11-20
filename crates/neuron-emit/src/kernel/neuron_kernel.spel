@@ -1,0 +1,263 @@
+' neuron_kernel.spel - state table interpreter of the Neuron micro-kernel (version 1),
+' written in the SPEL+-style subset. Table independent. Every variable is global.
+'
+' Before the first call fill nk_tbl(0..nk_len-1) with the words of `<name>.nst.hex`
+' (a word above 32767 as its signed 16-bit value) and set nk_len. Once per scan:
+'   set nk_in(0..), Call NeuronKernel, then for each output i with nk_chg(i) <> 0
+'   write the value nk_ov(i). nk_err is 1 bad magic, 2 version, 3 size, 4 checksum.
+' Values are 16-bit integers: results wrap as 16-bit numbers.
+Integer nk_tbl(1023), nk_in(31), nk_ov(31), nk_chg(31), nk_ok(31), nk_pv(31), nk_pk(31)
+Integer nk_var(31), nk_stk(15)
+
+' Wraps nk_r to 16 bits.
+Function NkWrap
+  nk_r = nk_r Mod 65536
+  If nk_r >= 32768 Then
+    nk_r = nk_r - 65536
+  ElseIf nk_r < -32768 Then
+    nk_r = nk_r + 65536
+  EndIf
+Fend
+
+' Checks the table and loads the initial values.
+Function NkInit
+  nk_err = 0
+  If nk_len < 12 Then
+    nk_err = 3
+    Exit Function
+  EndIf
+  If nk_tbl(0) <> 20051 Then
+    nk_err = 1
+    Exit Function
+  EndIf
+  If nk_tbl(1) <> 1 Then
+    nk_err = 2
+    Exit Function
+  EndIf
+  If nk_tbl(10) <> nk_len Then
+    nk_err = 3
+    Exit Function
+  EndIf
+  nk_sum = 0
+  For nk_i = 0 To nk_len - 1
+    If nk_i <> 11 Then
+      nk_w = nk_tbl(nk_i)
+      If nk_w < 0 Then
+        nk_w = nk_w + 65536
+      EndIf
+      nk_sum = (nk_sum + nk_w * (nk_i + 1)) Mod 65521
+    EndIf
+  Next nk_i
+  nk_w = nk_tbl(11)
+  If nk_w < 0 Then
+    nk_w = nk_w + 65536
+  EndIf
+  If nk_w <> nk_sum Then
+    nk_err = 4
+    Exit Function
+  EndIf
+  nk_flg = nk_tbl(2)
+  nk_nin = nk_tbl(3)
+  nk_nout = nk_tbl(4)
+  nk_nvar = nk_tbl(5)
+  nk_nst = nk_tbl(6)
+  nk_ntr = nk_tbl(7)
+  nk_ini = nk_tbl(8)
+  nk_ovar = 12
+  nk_ost = nk_ovar + nk_nvar
+  nk_otr = nk_ost + 5 * nk_nst
+  nk_opr = nk_otr + 3 * nk_ntr
+  For nk_i = 0 To 31
+    nk_ov(nk_i) = 0
+    nk_chg(nk_i) = 0
+    nk_ok(nk_i) = 0
+    nk_pv(nk_i) = 0
+    nk_pk(nk_i) = 0
+    nk_var(nk_i) = 0
+  Next nk_i
+  For nk_i = 0 To nk_nvar - 1
+    nk_var(nk_i) = nk_tbl(nk_ovar + nk_i)
+  Next nk_i
+  If (nk_flg Mod 4) >= 2 Then
+    For nk_i = 0 To nk_nout - 1
+      nk_ok(nk_i) = 1
+    Next nk_i
+  EndIf
+  nk_state = nk_ini
+  nk_timer = 0
+  nk_started = 1
+Fend
+
+' Runs the block at offset nk_cp of the program; leaves its top value in nk_res.
+Function NkRun
+  nk_sp = 0
+  nk_res = 0
+  If nk_cp = -1 Then
+    Exit Function
+  EndIf
+  nk_pc = nk_opr + nk_cp
+NkRunLoop:
+  nk_op = nk_tbl(nk_pc)
+  nk_pc = nk_pc + 1
+  If nk_op = 0 Then
+    GoTo NkRunEnd
+  EndIf
+  If nk_op = 1 Then
+    nk_stk(nk_sp) = nk_tbl(nk_pc)
+    nk_sp = nk_sp + 1
+    nk_pc = nk_pc + 1
+  ElseIf nk_op = 2 Then
+    nk_stk(nk_sp) = nk_in(nk_tbl(nk_pc))
+    nk_sp = nk_sp + 1
+    nk_pc = nk_pc + 1
+  ElseIf nk_op = 3 Then
+    nk_stk(nk_sp) = nk_var(nk_tbl(nk_pc))
+    nk_sp = nk_sp + 1
+    nk_pc = nk_pc + 1
+  ElseIf nk_op = 4 Then
+    nk_stk(nk_sp) = nk_ov(nk_tbl(nk_pc))
+    nk_sp = nk_sp + 1
+    nk_pc = nk_pc + 1
+  ElseIf nk_op = 5 Then
+    nk_stk(nk_sp) = nk_timer
+    nk_sp = nk_sp + 1
+  ElseIf nk_op = 6 Then
+    nk_sp = nk_sp - 1
+    nk_ov(nk_tbl(nk_pc)) = nk_stk(nk_sp)
+    nk_ok(nk_tbl(nk_pc)) = 1
+    nk_pc = nk_pc + 1
+  ElseIf nk_op = 7 Then
+    nk_sp = nk_sp - 1
+    nk_var(nk_tbl(nk_pc)) = nk_stk(nk_sp)
+    nk_pc = nk_pc + 1
+  ElseIf nk_op = 8 Then
+    nk_r = 0
+    If nk_stk(nk_sp - 1) = 0 Then
+      nk_r = 1
+    EndIf
+    nk_stk(nk_sp - 1) = nk_r
+  ElseIf nk_op = 20 Then
+    nk_r = 0 - nk_stk(nk_sp - 1)
+    Call NkWrap
+    nk_stk(nk_sp - 1) = nk_r
+  ElseIf nk_op = 21 Then
+    nk_timer = 0
+  ElseIf nk_op >= 9 And nk_op <= 19 Then
+    nk_sp = nk_sp - 1
+    nk_b = nk_stk(nk_sp)
+    nk_a = nk_stk(nk_sp - 1)
+    nk_r = 0
+    If nk_op = 9 Then
+      If nk_a <> 0 And nk_b <> 0 Then
+        nk_r = 1
+      EndIf
+    ElseIf nk_op = 10 Then
+      If nk_a <> 0 Or nk_b <> 0 Then
+        nk_r = 1
+      EndIf
+    ElseIf nk_op = 11 Then
+      If nk_a = nk_b Then
+        nk_r = 1
+      EndIf
+    ElseIf nk_op = 12 Then
+      If nk_a <> nk_b Then
+        nk_r = 1
+      EndIf
+    ElseIf nk_op = 13 Then
+      If nk_a < nk_b Then
+        nk_r = 1
+      EndIf
+    ElseIf nk_op = 14 Then
+      If nk_a <= nk_b Then
+        nk_r = 1
+      EndIf
+    ElseIf nk_op = 15 Then
+      If nk_a > nk_b Then
+        nk_r = 1
+      EndIf
+    ElseIf nk_op = 16 Then
+      If nk_a >= nk_b Then
+        nk_r = 1
+      EndIf
+    ElseIf nk_op = 17 Then
+      nk_r = nk_a + nk_b
+      Call NkWrap
+    ElseIf nk_op = 18 Then
+      nk_r = nk_a - nk_b
+      Call NkWrap
+    Else
+      nk_r = nk_a * nk_b
+      Call NkWrap
+    EndIf
+    nk_stk(nk_sp - 1) = nk_r
+  EndIf
+  GoTo NkRunLoop
+NkRunEnd:
+  If nk_sp > 0 Then
+    nk_res = nk_stk(nk_sp - 1)
+  EndIf
+Fend
+
+' One scan.
+Function NeuronKernel
+  If nk_started = 0 Then
+    Call NkInit
+    If nk_err <> 0 Then
+      Exit Function
+    EndIf
+    nk_cp = nk_tbl(nk_ost + 5 * nk_state)
+    Call NkRun
+  EndIf
+  nk_maxr = 1
+  If (nk_flg Mod 2) = 1 Then
+    nk_maxr = 64
+  EndIf
+  For nk_round = 1 To nk_maxr
+    nk_fired = 0
+    nk_cp = nk_tbl(nk_ost + 5 * nk_state + 2)
+    Call NkRun
+    nk_first = nk_tbl(nk_ost + 5 * nk_state + 3)
+    nk_cnt = nk_tbl(nk_ost + 5 * nk_state + 4)
+    For nk_ti = 0 To nk_cnt - 1
+      nk_tr = nk_first + nk_ti
+      nk_go = 1
+      nk_cp = nk_tbl(nk_otr + 3 * nk_tr + 1)
+      If nk_cp <> -1 Then
+        Call NkRun
+        nk_go = 0
+        If nk_res <> 0 Then
+          nk_go = 1
+        EndIf
+      EndIf
+      If nk_go = 1 Then
+        nk_cp = nk_tbl(nk_ost + 5 * nk_state + 1)
+        Call NkRun
+        nk_cp = nk_tbl(nk_otr + 3 * nk_tr + 2)
+        Call NkRun
+        nk_state = nk_tbl(nk_otr + 3 * nk_tr)
+        nk_timer = 0
+        nk_cp = nk_tbl(nk_ost + 5 * nk_state)
+        Call NkRun
+        nk_fired = 1
+        nk_ti = nk_cnt
+      EndIf
+    Next nk_ti
+    If nk_fired = 0 Then
+      GoTo NkScanEnd
+    EndIf
+  Next nk_round
+NkScanEnd:
+  If nk_timer < 32767 Then
+    nk_timer = nk_timer + 1
+  EndIf
+  For nk_i = 0 To nk_nout - 1
+    nk_chg(nk_i) = 0
+    If nk_ok(nk_i) <> 0 Then
+      If nk_pk(nk_i) = 0 Or nk_pv(nk_i) <> nk_ov(nk_i) Then
+        nk_chg(nk_i) = 1
+      EndIf
+      nk_pv(nk_i) = nk_ov(nk_i)
+      nk_pk(nk_i) = 1
+    EndIf
+  Next nk_i
+Fend

@@ -39,6 +39,14 @@ the frame, or choose another manifest. The numbers of the generic manifests desc
 vendor's product; copy and edit one for your robot.
 
 ### NE1004 state table beyond the limits of the micro-kernel
-A state machine or sequence compiled for the micro-kernel needs more than 64 states, 128
-transitions, 256 program words or 32 variables. Split it into smaller machines, or emit it
-as regular code for the device instead of a state table.
+A state machine or sequence compiled for the micro-kernel (`neuron emit kernel`, spec in
+`crates/neuron-emit/src/kernel/mod.rs`) needs more than 64 states, 128 transitions, 256
+program words, 32 variables, 32 inputs or 32 outputs, a block that needs more than 16
+values on its stack, a constant that does not fit in 16 bits, or a duration that is more
+than 32767 scans of the machine (the state timer is a 16-bit signed number: 327 s at a
+10 ms scan). The message names the limit and the number found; the span is the `fsm` or
+`sequence`, or the constant or duration. Split the machine into smaller ones, use a longer
+scan period, or emit it as regular code for the device instead of a state table. A
+construct that the kernel cannot run at all (real numbers, `if` inside an action, loops,
+`parallel`, robot motions, device `run`) is `NE0610` with its location.
+Implemented by `neuron-emit` (`kernel/compile.rs`) and tested in `tests/c6_kernel.rs`.

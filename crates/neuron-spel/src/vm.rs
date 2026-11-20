@@ -167,6 +167,7 @@ pub struct Controller {
     limits: Option<Limits>,
     now: i64,
     vars: BTreeMap<String, f64>,
+    arrays: BTreeMap<String, BTreeMap<i64, f64>>,
     points: BTreeMap<u32, Target>,
     locals: BTreeMap<u32, Frame>,
     out: BTreeMap<i64, bool>,
@@ -193,6 +194,7 @@ impl Controller {
             limits: None,
             now: 0,
             vars: BTreeMap::new(),
+            arrays: BTreeMap::new(),
             points: BTreeMap::new(),
             locals: BTreeMap::new(),
             out: BTreeMap::new(),
@@ -309,6 +311,14 @@ impl Controller {
                     .map(|a| self.eval(a))
                     .collect::<Result<Vec<_>, _>>()?;
                 let a0 = a.first().copied().unwrap_or(0.0);
+                if self.prog.arrays.iter().any(|n| n == name) {
+                    return Ok(self
+                        .arrays
+                        .get(name)
+                        .and_then(|t| t.get(&(a0 as i64)))
+                        .copied()
+                        .unwrap_or(0.0));
+                }
                 match name.as_str() {
                     "sw" => b(self.input_at(a0 as i64)),
                     "out" => b(self.out.get(&(a0 as i64)).copied().unwrap_or(false)),
@@ -475,6 +485,10 @@ impl Controller {
             Ins::Set(v, e) => {
                 let x = self.eval(e)?;
                 self.vars.insert(v.clone(), x);
+            }
+            Ins::SetIdx(name, i, e) => {
+                let (i, x) = (self.eval(i)? as i64, self.eval(e)?);
+                self.arrays.entry(name.clone()).or_default().insert(i, x);
             }
             Ins::SetPoint(n, def) => {
                 let t = match def {

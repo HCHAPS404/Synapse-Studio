@@ -16,8 +16,8 @@
 | C5.1 | ST and PLCopen importers with round trip | T6 | done |
 | C5.2 | SPEL+ importer with round trip | T6 | done |
 | C5.3 | C subset and Verilog subset importers | T6 | done |
-| C6.1 | State tables, reference executor, word encoding, `NE1004` | T7 | open |
-| C6.2 | ST, C99 and SPEL+ kernels with differential tests | T7 | open |
+| C6.1 | State tables, reference executor, word encoding, `NE1004` | T7 | done |
+| C6.2 | ST, C99 and SPEL+ kernels with differential tests | T7 | done |
 | C7 | CLI `emit` and `import`, `docs/translation.md`, roadmap, README, kiro-log | T8, T9 | open |
 
 Results of C2 (2026-11-19): the Structured Text of every `plc` program of the corpus gives
@@ -93,6 +93,60 @@ arrays, edge contacts of LD, SPEL+ `If` blocks other than `If TW Then GoTo`, poi
 orientation or without a local. SPEL+ input and output bits get the names `din<n>` and `dout<n>`
 (the names are only in the wiring report); labels, frames and tools keep the names of the
 comments the emitter writes.
+
+Results of C6 (2026-11-20): `neuron-emit/src/kernel/` (`mod.rs` model, word encoding and
+reference executor `Exec`; `compile.rs` NIR to table; `emit.rs` the `kernel` emitter, registered
+in `names()` and `emitter()`) and four table-independent kernel texts included as files:
+`neuron_kernel.st` (`FUNCTION_BLOCK NEURON_KERNEL` over `ARRAY [0..1023] OF INT`),
+`nrt_kernel.c` and `nrt_kernel.h` (C99), `neuron_kernel.spel` (`NeuronKernel`, `NkRun`,
+`NkInit`, `NkWrap`). Word encoding: 12 header words (magic `0x4E53`, version 1, flags, counts,
+initial state, program length, total length, checksum = sum of `word[i] * (i + 1)` mod 65521,
+which detects any single flipped bit), variables, 5 words per state, 3 per transition, program
+of postfix blocks over 16-bit values; the text form `.nst.hex` is four hex digits per word.
+Limits (`NE1004`, documented in `docs/errors/translate.md`): 64 states, 128 transitions, 256
+program words, 32 variables, 32 inputs, 32 outputs, 16 stack values, constants of 16 bits,
+durations up to 32767 scans. Workspace: 502 tests pass (baseline 492); `cargo fmt --check`, clippy
+with `-D warnings` and `cargo test --workspace` with `NEURON_REQUIRE_PYTHON=1` end with exit 0.
+Tests (`tests/c6_kernel.rs`, 10 tests, about 30 s):
+
+| Program | Table | (a) executor vs interpreter, 5 random schedules of 12 s | ST kernel | C99 kernel | SPEL+ kernel |
+|---|---|---|---|---|---|
+| `m06_traffic_light` (fsm, `mcu`) | 81 words, 3 states, 3 transitions | 35 output changes and 20 state changes, exact (0 ms) | 35 equal | 35 equal | 35 equal |
+| `p09_sfc_mixer` (sequence, `plc`) | 94 words, 5 states, 5 transitions | 44 changes, within one scan (worst 10 ms, the kernel is a scan earlier) | 44 equal | 44 equal | 29 equal (boolean outputs, no first `false`) |
+| `c6_door` (fsm, inputs, variable, `do`, `when`/`after`) | 104 words, 3 states, 4 transitions | 2524 changes and 2149 state changes, exact | 2527 equal | 2527 equal | 2522 equal |
+| `c6_press` (sequence, timeout, `->`, counter, integer output) | 146 words, 6 states, 7 transitions | 209 changes, within one scan (worst 10 ms) | 209 equal | 209 equal | 144 equal (boolean outputs) |
+
+"Equal" means the same scan, output and value in the same order as the reference executor over
+5 schedules of 1200 scans. Beyond the four programs: 12 random tables x 150 scans in the ST
+kernel (304 output changes) and 60 random tables x 400 scans in the C99 kernel built with the
+host `gcc` (`-std=c99 -pedantic -Wall -Wextra -Werror`; 2710 output changes) equal the executor,
+so the kernels do not depend on the table; a property test (48 random tables) checks
+`decode(encode(t)) == t`, the hex text, and that each of the 16 bits of each word, flipped one
+at a time, is refused; a flipped word of a real table is refused by every word position
+(`nrt_init` answers 4, a bad magic 1); a table of 70 states and a timeout of 400 s are `NE1004`;
+`r01` (robot motions) and `x03` (device `run`) are `NE0610` with their spans; the emitter output is
+byte-identical across runs. The fidelity of a state machine whose period equals its scan is exact;
+a sequence is `equivalent` with the bound "within one scan of the reference interpreter" (the
+interpreter advances a sequence every millisecond and outputs are published at the scan; with
+the corpus input patterns the kernel is exactly one scan earlier for a change that follows an
+input or a timer, 10 ms at a 10 ms scan). Also `equivalent`: 16-bit wrapping arithmetic (the
+interpreter faults on an overflow) and several writes to one output within one scan (the
+interpreter traces each write; the table reports the last).
+What the kernel cannot express (`NE0610`, with the location): real numbers, `if`, `match`, loops
+and `let` inside an action or a sequence, `parallel`, `fault`, `emit`, robot motions, device `run`,
+edge reads (`.rising`), state machines that run `on` an event or with an `offset`, durations or
+initial values that are not constants, `/`, `%` and bit operators. Of the corpus programs only
+`m06` and `p09` can be compiled; the other `fsm` and `sequence` items (six robot programs, `x03`,
+`bottling_line`, `pick_robot`) use motions or device actions.
+Deviations: (1) the SPEL+ kernel needed arrays: `neuron-spel` now accepts `Integer t(100)`,
+`t(i) = x` and `t(i)` (global arrays of numbers) and its tests are unchanged; the controller's
+numbers are floating point, so the kernel wraps `+ - * -x` with a function (`NkWrap`) and the
+differential test covers only boolean outputs (`On`/`Off`) and inputs (`Sw`). (2) `neuron-st`
+evaluates `a[i]` of a variable in place instead of copying the array (needed for a table of a
+thousand words); behaviour is unchanged. (3) The checksum is verified by the three kernels at
+the first scan; the kernels trust the structure of a checksummed table (the host `Machine::check`
+validates it). (4) Not done: CLI (`neuron emit kernel` is task C7), C source for a table
+(`.nst.h`), kernels in other languages.
 
 Results of C5.3 (2026-11-20): `neuron import c` (`crates/neuron-import/src/c.rs`) and
 `neuron import verilog` (`src/verilog.rs`) are hand-written parsers without new dependencies;

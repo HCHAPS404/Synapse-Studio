@@ -309,6 +309,7 @@ enum Block {
 struct Builder {
     funcs: Vec<Func>,
     globals: Vec<String>,
+    arrays: Vec<String>,
     cur: Option<Func>,
     blocks: Vec<Block>,
 }
@@ -374,9 +375,13 @@ impl Builder {
                 if let Some(Tok::Id(name)) = rest.get(1) {
                     self.globals.push(name.clone());
                 }
+                self.declare_arrays(rest);
                 Ok(())
             }
-            "integer" | "real" | "boolean" | "string" | "double" | "long" | "byte" => Ok(()),
+            "integer" | "real" | "boolean" | "string" | "double" | "long" | "byte" => {
+                self.declare_arrays(rest);
+                Ok(())
+            }
             "motor" | "power" | "accel" | "accels" | "fine" | "print" | "eclr" => Ok(()),
             "if" => self.if_stmt(rest),
             "elseif" => {
@@ -598,12 +603,40 @@ impl Builder {
         }
     }
 
+    /// Registers `name(` of a declaration such as `Integer t(100), u` as an array.
+    fn declare_arrays(&mut self, t: &[Tok]) {
+        for w in t.windows(2) {
+            if let [Tok::Id(n), Tok::Sym("(")] = w {
+                if !self.arrays.contains(n) {
+                    self.arrays.push(n.clone());
+                }
+            }
+        }
+    }
+
     fn assignment(&mut self, name: &str, rest: &[Tok]) -> Result<(), String> {
         let mut p = Ep { t: rest, i: 0 };
         if rest.first() == Some(&Tok::Sym(":")) && rest.len() == 1 {
             let f = self.code()?;
             let at = f.code.len();
             f.labels.push((name.to_string(), at));
+            return Ok(());
+        }
+        if rest.first() == Some(&Tok::Sym("(")) {
+            // An element of an array: `t(i) = x`.
+            p.i = 1;
+            let mut idx = p.args()?;
+            if idx.len() != 1 {
+                return Err("an array element has one index".into());
+            }
+            p.expect("=")?;
+            let e = p.expr()?;
+            p.done()?;
+            if !self.arrays.iter().any(|a| a == name) {
+                self.arrays.push(name.to_string());
+            }
+            let i = idx.remove(0);
+            self.emit(Ins::SetIdx(name.to_string(), i, e))?;
             return Ok(());
         }
         p.expect("=")
@@ -701,6 +734,7 @@ pub fn parse(src: &str) -> Result<Program, ParseError> {
     let mut b = Builder {
         funcs: Vec::new(),
         globals: Vec::new(),
+        arrays: Vec::new(),
         cur: None,
         blocks: Vec::new(),
     };
@@ -721,5 +755,6 @@ pub fn parse(src: &str) -> Result<Program, ParseError> {
     Ok(Program {
         funcs: b.funcs,
         globals: b.globals,
+        arrays: b.arrays,
     })
 }

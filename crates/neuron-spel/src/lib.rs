@@ -7,6 +7,7 @@
 //! |---|---|
 //! | `Function name` ... `Fend`, `Call name`, `Exit Function` | functions (variables are global) |
 //! | `Integer a, b`, `Real x`, `Global Real g` | declarations (every variable starts at 0) |
+//! | `Integer t(100)`, `t(i) = x`, `t(i)` | global arrays of numbers (one index, every element starts at 0) |
 //! | `v = expr`, `For v = a To b [Step s]` ... `Next v` | arithmetic and loops |
 //! | `If c Then` ... `ElseIf` ... `Else` ... `EndIf`, `If c Then stmt` | conditions |
 //! | `label:`, `GoTo label` | jumps inside a function |
@@ -48,6 +49,8 @@ pub use vm::{
 pub struct Program {
     pub(crate) funcs: Vec<Func>,
     pub(crate) globals: Vec<String>,
+    /// Names of the arrays (`Integer a(10)` or an assignment `a(i) = x`).
+    pub(crate) arrays: Vec<String>,
 }
 
 impl Program {
@@ -124,6 +127,8 @@ pub(crate) enum PointDef {
 #[derive(Debug, Clone)]
 pub(crate) enum Ins {
     Set(String, Ex),
+    /// `name(index) = value`: an element of an array (global, every element starts at 0).
+    SetIdx(String, Ex, Ex),
     SetPoint(u32, PointDef),
     Jmp(usize),
     JmpIfNot(Ex, usize),

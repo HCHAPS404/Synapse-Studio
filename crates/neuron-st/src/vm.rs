@@ -857,6 +857,17 @@ impl Plc {
                     Expr::Var(n) => self.array_lo(n),
                     _ => 0,
                 };
+                // Indexing a variable reads the element in place: a table of a thousand
+                // words is not copied for every read.
+                if let Expr::Var(n) = &**base {
+                    let k = key(n);
+                    if let Some(Value::Array(items)) = scope.get(&k).or_else(|| self.vars.get(&k)) {
+                        return usize::try_from(i - lo)
+                            .ok()
+                            .and_then(|at| items.get(at).cloned())
+                            .ok_or_else(|| VmError("index out of range".into()));
+                    }
+                }
                 match self.eval(base, scope)? {
                     Value::Array(items) => usize::try_from(i - lo)
                         .ok()

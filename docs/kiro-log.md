@@ -399,3 +399,20 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
 - **Lessons:** Neuron's `for` gives its variable the type `index`, so counted C loops
   become bounded `while` loops; ports named `rst` that are not a plain synchronous reset
   are renamed, because the backend adds its own reset.
+
+## 2026-11-20 · Task C6 (micro-kernel: state tables and the ST, C99 and SPEL+ kernels)
+- **Kiro features:** spec-driven development (T7), a sub-agent in a clean context,
+  differential testing across four executors.
+- **Produced:** `kernel` emitter: `fsm` and `sequence` compile to a state table
+  (`.nst.json` and a checksummed `u16` word encoding, `.nst.hex`), run by a Rust
+  reference executor and by table-independent kernels in ST (`NEURON_KERNEL`), C99
+  (`nrt_kernel.c`, built with `-Wall -Wextra -Werror`) and SPEL+. Tables beyond the
+  limits are `NE1004`. `neuron-st` reads array elements in place; `neuron-spel` gained
+  global arrays.
+- **Results:** for the corpus traffic light and mixer and two synthetic machines, the
+  reference executor matches the interpreter (state machines exactly, sequences within
+  one scan) and the ST, C and SPEL+ kernels match the executor; 72 random tables agree in
+  ST and C. Every flipped bit of a table is refused. Workspace tests: 502.
+- **Lessons:** only two corpus programs fit the kernel; robot motions, device actions,
+  reals and edge reads stay outside it and are `NE0610`. The SPEL+ kernel is checked on
+  boolean ports only, because the controller's numbers are floating point.
