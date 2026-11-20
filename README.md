@@ -607,6 +607,8 @@ accounts, forms, recordings and posts.
 | VS Code extension | You | Install `editors/vscode` and confirm diagnostics, hover and go to definition | `docs/editor-support.md` |
 | Accounts | You | Neon project, Render service (paid), Vercel project, before 21 nov | `docs/roadmap.md`, Human actions |
 | Session I1 | You | Device inventory and measurements (PLC scan and input filter, robot latency, valve times) | `docs/roadmap.md`, Phase I |
+| Sessions I4 to I7 | You (Hell) | I4: Raspberry Pi 5 `host` node with `neuron emit python`. I5: PLCs with `neuron emit st\|scl\|plcopen` and the Micro-Kernel. I6: robot arms with `neuron emit spel`. I7: complex cells. Tonight the boards and the Pi 5, next week the rest | `docs/translation.md` (open items), `docs/roadmap.md`, Phase I |
+| Session I9 | You (Hell) | Inventory of the hexacopter with a Pixhawk 4 (firmware, version, radio, GPS); bench only, propellers off. No MAVLink support exists yet | `docs/roadmap.md`, Phase I |
 
 | Area | Status |
 |---|---|

@@ -417,6 +417,22 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   reals and edge reads stay outside it and are `NE0610`. The SPEL+ kernel is checked on
   boolean ports only, because the controller's numbers are floating point.
 
+## 2026-11-20 · Python emitter, second pass (blocks, fsm, sequence, types, ROS 2)
+- **Kiro features:** a sub-agent in a clean context with strict file-editing rules,
+  differential testing against the reference interpreter, steering (the hardware plan
+  and the rule "work that needs no device is done in the repo" are in `current-work.md`).
+- **Produced:** the `python` emitter now translates `ton`/`tof`/`tp`, counters, edge
+  detectors, `sr`/`rs`, `pid`, `fsm` (entry, exit, `do`, `after`, `when`, `every`, `on`),
+  `sequence` (waits, timeouts, loops that wait), `struct`, `enum` with payload, `match`
+  with guards, `Ok`/`Err`/`none`/`?` and `requires`/`ensures`/`old`. `--ros2` writes a
+  `<module>_ros2.py` node (a publisher per signal, a subscriber per input or event).
+- **Results:** six new host programs: 655 trace lines byte-equal to the interpreter and
+  20 test blocks with the same verdicts. The ROS 2 node publishes the interpreter's signal
+  changes against a stub of `rclpy`. Workspace tests: 524.
+- **Lessons:** the stub proves the node's logic, not ROS 2. It is recorded as an
+  `equivalent` fidelity entry and as an open item for session I4 on the Raspberry Pi 5.
+  Still `NE0610`: `mut` parameters, string interpolation, bit vectors, lambdas, classes.
+
 ## 2026-11-20 · Task C7 (command line, user guide, CI) and close of Phase C
 - **Kiro features:** spec-driven development (T8 and T9), steering (`current-work.md`
   hands over the closed phase and the next steps), a sub-agent in a clean context.

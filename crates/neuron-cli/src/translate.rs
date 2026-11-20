@@ -91,7 +91,9 @@ fn emit(args: &[String]) -> Result<(), ExitCode> {
                 policy = Some(Policy { worst });
             }
             "--ros2" => {
-                eprintln!("error: `--ros2` is not supported (see docs/translation.md)");
+                eprintln!(
+                    "error: `--ros2` is not an option of `neuron emit`: the python emitter always writes `<module>_ros2.py`; run `python <module>.py --ros2` (see docs/translation.md)"
+                );
                 return Err(ExitCode::from(2));
             }
             other if other.starts_with('-') && other.len() > 1 => {

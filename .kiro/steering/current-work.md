@@ -119,6 +119,21 @@ Next steps, in order:
 - Robot: SPEL+-style mapping in the design doc; vendor details to confirm in session I6.
   No vendor manuals copied, names only descriptive.
 
+## Hardware testing plan (Hell, set on 2026-11-20)
+
+Tests are on standby in the repo: software is checked without hardware, and every item
+that needs a physical device stays pending until its session.
+- **Tonight (20 nov):** Arduino boards (G2 UNO, I2) and the Raspberry Pi 5 (I4 host node).
+- **Next week:** PLCs (I5), robot arms (I6), FPGAs (I3) and more complex cells (I7).
+- **Drone (new, I9):** hexacopter with a Pixhawk 4. Inventory and bench only. The repo has
+  no MAVLink adapter, no drone manifest and no spec for it; the roadmap listed drones
+  as future work. Do not claim flight support. Needs a spec first (link, manifest,
+  safety: arming, geofence, failsafe, propellers off on the bench).
+- Pending because they need a device: yaskawa ST profile and vendor import (I5); SPEL+
+  dialect, `NeuronSlave.prg`, `NeuronLib.prg` (I6); ST kernel on a PLC (I5); everything in
+  B4-B9 on boards (I2, I3); Python `host` node on the Pi 5 (I4).
+- Rule: work that does not need a device is done in the repo, not left pending.
+
 ## Human actions still open (Hell)
 
 Add Martin as collaborator and protect `main`/`develop`; Neon, Render (paid) and Vercel

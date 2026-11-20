@@ -8,16 +8,21 @@
 //!
 //! Translated: constants, variables, signals, functions, tasks (`every` and `on`), `when`
 //! rules, `safety:`, `test` blocks, integers (checked like the interpreter), reals (with
-//! `f32` rounding), quantities (stored in base units), arrays, tuples and the function
-//! blocks `moving_average`, `hysteresis`, `debounce`, `ramp`, `lowpass`, `highpass`.
+//! `f32` rounding), quantities (stored in base units), arrays, tuples, the function
+//! blocks `moving_average`, `hysteresis`, `debounce`, `ramp`, `lowpass`, `highpass`,
+//! the blocks the interpreter ticks itself (`ton`, `tof`, `tp`, counters, edge detectors,
+//! `sr`, `rs`, `pid`), `fsm`, `sequence`, `struct`, `enum`, `match`, `Ok`/`Err`/`none`
+//! with `?`, and `requires`/`ensures`/`old`. `--ros2` runs the generated
+//! `<module>_ros2.py` (a `rclpy` node, verified against a stub only).
 //! Everything else is `NE0610` with its location.
 
 use crate::{nirx, Class, Diag, EmitOptions, Emitter, Fidelity, Manifest, Package, Writer};
 use neuron_nir::{
-    Block, Expr, ExprKind, FnBody, FnDecl, ItemDef, Lit, Module, Nir, Param, Pattern, PatternKind,
-    SafetyDef, Stmt, StmtKind, TaskAttr, Trigger, Type,
+    Block, Expr, ExprKind, FnBody, FnDecl, Fsm, ItemDef, Lit, Module, Nir, Param, Pattern,
+    PatternKind, SafetyDef, SeqItem, Stmt, StmtKind, TaskAttr, Trigger, Type, TypeExpr,
+    TypeExprKind,
 };
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 const RUNTIME: &str = include_str!("neuron_rt.py");
 
@@ -44,6 +49,26 @@ const CONSTRUCTS: &[&str] = &[
     "ramp",
     "lowpass",
     "highpass",
+    "ton",
+    "tof",
+    "tp",
+    "ctu",
+    "ctd",
+    "ctud",
+    "r_trig",
+    "f_trig",
+    "sr",
+    "rs",
+    "pid",
+    "fsm",
+    "sequence",
+    "struct",
+    "enum",
+    "match",
+    "option",
+    "result",
+    "requires",
+    "ensures",
 ];
 
 /// The `python` emitter.
@@ -58,6 +83,16 @@ fn block_class(name: &str) -> Option<(&'static str, &'static [&'static str])> {
         "ramp" => ("rt.Ramp", &["rate"]),
         "lowpass" => ("rt.LowPass", &["cutoff"]),
         "highpass" => ("rt.HighPass", &["cutoff"]),
+        _ => return None,
+    })
+}
+
+/// Blocks the interpreter ticks itself, with their constructor parameters in order.
+fn native_params(name: &str) -> Option<&'static [&'static str]> {
+    Some(match name {
+        "ton" | "tof" | "tp" | "ctu" | "ctd" | "ctud" => &["preset"],
+        "r_trig" | "f_trig" | "sr" | "rs" => &[],
+        "pid" => &["kp", "ki", "kd", "out", "antiwindup"],
         _ => return None,
     })
 }
@@ -100,8 +135,101 @@ fn is_f32(ty: &Type) -> bool {
     matches!(ty, Type::Num { kind, unit: None } if kind == "f32")
 }
 
+/// Kind of the `std_msgs` message that carries a value of `ty` in the ROS 2 wrapper.
+fn ros_kind(ty: &Type) -> &'static str {
+    match ty {
+        Type::Bool => "bool",
+        t if int_class(t).is_some() => "int",
+        t if is_float(t) || matches!(t, Type::Unknown) => "float",
+        _ => "str",
+    }
+}
+
+/// The operands of every `old(...)` inside `e`.
+fn collect_olds<'a>(e: &'a Expr, out: &mut Vec<&'a Expr>) {
+    match &e.e {
+        ExprKind::Old { operand } => {
+            if !out.iter().any(|o| o.span == operand.span) {
+                out.push(operand);
+            }
+        }
+        ExprKind::Binary { lhs, rhs, .. } | ExprKind::Pipe { lhs, rhs } => {
+            collect_olds(lhs, out);
+            collect_olds(rhs, out);
+        }
+        ExprKind::Compare { first, rest } => {
+            collect_olds(first, out);
+            for c in rest {
+                collect_olds(&c.rhs, out);
+            }
+        }
+        ExprKind::Unary { operand, .. }
+        | ExprKind::Try { operand }
+        | ExprKind::Cast { operand, .. } => collect_olds(operand, out),
+        ExprKind::Quantity { value, .. } => collect_olds(value, out),
+        ExprKind::IfElse {
+            cond,
+            then,
+            otherwise,
+        } => {
+            collect_olds(cond, out);
+            collect_olds(then, out);
+            collect_olds(otherwise, out);
+        }
+        ExprKind::Call { callee, args, .. } => {
+            collect_olds(callee, out);
+            for a in args {
+                collect_olds(&a.value, out);
+            }
+        }
+        ExprKind::Index { base, index, .. } => {
+            collect_olds(base, out);
+            collect_olds(index, out);
+        }
+        ExprKind::Field { base, .. } => collect_olds(base, out),
+        ExprKind::Tuple { items } | ExprKind::Array { items } => {
+            for i in items {
+                collect_olds(i, out);
+            }
+        }
+        _ => {}
+    }
+}
+
 fn needs_deep(ty: &Type) -> bool {
-    matches!(ty, Type::Array { .. } | Type::Tuple { .. })
+    matches!(
+        ty,
+        Type::Array { .. } | Type::Tuple { .. } | Type::Adt { .. } | Type::Option { .. }
+    )
+}
+
+/// The value of a struct field without a default, from its written type.
+fn default_te(t: &TypeExpr) -> String {
+    if t.optional {
+        return "rt.NO".into();
+    }
+    match &t.kind {
+        TypeExprKind::Named { path, .. } => match path.as_str() {
+            "bool" => "False".into(),
+            "f32" | "f64" | "duration" | "instant" => "0.0".into(),
+            "str" => "\"\"".into(),
+            p if p.starts_with(['u', 'i']) || p.starts_with("bit") || p.starts_with("sbit") => {
+                "0".into()
+            }
+            _ if t.unit.is_some() => "0.0".into(),
+            _ => "None".into(),
+        },
+        TypeExprKind::Tuple { items } => {
+            let v: Vec<String> = items.iter().map(default_te).collect();
+            if v.len() == 1 {
+                format!("({},)", v[0])
+            } else {
+                format!("({})", v.join(", "))
+            }
+        }
+        TypeExprKind::Unit => "0.0".into(),
+        _ => "None".into(),
+    }
 }
 
 /// A Python float literal.
@@ -210,6 +338,23 @@ struct Lower<'a> {
     file: String,
     defs: HashMap<String, &'a ItemDef>,
     blocks: HashMap<String, &'static str>,
+    /// Module variables that hold a native block (timer, counter, pid ...), by item id.
+    natives: HashMap<String, String>,
+    /// The Python names of those variables, in source order.
+    native_vars: Vec<String>,
+    /// Index of the sequence whose statements are being written.
+    seq: Option<usize>,
+    /// Depth of Python loops in the statement being written.
+    loop_depth: usize,
+    /// Signals with the kind of their ROS 2 message (`bool`, `int`, `float`, `str`).
+    ros_signals: Vec<(String, &'static str)>,
+    /// Inputs read from outside the module, with the kind of their ROS 2 message.
+    ros_inputs: BTreeMap<String, &'static str>,
+    /// Events a task waits for, and events the module raises itself with `emit`.
+    ros_events: BTreeSet<String>,
+    emitted: BTreeSet<String>,
+    /// `old(x)` operands of the `ensures` being written, by span, with their Python names.
+    olds: Vec<([usize; 2], String)>,
     diags: Vec<Diag>,
     fid: Fidelity,
     assigned: BTreeSet<String>,
@@ -224,6 +369,8 @@ impl<'a> Lower<'a> {
         let module = &nir.modules[m];
         let mut defs = HashMap::new();
         let mut blocks = HashMap::new();
+        let mut natives = HashMap::new();
+        let mut native_vars = Vec::new();
         for it in &module.items {
             defs.insert(it.id.clone(), &it.def);
             if let ItemDef::Var { var } = &it.def {
@@ -231,6 +378,10 @@ impl<'a> Lower<'a> {
                     if let Some(n) = nirx::builtin(init) {
                         if let Some((class, _)) = block_class(n) {
                             blocks.insert(var.id.clone(), class);
+                        }
+                        if native_params(n).is_some() {
+                            natives.insert(var.id.clone(), n.to_string());
+                            native_vars.push(format!("g_{}", ident(&var.name)));
                         }
                     }
                 }
@@ -241,6 +392,15 @@ impl<'a> Lower<'a> {
             file: module.file.clone(),
             defs,
             blocks,
+            natives,
+            native_vars,
+            seq: None,
+            loop_depth: 0,
+            ros_signals: Vec::new(),
+            ros_inputs: BTreeMap::new(),
+            ros_events: BTreeSet::new(),
+            emitted: BTreeSet::new(),
+            olds: Vec::new(),
             diags: Vec::new(),
             fid: Fidelity::new("emit-python", "host.python"),
             assigned: BTreeSet::new(),
@@ -249,6 +409,34 @@ impl<'a> Lower<'a> {
             watchdog: None,
             module_vars: Vec::new(),
         }
+    }
+
+    /// `true` when `base` is a native block (timer, counter, edge detector, latch, pid).
+    fn is_native(&self, base: &Expr) -> bool {
+        match &base.e {
+            ExprKind::Ref { id, .. } if self.natives.contains_key(id) => true,
+            _ => matches!(&base.ty, Type::Opaque { name } if native_params(name).is_some()),
+        }
+    }
+
+    /// `true` when `base` is a value of a `struct`.
+    fn is_struct(&self, base: &Expr) -> bool {
+        match &base.ty {
+            Type::Adt { def, .. } => {
+                matches!(self.defs.get(def).copied(), Some(ItemDef::Struct { .. }))
+            }
+            _ => false,
+        }
+    }
+
+    /// Item id and name of the enum when `e` names an enum (`Mode` in `Mode.Auto`).
+    fn enum_ref(&self, e: &Expr) -> Option<(String, String)> {
+        if let ExprKind::Ref { id, .. } = &e.e {
+            if let Some(ItemDef::Enum { name, .. }) = self.defs.get(id).copied() {
+                return Some((id.clone(), name.clone()));
+            }
+        }
+        None
     }
 
     fn unsupported(&mut self, span: [usize; 2], what: &str) {
@@ -266,6 +454,16 @@ impl<'a> Lower<'a> {
 
     fn lname(id: &str, name: &str) -> String {
         format!("{}_{}", ident(name), ident(id))
+    }
+
+    /// Python for a local: a plain name, or a slot of `R.L` inside a sequence (whose
+    /// locals live across ticks).
+    fn local_name(&self, id: &str, name: &str) -> String {
+        let l = Self::lname(id, name);
+        match self.seq {
+            Some(k) => format!("R.L[{}]", py_str(&format!("{k}.{l}"))),
+            None => l,
+        }
     }
 
     fn next_tmp(&mut self) -> usize {
@@ -290,6 +488,9 @@ impl<'a> Lower<'a> {
                 }
             }
             Type::Instant => "0.0".into(),
+            Type::Option { .. } | Type::NoneLit => "rt.NO".into(),
+            // The interpreter gives these no value before they are assigned.
+            Type::Adt { .. } | Type::Result { .. } => "None".into(),
             Type::Str { .. } => "\"\"".into(),
             Type::Array { elem, len } => {
                 let d = self.default_py(elem, span);
@@ -357,8 +558,13 @@ impl<'a> Lower<'a> {
                     "None".into()
                 }
             },
-            ExprKind::Local { id, name } => Self::lname(id, name),
-            ExprKind::Global { name } => format!("R.inp({})", py_str(name)),
+            ExprKind::Local { id, name } => self.local_name(id, name),
+            ExprKind::Global { name } => {
+                self.ros_inputs
+                    .entry(name.clone())
+                    .or_insert_with(|| ros_kind(&e.ty));
+                format!("R.inp({})", py_str(name))
+            }
             ExprKind::Binary { op, lhs, rhs } => self.binary(e, op, lhs, rhs),
             ExprKind::Compare { first, rest } => {
                 let mut s = format!("({}", self.ex(first));
@@ -421,7 +627,21 @@ impl<'a> Lower<'a> {
             }
             ExprKind::Field { base, name, .. } => {
                 if global_root(e) {
+                    self.ros_inputs
+                        .entry(dotted(e))
+                        .or_insert_with(|| ros_kind(&e.ty));
                     return format!("R.inp({})", py_str(&dotted(e)));
+                }
+                if let Some((id, en)) = self.enum_ref(base) {
+                    return format!(
+                        "rt.Variant({}, {}, {}, ())",
+                        py_str(&id),
+                        py_str(&en),
+                        py_str(name)
+                    );
+                }
+                if self.is_native(base) || self.is_struct(base) {
+                    return format!("{}.f[{}]", self.ex(base), py_str(name));
                 }
                 if let Type::Tuple { .. } = &base.ty {
                     let k = match name.as_str() {
@@ -453,6 +673,15 @@ impl<'a> Lower<'a> {
             ExprKind::ArrayRepeat { value, count } => {
                 format!("rt.repeat({}, {})", self.ex(value), self.ex(count))
             }
+            ExprKind::Try { operand } => format!("rt.try_({})", self.ex(operand)),
+            ExprKind::Result => "_result".into(),
+            ExprKind::Old { operand } => match self.olds.iter().find(|(s, _)| *s == operand.span) {
+                Some((_, n)) => n.clone(),
+                None => {
+                    self.unsupported(e.span, "`old` outside an `ensures` contract");
+                    "None".into()
+                }
+            },
             _ => {
                 self.unsupported(e.span, "this expression");
                 "None".into()
@@ -486,6 +715,7 @@ impl<'a> Lower<'a> {
                 })
             }
             Lit::Bool { v } => if *v { "True" } else { "False" }.into(),
+            Lit::None => "rt.NO".into(),
             Lit::Str { text } => {
                 let s = unescape(text);
                 if s.contains('{') {
@@ -645,12 +875,25 @@ impl<'a> Lower<'a> {
             if a.mutable {
                 self.unsupported(a.value.span, "a `mut` argument");
             }
-            vals.push((a.name.clone(), self.ex(&a.value)));
+            let v = match (&callee.e, &a.value.e) {
+                (ExprKind::Global { name }, ExprKind::Range { lo, hi, .. }) if name == "pid" => {
+                    let unit = |e: &Expr| matches!(&e.ty, Type::Num { unit: Some(_), .. });
+                    if unit(lo) && unit(hi) {
+                        self.unsupported(a.value.span, "a `pid` output range in a unit");
+                    }
+                    format!("({}, {})", self.ex(lo), self.ex(hi))
+                }
+                _ => self.ex(&a.value),
+            };
+            vals.push((a.name.clone(), v));
             tys.push(&a.value.ty);
         }
         match &callee.e {
             ExprKind::Ref { id, name } => match self.defs.get(id).copied() {
                 Some(ItemDef::Fn { func }) => self.user_call(e, func, &vals),
+                Some(ItemDef::Struct { name, fields, .. }) => {
+                    self.struct_ctor(id, name, fields, &vals)
+                }
                 _ => {
                     self.unsupported(e.span, &format!("the call to `{name}`"));
                     "None".into()
@@ -658,11 +901,50 @@ impl<'a> Lower<'a> {
             },
             ExprKind::Global { name } => self.builtin(e, name, &vals, &tys),
             ExprKind::Field { base, name, .. } => {
+                if let Some((id, en)) = self.enum_ref(base) {
+                    let payload: Vec<&str> = vals.iter().map(|(_, s)| s.as_str()).collect();
+                    let tup = if payload.len() == 1 {
+                        format!("({},)", payload[0])
+                    } else {
+                        format!("({})", payload.join(", "))
+                    };
+                    return format!(
+                        "rt.Variant({}, {}, {}, {tup})",
+                        py_str(&id),
+                        py_str(&en),
+                        py_str(name)
+                    );
+                }
+                if matches!(&base.ty, Type::Option { .. } | Type::Result { .. }) {
+                    let b = self.ex(base);
+                    let all: Vec<&str> = vals.iter().map(|(_, s)| s.as_str()).collect();
+                    return match (name.as_str(), all.len()) {
+                        ("is_some" | "is_none" | "is_ok" | "is_err", 0) => format!("{b}.{name}()"),
+                        ("unwrap_or", 1) => format!("{b}.unwrap_or({})", all[0]),
+                        _ => {
+                            self.unsupported(e.span, &format!("the method `{name}`"));
+                            "None".into()
+                        }
+                    };
+                }
                 let is_block = match &base.e {
                     ExprKind::Ref { id, .. } => self.blocks.contains_key(id),
                     _ => matches!(&base.ty, Type::Opaque { name } if block_class(name).is_some()),
                 };
                 let b = self.ex(base);
+                if self.is_native(base) {
+                    let all: Vec<&str> = vals.iter().map(|(_, s)| s.as_str()).collect();
+                    return match name.as_str() {
+                        "step" | "update" | "call" if all.len() <= 2 => {
+                            format!("{b}.call({})", all.join(", "))
+                        }
+                        "reset" if all.is_empty() => format!("{b}.reset()"),
+                        _ => {
+                            self.unsupported(e.span, &format!("the method `{name}`"));
+                            "None".into()
+                        }
+                    };
+                }
                 match (name.as_str(), is_block) {
                     ("step" | "update" | "call", true) if vals.len() == 1 => {
                         format!("{b}.step({})", vals[0].1)
@@ -678,6 +960,124 @@ impl<'a> Lower<'a> {
             _ => {
                 self.unsupported(e.span, "this call");
                 "None".into()
+            }
+        }
+    }
+
+    /// `Point(x: 1, y: 2)`: fields by name, then by position, then their defaults.
+    fn struct_ctor(
+        &mut self,
+        id: &str,
+        name: &str,
+        fields: &[neuron_nir::Field],
+        vals: &[(Option<String>, String)],
+    ) -> String {
+        let mut pos = vals
+            .iter()
+            .filter(|(n, _)| n.is_none())
+            .map(|(_, v)| v.clone());
+        let mut out = Vec::new();
+        for f in fields {
+            let named = vals
+                .iter()
+                .find(|(n, _)| n.as_deref() == Some(f.name.as_str()))
+                .map(|(_, v)| v.clone());
+            let v = match named.or_else(|| pos.next()) {
+                Some(v) => v,
+                None => match &f.default {
+                    Some(d) => self.ex(d),
+                    None => default_te(&f.ty),
+                },
+            };
+            out.push(format!("{}: rt.deep({v})", py_str(&f.name)));
+        }
+        format!(
+            "rt.Obj({}, {}, {{{}}})",
+            py_str(id),
+            py_str(name),
+            out.join(", ")
+        )
+    }
+
+    /// The condition under which `pattern` matches the value `s` (binding its names).
+    fn pat_cond(&mut self, p: &Pattern, s: &str) -> String {
+        match &p.p {
+            PatternKind::Wildcard => "True".into(),
+            PatternKind::Bind { name, id, .. } => {
+                format!("rt.T({} := {s})", Self::lname(id, name))
+            }
+            PatternKind::Lit { value } => format!("({s} == {})", self.ex(value)),
+            PatternKind::Range { lo, hi, inclusive } => format!(
+                "rt.in_range({s}, {}, {}, {})",
+                self.ex(lo),
+                self.ex(hi),
+                if *inclusive { "True" } else { "False" }
+            ),
+            PatternKind::Ctor { path, args, fields } => {
+                let last = path.rsplit('.').next().unwrap_or(path);
+                let mut alts = Vec::new();
+                match last {
+                    "Some" => {
+                        let sub = match args.first() {
+                            Some(a) => self.pat_cond(a, &format!("{s}.v")),
+                            None => "True".into(),
+                        };
+                        alts.push(format!("(isinstance({s}, rt.Opt) and {s}.some and {sub})"));
+                    }
+                    "Ok" | "Err" => {
+                        let sub = match args.first() {
+                            Some(a) => self.pat_cond(a, &format!("{s}.v")),
+                            None => "True".into(),
+                        };
+                        let ok = if last == "Ok" { "True" } else { "False" };
+                        alts.push(format!(
+                            "(isinstance({s}, rt.Res) and {s}.ok is {ok} and {sub})"
+                        ));
+                    }
+                    _ => {}
+                }
+                let mut v = format!(
+                    "(isinstance({s}, rt.Variant) and {s}.name == {}",
+                    py_str(last)
+                );
+                for (i, a) in args.iter().enumerate() {
+                    let sub = self.pat_cond(a, &format!("{s}.payload[{i}]"));
+                    v.push_str(&format!(" and (len({s}.payload) <= {i} or {sub})"));
+                }
+                v.push(')');
+                alts.push(v);
+                let mut o = format!("(isinstance({s}, rt.Obj)");
+                for f in fields {
+                    let sub = self.pat_cond(&f.pattern, &format!("{s}.f.get({})", py_str(&f.name)));
+                    o.push_str(&format!(" and {sub}"));
+                }
+                o.push(')');
+                alts.push(o);
+                format!("({})", alts.join(" or "))
+            }
+            PatternKind::Path { path } => {
+                let last = path.rsplit('.').next().unwrap_or(path);
+                let mut c = format!(
+                    "(isinstance({s}, rt.Variant) and {s}.name == {})",
+                    py_str(last)
+                );
+                if last == "none" {
+                    c = format!("({c} or (isinstance({s}, rt.Opt) and not {s}.some))");
+                }
+                c
+            }
+            PatternKind::Tuple { items } => {
+                let mut c = format!("(isinstance({s}, tuple) and len({s}) == {}", items.len());
+                for (i, it) in items.iter().enumerate() {
+                    let sub = self.pat_cond(it, &format!("{s}[{i}]"));
+                    c.push_str(&format!(" and {sub}"));
+                }
+                c.push(')');
+                c
+            }
+            PatternKind::Or { alts } => {
+                let v: Vec<String> = alts.iter().map(|a| self.pat_cond(a, s)).collect();
+                format!("({})", v.join(" or "))
             }
         }
     }
@@ -711,6 +1111,25 @@ impl<'a> Lower<'a> {
         tys: &[&Type],
     ) -> String {
         let v: Vec<&str> = vals.iter().map(|(_, s)| s.as_str()).collect();
+        if let Some(params) = native_params(name) {
+            let mut out = Vec::new();
+            for (i, p) in params.iter().enumerate() {
+                let named = vals
+                    .iter()
+                    .find(|(n, _)| n.as_deref() == Some(*p))
+                    .map(|(_, s)| s.clone());
+                let positional = vals
+                    .iter()
+                    .filter(|(n, _)| n.is_none())
+                    .nth(i)
+                    .map(|(_, s)| s.clone());
+                if let Some(s) = named.or(positional) {
+                    out.push(format!("{p}={s}"));
+                }
+            }
+            out.insert(0, py_str(name));
+            return format!("rt.native({})", out.join(", "));
+        }
         if let Some((class, params)) = block_class(name) {
             let mut out = Vec::new();
             for (i, p) in params.iter().enumerate() {
@@ -769,9 +1188,13 @@ impl<'a> Lower<'a> {
                 self.libm = true;
                 format!("rt.fpow({}, {})", v[0], v[1])
             }
+            "Some" => format!("rt.Opt({})", v.first().copied().unwrap_or("None")),
+            "Ok" => format!("rt.Res({}, True)", v.first().copied().unwrap_or("None")),
+            "Err" => format!("rt.Res({}, False)", v.first().copied().unwrap_or("None")),
             "now" | "elapsed" => "R.elapsed()".into(),
             "advance" if need(1, self) => format!("R.advance({})", v[0]),
             "current_fault" => "R.current_fault()".into(),
+            "state_of" if need(1, self) => format!("R.state_of({})", v[0]),
             _ => {
                 self.unsupported(e.span, &format!("the call to `{name}`"));
                 "None".into()
@@ -784,7 +1207,7 @@ impl<'a> Lower<'a> {
     fn target(&mut self, p: &Pattern) -> Option<String> {
         match &p.p {
             PatternKind::Wildcard => Some("_".into()),
-            PatternKind::Bind { name, id, .. } => Some(Self::lname(id, name)),
+            PatternKind::Bind { name, id, .. } => Some(self.local_name(id, name)),
             PatternKind::Tuple { items } => {
                 let v: Option<Vec<String>> = items.iter().map(|i| self.target(i)).collect();
                 v.map(|v| {
@@ -818,7 +1241,10 @@ impl<'a> Lower<'a> {
 
     fn write_place(&mut self, w: &mut Writer, place: &Expr, v: &str) {
         match &place.e {
-            ExprKind::Local { id, name } => w.line(&format!("{} = {v}", Self::lname(id, name))),
+            ExprKind::Local { id, name } => {
+                let l = self.local_name(id, name);
+                w.line(&format!("{l} = {v}"));
+            }
             ExprKind::Ref { id, name } => match self.defs.get(id).copied() {
                 Some(ItemDef::Var { .. }) => {
                     let g = format!("g_{}", ident(name));
@@ -837,6 +1263,10 @@ impl<'a> Lower<'a> {
             } => {
                 let (b, i) = (self.ex(base), self.ex(index));
                 w.line(&format!("rt.setat({b}, {i}, {v})"));
+            }
+            ExprKind::Field { base, name, .. } if self.is_native(base) || self.is_struct(base) => {
+                let b = self.ex(base);
+                w.line(&format!("{b}.f[{}] = {v}", py_str(name)));
             }
             _ => self.unsupported(place.span, "an assignment to this place"),
         }
@@ -896,6 +1326,7 @@ impl<'a> Lower<'a> {
                 w.line(&v);
             }
             StmtKind::Pass | StmtKind::Rule { .. } => w.line("pass"),
+            StmtKind::Return { .. } if self.seq.is_some() => w.line("raise rt.SeqReturn()"),
             StmtKind::Return { value } => match value {
                 Some(v) => {
                     let v = self.ex(v);
@@ -903,6 +1334,12 @@ impl<'a> Lower<'a> {
                 }
                 None => w.line("return"),
             },
+            StmtKind::Break if self.seq.is_some() && self.loop_depth == 0 => {
+                w.line("raise rt.SeqBreak()");
+            }
+            StmtKind::Continue if self.seq.is_some() && self.loop_depth == 0 => {
+                w.line("raise rt.SeqContinue()");
+            }
             StmtKind::Break => w.line("break"),
             StmtKind::Continue => w.line("continue"),
             StmtKind::Fault { name, .. } => w.line(&format!("raise rt.Fault({})", py_str(name))),
@@ -918,6 +1355,7 @@ impl<'a> Lower<'a> {
                 if !args.is_empty() {
                     self.unsupported(s.span, "an event with a payload");
                 }
+                self.emitted.insert(event.clone());
                 w.line(&format!("R.emit_event({})", py_str(event)));
             }
             StmtKind::Coil { set, place, when } => {
@@ -958,7 +1396,9 @@ impl<'a> Lower<'a> {
                 };
                 let t = self.target(pattern).unwrap_or_else(|| "_".into());
                 w.line(&format!("for {t} in {it}:"));
+                self.loop_depth += 1;
                 self.block(w, body);
+                self.loop_depth -= 1;
             }
             StmtKind::While {
                 pattern,
@@ -985,7 +1425,9 @@ impl<'a> Lower<'a> {
                 w.dedent();
                 w.line(&format!("_n{k} += 1"));
                 w.dedent();
+                self.loop_depth += 1;
                 self.body_inline(w, body);
+                self.loop_depth -= 1;
             }
             StmtKind::Loop { max, body } => {
                 let bound = match max {
@@ -993,14 +1435,33 @@ impl<'a> Lower<'a> {
                     None => "rt.LOOP_CAP".into(),
                 };
                 w.line(&format!("for _ in range({bound}):"));
+                self.loop_depth += 1;
                 self.block(w, body);
+                self.loop_depth -= 1;
             }
             StmtKind::Atomic { body } => {
                 for st in &body.stmts {
                     self.stmt(w, st);
                 }
             }
-            StmtKind::Match { .. } => self.unsupported(s.span, "`match`"),
+            StmtKind::Match { .. } if self.seq.is_some() => {
+                // Bindings are written with `:=`, which cannot target a sequence local.
+                self.unsupported(s.span, "`match` inside a sequence");
+            }
+            StmtKind::Match { value, arms } => {
+                let t = self.next_tmp();
+                let v = self.ex(value);
+                let subject = format!("_m{t}");
+                w.line(&format!("{subject} = {v}"));
+                for (k, arm) in arms.iter().enumerate() {
+                    let mut cond = self.pat_cond(&arm.pattern, &subject);
+                    if let Some(g) = &arm.guard {
+                        cond = format!("({cond} and {})", self.ex(g));
+                    }
+                    w.line(&format!("{} {cond}:", if k == 0 { "if" } else { "elif" }));
+                    self.block(w, &arm.body);
+                }
+            }
             _ => self.unsupported(s.span, "this statement"),
         }
         w.map(mark, &self.file.clone(), s.span, None);
@@ -1059,38 +1520,306 @@ impl<'a> Lower<'a> {
         for p in func.sig.params.iter() {
             self.param(p, &mut params);
         }
+        let name = ident(&func.sig.name);
+        let args = params.join(", ");
+        let has_ensures = func.contracts.iter().any(|c| c.kind == "ensures");
+        if has_ensures {
+            // The body runs in its own function so that `ensures` can look at the result
+            // (`?` returns from the body, and the contract still applies to that value).
+            w.line("@rt.early");
+            self.def(w, &format!("def _body_{name}({args}):"), |s, bw| {
+                s.fn_body(bw, func);
+            });
+        }
         w.line("@rt.fn");
-        let header = format!("def fn_{}({}):", ident(&func.sig.name), params.join(", "));
+        let header = format!("def fn_{name}({args}):");
         self.def(w, &header, |s, bw| {
             for c in &func.contracts {
-                if c.kind == "requires" {
+                match c.kind.as_str() {
+                    "requires" => {
+                        let cond = s.ex(&c.cond);
+                        bw.line(&format!("if not {cond}:"));
+                        bw.indent();
+                        bw.line("raise rt.Fault(\"ContractViolation\")");
+                        bw.dedent();
+                    }
+                    "ensures" => {}
+                    other => s.unsupported(c.span, &format!("a `{other}` contract")),
+                }
+            }
+            if has_ensures {
+                // `old(x)` is read before the body runs.
+                let mut olds: Vec<&Expr> = Vec::new();
+                for c in func.contracts.iter().filter(|c| c.kind == "ensures") {
+                    collect_olds(&c.cond, &mut olds);
+                }
+                for (i, o) in olds.iter().enumerate() {
+                    let v = s.ex(o);
+                    bw.line(&format!("_o{i} = rt.deep({v})"));
+                    s.olds.push((o.span, format!("_o{i}")));
+                }
+                bw.line(&format!("_result = _body_{name}({args})"));
+                for c in func.contracts.iter().filter(|c| c.kind == "ensures") {
                     let cond = s.ex(&c.cond);
                     bw.line(&format!("if not {cond}:"));
                     bw.indent();
                     bw.line("raise rt.Fault(\"ContractViolation\")");
                     bw.dedent();
-                } else {
-                    s.unsupported(c.span, &format!("a `{}` contract", c.kind));
                 }
-            }
-            match &func.body {
-                FnBody::Block { block } => {
-                    if !block.contracts.is_empty() {
-                        s.unsupported(block.contracts[0].span, "a contract inside a block");
-                    }
-                    for st in &block.stmts {
-                        s.stmt(bw, st);
-                    }
-                    if block.stmts.is_empty() {
-                        bw.line("pass");
-                    }
-                }
-                FnBody::Expr { expr } => {
-                    let v = s.ex(expr);
-                    bw.line(&format!("return {v}"));
-                }
+                bw.line("return _result");
+                s.olds.clear();
+            } else {
+                s.fn_body(bw, func);
             }
         });
+    }
+
+    /// The statements of a function body.
+    fn fn_body(&mut self, bw: &mut Writer, func: &FnDecl) {
+        match &func.body {
+            FnBody::Block { block } => {
+                if !block.contracts.is_empty() {
+                    self.unsupported(block.contracts[0].span, "a contract inside a block");
+                }
+                for st in &block.stmts {
+                    self.stmt(bw, st);
+                }
+                if block.stmts.is_empty() {
+                    bw.line("pass");
+                }
+            }
+            FnBody::Expr { expr } => {
+                let v = self.ex(expr);
+                bw.line(&format!("return {v}"));
+            }
+        }
+    }
+
+    // ---- state machines and sequences ----------------------------------------------
+
+    /// Writes `def name():` for a block and returns `name`, or `None` without a block.
+    fn opt_block(&mut self, w: &mut Writer, name: &str, b: Option<&Block>) -> String {
+        match b {
+            Some(b) => {
+                self.body_def(w, &format!("def {name}():"), b);
+                name.to_string()
+            }
+            None => "None".into(),
+        }
+    }
+
+    /// Writes the functions of a state machine and returns its `R.fsm(...)` call.
+    fn fsm_item(&mut self, w: &mut Writer, k: usize, fsm: &Fsm) -> String {
+        if let Some(v) = fsm.vars.first() {
+            // The interpreter reads such a variable as an empty value inside the state
+            // blocks (they are not kept between activations), so no program can rely on it.
+            self.unsupported(v.span, "a state machine variable");
+        }
+        let mut states = Vec::new();
+        for (si, st) in fsm.states.iter().enumerate() {
+            let p = format!("_fsm_{k}_{si}");
+            let entry = self.opt_block(w, &format!("{p}_entry"), st.entry.as_ref());
+            let exit = self.opt_block(w, &format!("{p}_exit"), st.exit.as_ref());
+            let during = self.opt_block(w, &format!("{p}_do"), st.during.as_ref());
+            let mut trs = Vec::new();
+            for (ti, t) in st.transitions.iter().enumerate() {
+                let when = match &t.when {
+                    Some(c) => format!("lambda: {}", self.ex(c)),
+                    None => "None".into(),
+                };
+                let after = match &t.after {
+                    Some(d) => format!("lambda: {}", self.ns(d)),
+                    None => "None".into(),
+                };
+                let action = self.opt_block(w, &format!("{p}_t{ti}"), t.action.as_ref());
+                trs.push(format!(
+                    "({}, {when}, {after}, {action})",
+                    py_str(&t.target)
+                ));
+            }
+            states.push(format!(
+                "({}, {}, {entry}, {exit}, {during}, [{}])",
+                py_str(&st.name),
+                if st.initial { "True" } else { "False" },
+                trs.join(", ")
+            ));
+        }
+        let trigger = match &fsm.trigger {
+            None => String::new(),
+            Some(Trigger::Every { period, offset }) => {
+                let p = self.ns(period);
+                let o = match offset {
+                    Some(o) => self.ns(o),
+                    None => "0".into(),
+                };
+                format!(", period={p}, offset={o}")
+            }
+            Some(Trigger::On { event }) => format!(", key={}", py_str(&dotted(event))),
+        };
+        format!(
+            "R.fsm({}, [{}]{trigger})",
+            py_str(&fsm.name),
+            states.join(", ")
+        )
+    }
+
+    /// `true` when running the statement can make a sequence wait (through its loops).
+    fn seq_waits(s: &Stmt) -> bool {
+        match &s.s {
+            StmtKind::Move { .. }
+            | StmtKind::Wait { .. }
+            | StmtKind::Until { .. }
+            | StmtKind::Jump { .. } => true,
+            StmtKind::For { body, .. }
+            | StmtKind::While { body, .. }
+            | StmtKind::Loop { body, .. } => body.stmts.iter().any(Self::seq_waits),
+            _ => false,
+        }
+    }
+
+    /// Writes the functions of a sequence and returns its `R.sequence(...)` call.
+    fn sequence_item(&mut self, w: &mut Writer, k: usize, name: &str, items: &[SeqItem]) -> String {
+        self.seq = Some(k);
+        let mut ops = Vec::new();
+        let mut n = 0;
+        self.seq_items(w, k, items, &mut ops, &mut n);
+        self.seq = None;
+        format!("R.sequence({}, [{}])", py_str(name), ops.join(", "))
+    }
+
+    fn seq_items(
+        &mut self,
+        w: &mut Writer,
+        k: usize,
+        items: &[SeqItem],
+        out: &mut Vec<String>,
+        n: &mut usize,
+    ) {
+        for it in items {
+            match it {
+                SeqItem::Step { name, body, .. } => {
+                    out.push(format!("(\"step\", {})", py_str(name)));
+                    self.seq_items(w, k, body, out, n);
+                }
+                SeqItem::Parallel { branches, .. } => {
+                    let mut subs = Vec::new();
+                    for b in branches {
+                        let mut v = Vec::new();
+                        self.seq_items(w, k, &b.items, &mut v, n);
+                        subs.push(format!("[{}]", v.join(", ")));
+                    }
+                    out.push(format!("(\"par\", [{}])", subs.join(", ")));
+                }
+                SeqItem::Stmt { stmt } => self.seq_stmt(w, k, stmt, out, n),
+            }
+        }
+    }
+
+    fn seq_stmt(
+        &mut self,
+        w: &mut Writer,
+        k: usize,
+        s: &Stmt,
+        out: &mut Vec<String>,
+        n: &mut usize,
+    ) {
+        match &s.s {
+            StmtKind::Until {
+                cond,
+                timeout,
+                on_timeout,
+            } => {
+                let c = self.ex(cond);
+                let t = match timeout {
+                    Some(t) => format!("lambda: {}", self.ns(t)),
+                    None => "None".into(),
+                };
+                let target = on_timeout.as_deref().map_or("None".into(), py_str);
+                out.push(format!("(\"until\", lambda: {c}, {t}, {target})"));
+            }
+            StmtKind::Wait { duration } => {
+                let d = self.ns(duration);
+                out.push(format!("(\"wait\", lambda: {d})"));
+            }
+            StmtKind::Jump { target } => out.push(format!("(\"jump\", {})", py_str(target))),
+            StmtKind::Move { .. } => self.unsupported(s.span, "a robot motion"),
+            StmtKind::For {
+                pattern,
+                iter,
+                body,
+                ..
+            } if Self::seq_waits(s) => {
+                *n += 1;
+                let f = format!("_seq_{k}_{n}");
+                let (it, pat) = (iter.clone(), pattern.clone());
+                self.def(w, &format!("def {f}(v):"), |s, bw| {
+                    let t = s.target(&pat).unwrap_or_else(|| "_".into());
+                    bw.line(&format!("{t} = v"));
+                });
+                let it = match &it.e {
+                    ExprKind::Range { lo, hi, inclusive } => format!(
+                        "rt.rng({}, {}, {})",
+                        self.ex(lo),
+                        self.ex(hi),
+                        if *inclusive { "True" } else { "False" }
+                    ),
+                    _ => self.ex(&it),
+                };
+                self.seq_loop(w, k, &format!("\"for\", {f}, lambda: {it}"), body, out, n);
+            }
+            StmtKind::While {
+                pattern,
+                cond,
+                max,
+                body,
+            } if Self::seq_waits(s) => {
+                if pattern.is_some() {
+                    self.unsupported(s.span, "`while let`");
+                }
+                let c = self.ex(cond);
+                let m = match max {
+                    Some(m) => format!("lambda: {}", self.ex(m)),
+                    None => "None".into(),
+                };
+                self.seq_loop(w, k, &format!("\"while\", lambda: {c}, {m}"), body, out, n);
+            }
+            StmtKind::Loop { max, body } if Self::seq_waits(s) => {
+                let m = match max {
+                    Some(m) => format!("lambda: {}", self.ex(m)),
+                    None => "None".into(),
+                };
+                self.seq_loop(w, k, &format!("\"loop\", None, {m}"), body, out, n);
+            }
+            _ => {
+                *n += 1;
+                let f = format!("_seq_{k}_{n}");
+                let mark = w.mark();
+                self.def(w, &format!("def {f}():"), |sl, bw| sl.stmt(bw, s));
+                w.map(mark, &self.file.clone(), s.span, None);
+                out.push(format!("(\"stmt\", {f})"));
+            }
+        }
+    }
+
+    /// A loop whose body waits: `lbegin`, `lnext`, the body, `lend`.
+    fn seq_loop(
+        &mut self,
+        w: &mut Writer,
+        k: usize,
+        head: &str,
+        body: &Block,
+        out: &mut Vec<String>,
+        n: &mut usize,
+    ) {
+        let begin = out.len();
+        out.push(String::new());
+        out.push("(\"lnext\",)".into());
+        for st in &body.stmts {
+            self.seq_stmt(w, k, st, out, n);
+        }
+        out.push(format!("(\"lend\", {})", begin + 1));
+        let exit = out.len();
+        out[begin] = format!("(\"lbegin\", {head}, {exit})");
     }
 
     fn param(&mut self, p: &Param, out: &mut Vec<String>) {
@@ -1204,11 +1933,27 @@ impl<'a> Lower<'a> {
                                 py_str(name)
                             ));
                         }
-                        Trigger::On { event } => registrations.push(format!(
-                            "R.task_on({}, {fname}, {}{extra})",
-                            py_str(name),
-                            py_str(&dotted(event))
-                        )),
+                        Trigger::On { event } => {
+                            let key = dotted(event);
+                            // `button.rising` is an edge of the input `button`; any other
+                            // event is raised by `emit`, or from outside the module.
+                            match key.rsplit_once('.') {
+                                Some((input, "rising" | "falling")) => {
+                                    self.ros_inputs.entry(input.to_string()).or_insert("bool");
+                                }
+                                Some((input, "changed")) => {
+                                    self.ros_inputs.entry(input.to_string()).or_insert("float");
+                                }
+                                _ => {
+                                    self.ros_events.insert(key.clone());
+                                }
+                            }
+                            registrations.push(format!(
+                                "R.task_on({}, {fname}, {}{extra})",
+                                py_str(name),
+                                py_str(&key)
+                            ));
+                        }
                     }
                     self.fid.exact();
                 }
@@ -1260,6 +2005,24 @@ impl<'a> Lower<'a> {
                     registrations.push(format!("R.safety({rate}, [{}])", ms.join(", ")));
                     self.fid.exact();
                 }
+                ItemDef::Fsm { fsm } => {
+                    let reg = self.fsm_item(&mut w, k, fsm);
+                    registrations.push(reg);
+                    self.fid.exact();
+                }
+                ItemDef::Sequence {
+                    name,
+                    items,
+                    params,
+                    ..
+                } => {
+                    if !params.is_empty() {
+                        self.unsupported(it.span, "a sequence with parameters");
+                    }
+                    let reg = self.sequence_item(&mut w, k, name, items);
+                    registrations.push(reg);
+                    self.fid.exact();
+                }
                 ItemDef::Test { name, body } => {
                     let fname = format!("_test_{k}");
                     self.body_def(&mut w, &format!("def {fname}():"), body);
@@ -1269,6 +2032,10 @@ impl<'a> Lower<'a> {
                 _ => {}
             }
             w.map(m, &self.file.clone(), it.span, None);
+        }
+
+        if !self.native_vars.is_empty() {
+            registrations.push(format!("R.blocks([{}])", self.native_vars.join(", ")));
         }
 
         // _boot: state first, then activities, both in source order.
@@ -1301,6 +2068,7 @@ impl<'a> Lower<'a> {
                     boot.line(&format!("g_{} = {v}", ident(&var.name)));
                     self.fid.exact();
                 }
+
                 ItemDef::Signal {
                     name, vty, init, ..
                 } => {
@@ -1308,6 +2076,7 @@ impl<'a> Lower<'a> {
                         kind: "f64".into(),
                         unit: None,
                     });
+                    self.ros_signals.push((name.clone(), ros_kind(&ty)));
                     let v = match init {
                         Some(e) => self.ex(e),
                         None => self.default_py(&ty, it.span),
@@ -1369,6 +2138,10 @@ impl<'a> Lower<'a> {
                 | ItemDef::Rule { .. }
                 | ItemDef::Safety { .. }
                 | ItemDef::Test { .. }
+                | ItemDef::Fsm { .. }
+                | ItemDef::Sequence { .. }
+                | ItemDef::Struct { .. }
+                | ItemDef::Enum { .. }
                 | ItemDef::Unit { .. }
                 | ItemDef::Alias { .. }
                 | ItemDef::Event { .. } => {}
@@ -1381,12 +2154,8 @@ impl<'a> Lower<'a> {
                 ),
                 other => {
                     let what = match other {
-                        ItemDef::Struct { .. } => "a `struct`",
-                        ItemDef::Enum { .. } => "an `enum`",
                         ItemDef::Class { .. } => "a `class`",
                         ItemDef::Interface { .. } => "an `interface`",
-                        ItemDef::Fsm { .. } => "a state machine",
-                        ItemDef::Sequence { .. } => "a `sequence`",
                         ItemDef::Interrupt { .. } => "an interrupt handler",
                         ItemDef::Io { .. } => "an `io` binding",
                         _ => "this item",
@@ -1420,10 +2189,53 @@ impl<'a> Lower<'a> {
             "runtime",
             "simulated time is exact (integer nanoseconds); --realtime follows the wall clock and the instants hold only while the host keeps up; the interpreter's statement budget per activation (fault LoopBound) is not enforced",
         );
+        self.fid.record(
+            &self.file.clone(),
+            [0, 0],
+            Class::Equivalent,
+            "ros2",
+            "the ROS 2 wrapper (`--ros2`) is verified against a stub rclpy only: it publishes the same signal changes as the interpreter, one base tick (1 ms) at a time; confirm it on a real ROS 2 install (session I4, Raspberry Pi 5)",
+        );
         let _ = self.nir;
         w
     }
+
+    /// The text of `<module>_ros2.py`.
+    fn ros2_wrapper(&self, module: &Module) -> String {
+        let py = ident(&module.name);
+        let pairs = |v: Vec<(&str, &str)>| -> String {
+            v.iter()
+                .map(|(n, k)| format!("({}, {})", py_str(n), py_str(k)))
+                .collect::<Vec<_>>()
+                .join(", ")
+        };
+        let sigs = pairs(
+            self.ros_signals
+                .iter()
+                .map(|(n, k)| (n.as_str(), *k))
+                .collect(),
+        );
+        let ins = pairs(
+            self.ros_inputs
+                .iter()
+                .map(|(n, k)| (n.as_str(), *k))
+                .collect(),
+        );
+        let events: Vec<String> = self
+            .ros_events
+            .difference(&self.emitted)
+            .map(|e| py_str(e))
+            .collect();
+        ROS2_WRAPPER
+            .replace("@MODULE@", &py)
+            .replace("@SIGNALS@", &sigs)
+            .replace("@INPUTS@", &ins)
+            .replace("@EVENTS@", &events.join(", "))
+    }
 }
+
+/// Template of the ROS 2 wrapper (`@MODULE@`, `@SIGNALS@` and `@INPUTS@` are replaced).
+const ROS2_WRAPPER: &str = include_str!("ros2_wrapper.py");
 
 impl Emitter for Python {
     fn manifest(&self) -> Manifest {
@@ -1471,9 +2283,12 @@ impl Emitter for Python {
             let w = l.module(module);
             diags.append(&mut l.diags);
             let file = format!("{}.py", ident(&module.name));
+            let ros = format!("{}_ros2.py", ident(&module.name));
             wiring.push_str(&format!(
-                "## `{file}`\n\n- `python {file} --test` runs the `test` blocks in simulated time and exits nonzero when one fails.\n- `python {file} --trace 3s` prints the first 3 s of the run in the text format of `neuron run`.\n- `python {file} --realtime 10s` runs against the wall clock for 10 s and prints each event as it happens.\n- `python {file} --ros2` is **not supported**: the emitter does not write a ROS 2 wrapper, and nothing requires `rclpy`.\n\n"
+                "## `{file}`\n\n- `python {file} --test` runs the `test` blocks in simulated time and exits nonzero when one fails.\n- `python {file} --trace 3s` prints the first 3 s of the run in the text format of `neuron run`.\n- `python {file} --realtime 10s` runs against the wall clock for 10 s and prints each event as it happens.\n- `python {file} --ros2` runs the ROS 2 wrapper `{ros}` (needs `rclpy` from a ROS 2 installation, sourced before). One node `{name}`; every `signal` is published on `neuron/{name}/<signal>` every input the program reads is subscribed on `neuron/{name}/in/<input>` (dots become underscores) and every event a task waits for but the program never raises itself on `neuron/{name}/event/<event>` (`Bool`, `true` raises the event); a timer fires every 1 ms of wall time and advances the program by one base tick. Messages are `std_msgs` `Bool`, `Int64`, `Float64` or `String`, imported when the node starts so the other modes never need ROS. Quantities are published in base units. **Verified against a stub `rclpy` only** (the test `ros2_wrapper_publishes_the_interpreter_signal_changes`); it must be confirmed on a real ROS 2 install (session I4, Raspberry Pi 5).\n\n",
+                name = ident(&module.name)
             ));
+            pkg.add_text(&ros, l.ros2_wrapper(module));
             pkg.add(&file, w);
             fid.merge(l.fid);
         }

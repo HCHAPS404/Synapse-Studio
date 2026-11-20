@@ -13,7 +13,8 @@ Neuron reference interpreter (spec 14 and 17):
 * a fault stops every activity except the safety logic until `reset when` holds.
 
 Standard library only, Python 3.10 or newer. `main` gives every generated module the
-command line `--test`, `--trace 3s`, `--realtime 10` and `--ros2` (not supported).
+command line `--test`, `--trace 3s`, `--realtime 10` and `--ros2` (runs the generated
+`<module>_ros2.py`, which needs `rclpy`).
 """
 
 import heapq
@@ -274,12 +275,138 @@ def truthy(v):
 # ---- values --------------------------------------------------------------------
 
 
+def T(_):
+    """Always true: lets a pattern bind a name inside a condition (`T(x := value)`)."""
+    return True
+
+
 def deep(v):
     if isinstance(v, list):
         return [deep(x) for x in v]
     if isinstance(v, tuple):
         return tuple(deep(x) for x in v)
+    if isinstance(v, Obj):
+        return Obj(v.id, v.name, {k: deep(x) for k, x in v.f.items()})
+    if isinstance(v, Opt) and v.some:
+        return Opt(deep(v.v))
     return v
+
+
+class Early(Exception):
+    """`?` found an error or a missing value: the function returns it."""
+
+    def __init__(self, value):
+        Exception.__init__(self, "early return")
+        self.value = value
+
+
+class Opt:
+    """`Some(x)` (`some` is true) or `none`."""
+
+    __slots__ = ("v", "some")
+
+    def __init__(self, v=None, some=True):
+        self.v = v
+        self.some = some
+
+    def is_some(self):
+        return self.some
+
+    def is_none(self):
+        return not self.some
+
+    def unwrap_or(self, default):
+        return self.v if self.some else default
+
+    def __eq__(self, o):
+        return isinstance(o, Opt) and self.some == o.some and (not self.some or self.v == o.v)
+
+    __hash__ = None
+
+
+NO = Opt(None, False)
+
+
+class Res:
+    """`Ok(x)` (`ok` is true) or `Err(x)`."""
+
+    __slots__ = ("v", "ok")
+
+    def __init__(self, v, ok):
+        self.v = v
+        self.ok = ok
+
+    def is_ok(self):
+        return self.ok
+
+    def is_err(self):
+        return not self.ok
+
+    def unwrap_or(self, default):
+        return self.v if self.ok else default
+
+    def __eq__(self, o):
+        return isinstance(o, Res) and self.ok == o.ok and self.v == o.v
+
+    __hash__ = None
+
+
+class Variant:
+    """A value of an enum: `Mode.Auto` or `Shape.Circle(3)`."""
+
+    __slots__ = ("id", "enum", "name", "payload")
+
+    def __init__(self, id, enum, name, payload=()):
+        self.id = id
+        self.enum = enum
+        self.name = name
+        self.payload = payload
+
+    def __eq__(self, o):
+        return (
+            isinstance(o, Variant)
+            and self.id == o.id
+            and self.name == o.name
+            and self.payload == o.payload
+        )
+
+    __hash__ = None
+
+
+class Obj:
+    """A value of a struct."""
+
+    __slots__ = ("id", "name", "f")
+
+    def __init__(self, id, name, f):
+        self.id = id
+        self.name = name
+        self.f = f
+
+    def __eq__(self, o):
+        return isinstance(o, Obj) and self.name == o.name and self.f == o.f
+
+    __hash__ = None
+
+
+def try_(v):
+    """The `?` operator."""
+    if isinstance(v, Res):
+        if v.ok:
+            return v.v
+        raise Early(v)
+    if isinstance(v, Opt):
+        if v.some:
+            return v.v
+        raise Early(v)
+    return v
+
+
+def in_range(x, lo, hi, inclusive):
+    """A range pattern: numbers compare as reals, anything else does not match."""
+    if isinstance(x, bool) or not isinstance(x, (int, float)):
+        return False
+    return x >= lo and (x < hi or (inclusive and x == hi))
 
 
 def at(a, i):
@@ -342,6 +469,16 @@ def show(v, unit=None):
         return "[" + ", ".join(show(x) for x in v) + "]"
     if isinstance(v, tuple):
         return "(" + ", ".join(show(x) for x in v) + ")"
+    if isinstance(v, Opt):
+        return show(v.v) if v.some else "none"
+    if isinstance(v, Res):
+        return ("Ok(" if v.ok else "Err(") + show(v.v) + ")"
+    if isinstance(v, Variant):
+        if not v.payload:
+            return v.enum + "." + v.name
+        return v.enum + "." + v.name + "(" + ", ".join(show(x) for x in v.payload) + ")"
+    if isinstance(v, Obj):
+        return v.name + "(" + ", ".join(k + ": " + show(x) for k, x in v.f.items()) + ")"
     return "()"
 
 
@@ -449,6 +586,190 @@ class HighPass(LowPass):
         return ny
 
 
+# ---- function blocks the interpreter ticks itself ----------------------------------
+#
+# Timers, counters, edge detectors, set/reset latches and the PID controller. Their
+# fields live in the dictionary `f` (`jam.q` is `jam.f["q"]`). The module's `blocks`
+# activity ticks every one of them each base tick with the inputs they hold (property
+# style, `jam.input = x`); `call` sets the inputs, ticks once and returns the output.
+
+
+def _num(v):
+    if isinstance(v, bool) or not isinstance(v, (int, float)):
+        return 0.0
+    return float(v)
+
+
+def _int(v):
+    if isinstance(v, bool) or not isinstance(v, int):
+        return 0
+    return v
+
+
+def native(kind, **a):
+    """A new block of `kind` with the constructor arguments `a`."""
+    f = {}
+    if kind in ("ton", "tof", "tp"):
+        f["preset"] = _num(a.get("preset"))
+        for k in ("input", "q", "prev", "running"):
+            f[k] = False
+        f["et"] = 0.0
+    elif kind in ("ctu", "ctd", "ctud"):
+        f["preset"] = _int(a.get("preset"))
+        for k in ("input", "down", "reset", "load", "q", "qu", "qd", "prev", "prev_down"):
+            f[k] = False
+        f["cv"] = 0
+    elif kind in ("r_trig", "f_trig"):
+        for k in ("input", "q", "prev"):
+            f[k] = False
+    elif kind in ("sr", "rs"):
+        for k in ("set", "reset", "q", "input", "prev"):
+            f[k] = False
+    elif kind == "pid":
+        f["kp"] = _num(a.get("kp"))
+        f["ki"] = _num(a.get("ki"))
+        f["kd"] = _num(a.get("kd"))
+        f["out"] = a.get("out", (-INF, INF))
+        f["antiwindup"] = True if "antiwindup" not in a else truthy(a["antiwindup"])
+        f["integral"] = 0.0
+        f["last"] = 0.0
+    return Native(kind, f)
+
+
+class Native:
+    def __init__(self, kind, f):
+        self.kind = kind
+        self.f = f
+
+    def _b(self, k):
+        return truthy(self.f.get(k))
+
+    def _r(self, k):
+        return _num(self.f.get(k))
+
+    def tick(self, dt):
+        f, kind = self.f, self.kind
+        if kind == "pid":
+            return
+        inp = self._b("input")
+        prev = self._b("prev")
+        if kind == "ton":
+            preset = self._r("preset")
+            et = min(self._r("et") + dt, preset) if inp else 0.0
+            f["et"] = et
+            f["q"] = inp and et >= preset - 1e-12
+        elif kind == "tof":
+            preset = self._r("preset")
+            q = self._b("q")
+            et = self._r("et")
+            if inp:
+                q = True
+                et = 0.0
+            elif q:
+                et += dt
+                if et >= preset - 1e-12:
+                    q = False
+                    et = preset
+            f["et"] = et
+            f["q"] = q
+        elif kind == "tp":
+            preset = self._r("preset")
+            running = self._b("running")
+            et = self._r("et")
+            q = self._b("q")
+            if inp and not prev and not running:
+                running = True
+                et = 0.0
+                q = True
+            if running:
+                et += dt
+                if et >= preset - 1e-12:
+                    running = False
+                    q = False
+            f["running"] = running
+            f["et"] = et
+            f["q"] = q
+        elif kind in ("ctu", "ctd", "ctud"):
+            rising = inp and not prev
+            cv = _int(f.get("cv"))
+            preset = _int(f.get("preset"))
+            down = self._b("down")
+            prev_down = self._b("prev_down")
+            if kind == "ctu":
+                if self._b("reset"):
+                    cv = 0
+                elif rising:
+                    cv += 1
+                f["q"] = cv >= preset
+            elif kind == "ctd":
+                if self._b("load"):
+                    cv = preset
+                elif rising:
+                    cv -= 1
+                f["q"] = cv <= 0
+            else:
+                if self._b("reset"):
+                    cv = 0
+                else:
+                    if rising:
+                        cv += 1
+                    if down and not prev_down:
+                        cv -= 1
+                f["qu"] = cv >= preset
+                f["qd"] = cv <= 0
+            f["cv"] = cv
+            f["prev_down"] = down
+        elif kind == "r_trig":
+            f["q"] = inp and not prev
+        elif kind == "f_trig":
+            f["q"] = (not inp) and prev
+        elif kind == "sr":
+            f["q"] = self._b("set") or (self._b("q") and not self._b("reset"))
+        elif kind == "rs":
+            f["q"] = (not self._b("reset")) and (self._b("set") or self._b("q"))
+        else:
+            return
+        f["prev"] = inp
+
+    def call(self, x=None, y=None):
+        f, kind = self.f, self.kind
+        if kind == "pid":
+            return self._pid(_num(x))
+        f["input" if kind not in ("sr", "rs") else "set"] = truthy(x)
+        if kind in ("sr", "rs") and y is not None:
+            f["reset"] = truthy(y)
+        self.tick(_dt())
+        if kind in ("ctu", "ctd", "ctud"):
+            return f.get("cv", 0)
+        return f.get("q", False)
+
+    def _pid(self, x):
+        dt = _dt()
+        lo, hi = self.f.get("out", (-INF, INF))
+        lo, hi = _num(lo) if lo is not None else -INF, _num(hi) if hi is not None else INF
+        kp, ki, kd = self._r("kp"), self._r("ki"), self._r("kd")
+        integral, last = self._r("integral"), self._r("last")
+        derivative = kd * (x - last) / dt if dt > 0.0 else 0.0
+        raw = kp * x + integral + derivative
+        out = lo if raw < lo else hi if raw > hi else raw
+        saturated = abs(raw - out) > sys.float_info.epsilon
+        if not (self._b("antiwindup") and saturated):
+            self.f["integral"] = integral + ki * x * dt
+        self.f["last"] = x
+        return out
+
+    def reset(self):
+        f = self.f
+        for k in ("integral", "last", "y", "x", "et", "value"):
+            if k in f:
+                f[k] = 0.0
+        for k in ("q", "started", "stable", "running"):
+            if k in f:
+                f[k] = False
+        if "cv" in f:
+            f["cv"] = 0
+
+
 # ---- the event queue -------------------------------------------------------------
 
 COMMIT, INPUT, RAISE, RELEASE = 0, 1, 2, 3
@@ -462,6 +783,36 @@ class Act:
         self.period = period
         self.deadline = deadline
         self.fn = fn
+
+
+class SeqReturn(Exception):
+    """`return` in a sequence: the sequence ends."""
+
+
+class SeqBreak(Exception):
+    """`break` in a flattened sequence loop."""
+
+
+class SeqContinue(Exception):
+    """`continue` in a flattened sequence loop."""
+
+
+class Runner:
+    """Position of a running sequence (or one branch of a `parallel` block).
+
+    `ops` are tuples: ("step", name), ("stmt", fn), ("until", cond, timeout, target),
+    ("wait", duration), ("jump", name), ("lbegin", kind, a, b, exit), ("lnext",),
+    ("lend", head), ("par", [ops, ...]).
+    """
+
+    def __init__(self, name, ops):
+        self.name = name
+        self.ops = ops
+        self.pc = 0
+        self.wait = None
+        self.par = None
+        self.done = False
+        self.loops = []
 
 
 class RuleState:
@@ -504,6 +855,9 @@ class Runtime:
         self.in_test = False
         self.fail = None
         self.processed = 0
+        self.listener = None  # called as listener(name, value) when a signal changes
+        self.L = {}  # locals of sequences, which live across ticks
+        self.fsm_info = {}
 
     # -- setup --
 
@@ -555,6 +909,206 @@ class Runtime:
                     self._trace("RESET", "fault", "")
 
         self._add("safety", "safety", 2_000_000, max(1, rate), 0, 0, run)
+
+    def blocks(self, items):
+        """The module's `blocks` activity: ticks every native block each base tick."""
+
+        def run():
+            dt = self.dt()
+            for b in items:
+                b.tick(dt)
+
+        self._add("blocks", "blocks", 0, self.BASE_TICK_NS, 0, 0, run)
+
+    def fsm(self, name, states, period=None, offset=0, key=None):
+        """A state machine. `states`: (name, initial, entry, exit, during, transitions)
+        with `transitions`: (target, when, after, action); every part but the name and
+        the flag is a function or None. `after` returns nanoseconds."""
+        st = {"state": None, "entered": 0}
+        self.fsm_info.setdefault(name, (st, states))
+
+        def run():
+            cur = st["state"]
+            if cur is None:
+                cur = next((i for i, s in enumerate(states) if s[1]), 0)
+                st["state"] = cur
+                st["entered"] = self.now
+                if cur < len(states):
+                    self._trace("STATE", name, states[cur][0])
+                    if states[cur][2]:
+                        states[cur][2]()
+            if cur >= len(states):
+                return
+            s = states[cur]
+            if s[4]:
+                s[4]()
+            for target, when, after, action in s[5]:
+                fire = when is None and after is None
+                if when is not None:
+                    fire = truthy(when())
+                if not fire and after is not None:
+                    fire = self.now - st["entered"] >= after()
+                if not fire:
+                    continue
+                if s[3]:
+                    s[3]()
+                if action:
+                    action()
+                ti = next((i for i, x in enumerate(states) if x[0] == target), None)
+                if ti is None:
+                    break
+                st["state"] = ti
+                st["entered"] = self.now
+                self._trace("STATE", name, states[ti][0])
+                if states[ti][2]:
+                    states[ti][2]()
+                break
+
+        if key is not None:
+            self._add(name, "fsm", 1, None, 0, 0, run, key)
+        else:
+            self._add(name, "fsm", 1, self.DEFAULT_RATE_NS if period is None else period,
+                      0, offset, run)
+
+    def state_of(self, name):
+        """Name of the current state of the state machine `name` (empty before it runs)."""
+        info = self.fsm_info.get(name)
+        if info is None or info[0]["state"] is None or info[0]["state"] >= len(info[1]):
+            return ""
+        return info[1][info[0]["state"]][0]
+
+    def sequence(self, name, ops):
+        """A sequence. `ops` is the flattened step list (see `Runner`)."""
+        rn = Runner(name, ops)
+
+        def run():
+            try:
+                self._advance(rn)
+            except (SeqBreak, SeqContinue):
+                pass  # a break outside any loop ends the tick
+
+        self._add(name, "sequence", 1, self.BASE_TICK_NS, 0, 0, run)
+
+    def _jump(self, rn, target):
+        for i, op in enumerate(rn.ops):
+            if op[0] == "step" and op[1] == target:
+                rn.pc = i
+                break
+        else:
+            rn.done = True
+        rn.loops = []
+
+    def _loop_bound(self, fn):
+        return LOOP_CAP if fn is None else bound(fn())
+
+    def _advance(self, rn):
+        for _ in range(10_000):
+            if rn.done:
+                return
+            if rn.par is not None:
+                every = True
+                for s in rn.par:
+                    self._advance(s)
+                    every = every and s.done
+                if every:
+                    rn.par = None
+                    rn.pc += 1
+                    continue
+                return
+            w = rn.wait
+            if w is not None:
+                if w[0] == "time":
+                    if self.now >= w[1]:
+                        rn.wait = None
+                        rn.pc += 1
+                        continue
+                    return
+                _, cond, deadline, target = w
+                if truthy(cond()):
+                    rn.wait = None
+                    rn.pc += 1
+                    continue
+                if deadline is not None and self.now >= deadline:
+                    rn.wait = None
+                    self._trace("EVENT", rn.name, "timeout")
+                    if target is not None:
+                        self._jump(rn, target)
+                    else:
+                        rn.pc += 1
+                    continue
+                return
+            if rn.pc >= len(rn.ops):
+                rn.done = True
+                return
+            op = rn.ops[rn.pc]
+            k = op[0]
+            if k == "step":
+                self._trace("STATE", rn.name, op[1])
+                rn.pc += 1
+            elif k == "lbegin":
+                _, kind, a, b, exit_ = op
+                st = {"kind": kind, "a": a, "exit": exit_, "head": rn.pc + 1,
+                      "items": [], "idx": 0, "n": 0, "bound": 0}
+                if kind == "for":
+                    st["items"] = list(b())
+                else:
+                    st["bound"] = self._loop_bound(b)
+                rn.loops.append(st)
+                rn.pc += 1
+            elif k == "lnext":
+                if not rn.loops:
+                    rn.pc += 1
+                    continue
+                st = rn.loops.pop()
+                if st["kind"] == "for":
+                    go = st["idx"] < len(st["items"])
+                    if go:
+                        item = st["items"][st["idx"]]
+                        st["idx"] += 1
+                        st["a"](item)
+                elif st["n"] >= st["bound"]:
+                    go = False
+                elif st["kind"] == "while":
+                    go = truthy(st["a"]())
+                    if go:
+                        st["n"] += 1
+                else:
+                    go = True
+                    st["n"] += 1
+                if go:
+                    rn.pc += 1
+                    rn.loops.append(st)
+                else:
+                    rn.pc = st["exit"]
+            elif k == "lend":
+                rn.pc = op[1]
+            elif k == "par":
+                rn.par = [Runner(rn.name, ops) for ops in op[1]]
+            elif k == "until":
+                _, cond, timeout, target = op
+                deadline = None if timeout is None else self.now + timeout()
+                rn.wait = ("until", cond, deadline, target)
+            elif k == "wait":
+                rn.wait = ("time", self.now + op[1]())
+            elif k == "jump":
+                self._jump(rn, op[1])
+            else:  # "stmt"
+                try:
+                    op[1]()
+                except (SeqReturn, Early):
+                    rn.done = True
+                    return
+                except SeqBreak:
+                    if not rn.loops:
+                        raise
+                    rn.pc = rn.loops.pop()["exit"]
+                    continue
+                except SeqContinue:
+                    if not rn.loops:
+                        raise
+                    rn.pc = rn.loops[-1]["head"]
+                    continue
+                rn.pc += 1
 
     def rule_step(self, rt, cond, hold, body):
         c = bool(cond())
@@ -648,6 +1202,8 @@ class Runtime:
         if changed:
             n, unit = self.sig_info[name]
             self._trace("SIG", n, show(v, unit))
+            if self.listener is not None:
+                self.listener(n, v)
 
     def _raise(self, key):
         for a in list(self.subs.get(key, ())):
@@ -656,6 +1212,11 @@ class Runtime:
     def emit_event(self, key):
         self._trace("EVENT", key, "")
         self._raise(key)
+
+    def external_event(self, key):
+        """An event from outside the program (a ROS 2 message): raised, then handled now."""
+        self.emit_event(key)
+        self._drain()
 
     def _make_ready(self, a):
         if self.halted and a.kind != "safety":
@@ -705,6 +1266,8 @@ class Runtime:
             a.fn()
         except Fault as f:
             err = f
+        except Early:
+            pass  # `?` in a task: the activation ends
         writes, deadline = self.writes, self.deadline
         self.snap = None
         self.writes = None
@@ -730,13 +1293,13 @@ class Runtime:
         for body in self.safe_states:
             try:
                 body()
-            except Fault:
+            except (Fault, Early):
                 pass
         for f, body in self.on_faults:
             if f is None or f == name:
                 try:
                     body()
-                except Fault:
+                except (Fault, Early):
                     pass
 
     def run_until(self, end):
@@ -774,6 +1337,19 @@ class Runtime:
 _depth = 0
 
 
+def early(f):
+    """Marks the body of a function with `ensures`: `?` ends the body with its value."""
+
+    def wrapper(*args):
+        try:
+            return f(*args)
+        except Early as e:
+            return e.value
+
+    wrapper.__name__ = f.__name__
+    return wrapper
+
+
 def fn(f):
     """Marks a Neuron function: calls nest at most 100 deep (`fault StackOverflow`)."""
 
@@ -784,6 +1360,8 @@ def fn(f):
         _depth += 1
         try:
             return f(*args)
+        except Early as e:
+            return e.value
         finally:
             _depth -= 1
 
@@ -816,7 +1394,10 @@ def run_tests(mod):
         r.in_test = True
         msg = None
         try:
-            body()
+            try:
+                body()
+            except Early:
+                pass  # `?` in a test body ends the test
         except Fault as f:
             if r.fail is not None:
                 msg = "assertion failed: " + r.fail if r.fail else "assertion failed"
@@ -843,8 +1424,16 @@ def main(mod, argv):
     args = list(argv)
     try:
         if "--ros2" in args:
-            sys.stderr.write("--ros2 is not supported by this emitter\n")
-            return 2
+            import importlib
+            import os
+
+            base = os.path.splitext(os.path.basename(mod.__file__))[0]
+            try:
+                wrapper = importlib.import_module(base + "_ros2")
+            except ImportError as e:
+                sys.stderr.write("cannot load the ROS 2 wrapper %s_ros2.py: %s\n" % (base, e))
+                return 2
+            return wrapper.main()
         if "--test" in args:
             return run_tests(mod)
         if "--trace" in args:

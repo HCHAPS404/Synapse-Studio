@@ -67,6 +67,38 @@ parameters, `ensures`, bit vectors, `timer and counter` blocks (they belong to `
 `--ros2` is refused with exit code 2 and recorded as not supported in `wiring.md`; nothing
 needs `rclpy`. CI installs Python 3.12 and sets `NEURON_REQUIRE_PYTHON=1`.
 
+Addendum C4b (2026-11-20): the Python emitter now also translates, each proved by running
+the emitted Python against the interpreter (`crates/neuron-emit/tests/c4b_python.rs`, exact
+text equality of `--trace` and of every `--test` verdict, six new host programs, 655 trace
+lines and 20 `test` blocks in total):
+
+| Program | Constructs | Trace lines equal | Tests agree |
+|---|---|---|---|
+| `y1_timers` | `ton`, `tof`, `tp`, `ctu`, `r_trig`, `f_trig` (property style, 1 ms `blocks` tick) | 34 | 3 |
+| `y2_methods` | `sr`, `rs`, `ctud`, `ctd`, `pid` (`out` range, `antiwindup`) with `.call(x)` | 411 | 3 |
+| `y3_fsm` | `fsm` (entry, exit, `do`, `after`, `when`, `every`, `on event`), `state_of` | 83 | 3 |
+| `y4_sequence` | `sequence`: `until ... timeout -> Step`, `wait`, `for`/`while`/`loop` that wait, `continue`, `break`, `-> Step` | 32 | 2 |
+| `y5_types` | `struct` (defaults, copy), `enum` with payload, `match` with guards, `Ok`/`Err`/`none`, `?` | 80 | 4 |
+| `y6_contracts` | `requires`, `ensures` with `result` and `old`, `ensures` after an early `?` return | 15 | 5 |
+
+Decisions: the interpreter reads a state machine variable as an empty value inside the state
+blocks, so it stays `NE0610` (no program can rely on it); `Some(...)` is not in the language
+(sema says unknown name), so `Some` patterns are emitted but not covered by a test; `match`
+inside a `sequence` and robot `move` are `NE0610` (bindings use `:=`, which cannot target a
+sequence local). Still `NE0610`: `class`, `interface`, interrupts, `io`, lambdas, string
+interpolation, `mut` parameters, methods, generic functions, `??`, bit vectors and `use` of
+another module.
+
+`--ros2` (replaces the refusal above): the emitter writes `<module>_ros2.py`, a node with one
+publisher per signal (`neuron/<module>/<signal>`), one subscriber per input and per external
+event, and a 1 ms timer that advances the program one base tick. The test
+`ros2_wrapper_publishes_the_interpreter_signal_changes` writes a stub `rclpy` and `std_msgs`
+into a temporary directory, puts it on `PYTHONPATH`, fires the timer 400 times and checks
+that the published messages equal the interpreter's signal changes, in order and in the same
+tick (at least 60 messages), and that messages injected on a subscription reach the program.
+**Verified against a stub only**; confirm on a real ROS 2 install in session I4 (Raspberry
+Pi 5). The fidelity report has an `equivalent` entry `ros2` saying so, and `wiring.md` repeats it.
+
 Results of C5.1/C5.2 (2026-11-20): `crates/neuron-import` reads Structured Text (`st`), the SCL
 of the emitter (`scl`), PLCopen XML (`plcopen`) and the SPEL+-style subset (`spel`) and writes
 formatted Neuron source (`neuron fmt` leaves it unchanged), a fidelity report and diagnostics.

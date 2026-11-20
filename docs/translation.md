@@ -34,7 +34,8 @@ each generated file that maps lines back to `.neuron` spans.
 
 Exit codes: 0 success; 1 the program has errors, an emitter diagnostic (`NE0610`,
 `NE0804`, `NE1004`) or the policy refused the translation; 2 a usage or I/O error
-(unknown emitter, unknown option, `--ros2`, unreadable file, unwritable folder).
+(unknown emitter, unknown option, `--ros2` given to `neuron emit` instead of to the generated
+program, unreadable file, unwritable folder).
 
 Examples:
 
@@ -163,16 +164,46 @@ Runs on any machine with Python 3.12 and no packages:
 python <module>.py --test        # run the test blocks in simulated time
 python <module>.py --trace 3s    # print the first 3 s in the format of `neuron run`
 python <module>.py --realtime 10s
+python <module>.py --ros2        # ROS 2 node (needs rclpy), see below
 ```
 
 Translated: signals with units and priorities, tasks `every` and `on`, `when` rules with
-hold, safety with `reset when`, faults, functions with loops, `f32` and checked integers.
-`NE0610` (not translated yet): `struct`, `enum`, `class`, `interface`, state machines,
-sequences, interrupts, `io`, `match`, options and results, lambdas, string interpolation,
-`mut` parameters, `ensures`, bit vectors, and `timer and counter` blocks (they belong to
-`plc`). `--ros2` is refused with exit code 2; no ROS 2 wrapper exists and nothing needs
-`rclpy`. All translated constructs are `exact`, plus one `equivalent` entry per module
-(wall-clock mode and the interpreter's statement budget are not reproduced).
+hold, safety with `reset when`, faults, functions with loops, `f32` and checked integers,
+and, since C4b, each compared with the interpreter by running the Python:
+
+- **Blocks:** `ton`, `tof`, `tp`, `ctu`, `ctd`, `ctud`, `r_trig`, `f_trig`, `sr`, `rs` and
+  `pid`, in both styles (`jam.input = x` ticked by the module's 1 ms `blocks` activity, and
+  `jam.call(x)`), with the interpreter's tick order and arithmetic. A `pid` whose `out`
+  range has a unit stays `NE0610`.
+- **State machines and sequences:** `fsm` (entry, exit, `do`, `when`/`after` transitions,
+  `every` or `on` triggers, `state_of`), `sequence` (steps, `wait`, `until ... timeout -> Step`,
+  `-> Step` jumps, `for`/`while`/`loop` that wait, `parallel`, `let` that lives across ticks,
+  `break`, `continue`, `return`). A state machine **variable** is `NE0610`: the interpreter
+  reads it as an empty value inside the state blocks, so no program can rely on it. `match`
+  inside a sequence and robot `move` are `NE0610`.
+- **Data:** `struct` (defaults, copy by value), `enum` with payloads, `match` (enum, `none`,
+  `Ok`/`Err`, tuple, range, literal and `_` patterns, guards), `Ok`, `Err`, `none`, `?`,
+  `is_some`, `is_none`, `is_ok`, `is_err`, `unwrap_or`.
+- **Contracts:** `requires` and `ensures` with `result` and `old(...)` fault with
+  `ContractViolation` like the interpreter.
+
+`NE0610` (not translated): `class` and `interface`, interrupts, `io`, lambdas, string
+interpolation, `mut` parameters and arguments, methods, generic functions, `??`, bit
+vectors, `use` of another module and `Some(...)` (the language has no `Some`).
+All translated constructs are `exact`, plus one `equivalent` entry per module (wall-clock
+mode and the interpreter's statement budget are not reproduced) and one for `--ros2`.
+
+**ROS 2 wrapper (`<module>_ros2.py`).** One node named after the module. Every `signal` is
+published on `neuron/<module>/<signal>` when it changes (`Bool`, `Int64`, `Float64` or
+`String` from `std_msgs`, quantities in base units); every input the program reads is
+subscribed on `neuron/<module>/in/<input>`; every event a task waits for that the program
+never raises itself is subscribed on `neuron/<module>/event/<event>` (`Bool`, `true`
+raises it). A timer fires every 1 ms of wall time and advances the program by one base
+tick. `rclpy` and `std_msgs` are imported when the node starts, so the other modes never
+need ROS 2. **Verified against a stub `rclpy` only** (`crates/neuron-emit/tests/c4b_python.rs`,
+`ros2_wrapper_publishes_the_interpreter_signal_changes`): the published messages equal the
+interpreter's signal changes in order and in the tick they happen. It has not run on a
+real ROS 2 install; confirm it in session I4 (Raspberry Pi 5).
 
 ### Kernel (`kernel`)
 
@@ -254,6 +285,8 @@ A syntax error in any language is `NE1001`.
 | ST and SCL against the reference interpreter, in the virtual PLC of `neuron-st`, all `plc` corpus programs | exact with scan-counted timers; with IEC wall-clock timers every change within one scan, sequences within two |
 | SPEL+ in the virtual controller `neuron-spel`, six robot programs in nine runs | 68 motions and 23 output changes equal (instants, kinds, targets within 1e-6) |
 | Python 3.12 against the interpreter, nine programs | 168 trace lines byte-equal; 8 `test` blocks give the same `PASS` or `FAIL` |
+| Python 3.12, blocks, `fsm`, `sequence`, data types and contracts, six more programs | 655 trace lines byte-equal; 20 `test` blocks give the same `PASS` or `FAIL` |
+| Python `--ros2` wrapper against a stub `rclpy` | published messages equal the interpreter's signal changes in order and tick; **not run on real ROS 2** |
 | Importers, round trip by traces | ST 22 programs (518 output changes), SCL 11 (259), PLCopen 11 (259), SPEL+ nine runs (68 motions, 23 changes), all equal |
 | C importer | 16 functions on 572 input rows equal to the host `gcc` result and to a Rust reference |
 | Verilog importer | six `hdl` programs, 3600 cycles, 4200 output values equal; re-emitted Verilog equal |
@@ -269,7 +302,10 @@ A syntax error in any language is `NE1001`.
   point in `NeuronCheck`), the network statements of `NeuronSlave.prg`, the contents of
   `NeuronLib.prg` (checked only as text), and the SPEL+ kernel with numeric outputs
   (verified on boolean ports only).
-- **Not done:** the ROS 2 wrapper (`--ros2`), timers, counters and `fsm` in the Python
-  emitter, a C emitter for `core` functions (so no Neuron to C to Neuron round trip).
+- **Session I4 (Raspberry Pi 5):** the ROS 2 wrapper of the Python emitter on a real ROS 2
+  install (verified against a stub `rclpy` only).
+- **Not done:** `class`, `interface`, `mut` parameters, string interpolation, lambdas and bit
+  vectors in the Python emitter, a C emitter for `core` functions (so no Neuron to C to
+  Neuron round trip).
 
 Vendor names appear only to describe the language dialect an emitter targets.

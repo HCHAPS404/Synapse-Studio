@@ -124,9 +124,8 @@ test \"overflow is a fault\":
 
 const BAD: &str = "module bad for host
 
-struct Point:
-  x: i32
-  y: i32
+interface Shape:
+  fn area(self) -> f64
 
 task t every 1 s:
   pass
@@ -332,8 +331,8 @@ fn x4_reports_a_failure_and_a_fault_like_the_interpreter() {
 }
 
 #[test]
-fn realtime_mode_runs_and_ros2_is_refused() {
-    let Some(py) = python_or_skip("realtime_mode_runs_and_ros2_is_refused") else {
+fn realtime_mode_runs_and_ros2_asks_for_rclpy() {
+    let Some(py) = python_or_skip("realtime_mode_runs_and_ros2_asks_for_rclpy") else {
         return;
     };
     let nir = nir_of(X3);
@@ -341,9 +340,11 @@ fn realtime_mode_runs_and_ros2_is_refused() {
     let (ok, out, err) = run_py(&py, &dir, "x3_events.py", &["--realtime", "250ms"]);
     assert!(ok, "{err}");
     assert!(out.contains("EVENT  ping"), "{out}");
+    // `--ros2` runs the wrapper, which needs rclpy (not installed where the tests run;
+    // `c4b_python.rs` runs it against a stub).
     let (ok, _, err) = run_py(&py, &dir, "x3_events.py", &["--ros2"]);
     assert!(!ok);
-    assert!(err.contains("not supported"), "{err}");
+    assert!(err.contains("rclpy was not found"), "{err}");
     let _ = std::fs::remove_dir_all(&dir);
 }
 
@@ -385,10 +386,14 @@ fn what_cannot_be_translated_is_ne0610_with_its_place() {
     let diags = emit(&nir).unwrap_err();
     assert_eq!(diags.len(), 1, "{diags:?}");
     assert_eq!(diags[0].code, "NE0610");
-    assert!(diags[0].message.contains("struct"), "{}", diags[0].message);
+    assert!(
+        diags[0].message.contains("interface"),
+        "{}",
+        diags[0].message
+    );
     let at = diags[0].span[0];
     assert!(
-        BAD[at..].starts_with("struct Point"),
+        BAD[at..].starts_with("interface Shape"),
         "span {:?}",
         diags[0].span
     );

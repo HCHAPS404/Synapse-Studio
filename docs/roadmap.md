@@ -124,7 +124,7 @@ on this phase.
 | C1 | Emitter framework | Plugin API, fidelity report (exact/approximate/unsupported), package with code + config + wiring report | Golden files per emitter | A9 | 22 nov | ✅ `neuron-emit`: emitters with manifests, `fidelity.json`, source maps, wiring report, policy (`NE1003`), deterministic output |
 | C2 | IEC 61131-3 emitters | ST (generic and Yaskawa dialect), SCL, PLCopen XML (Ladder/FBD/SFC) | `matiec` compiles ST; import check in the vendor tool during I5 | C1 | 23–25 nov | ✅🔌 ST (generic, yaskawa), SCL, PLCopen XML (LD, SFC); run in the virtual PLC of `neuron-st` and equal to the interpreter for the whole `plc` corpus. 🔌 Import into the vendor tools (I5) |
 | C3 | Robot emitter | SPEL+ program + command-interpreter slave; workspace checks (NE0804) | Runs on the virtual robot; checked on the arm in I6 | C1 | 25–27 nov | ✅🔌 19 nov: SPEL+-style program, `NeuronLib.prg`, `NeuronSlave.prg`, generic robot manifests; the 6 robot programs run in the virtual controller `neuron-spel` with 68 motions and 23 output changes equal to the interpreter. 🔌 Dialect details on the arm (I6) |
-| C4 | Python / ROS 2 emitter | `host` dialect → Python nodes | Runs on a Raspberry Pi / PC | C1 | 26–28 nov | ✅ 19 nov: Python 3.12 and `neuron_rt.py`, trace byte-equal to the interpreter in 9 runs (168 lines); `--ros2` not supported, timers and `fsm` not translated (`NE0610`) |
+| C4 | Python / ROS 2 emitter | `host` dialect → Python nodes | Runs on a Raspberry Pi / PC | C1 | 26–28 nov | ✅ 19 nov: Python 3.12 and `neuron_rt.py`, trace byte-equal to the interpreter in 9 runs (168 lines). 20 nov (C4b): timers, counters, `pid`, `fsm`, `sequence`, `struct`, `enum`, `match`, `Ok`/`Err`/`none`/`?` and contracts translated (655 more lines byte-equal); `--ros2` wrapper written and checked against a stub `rclpy` only, to confirm in session I4; `class`, `interface`, `mut`, interpolation, lambdas still `NE0610` |
 | C5 | Importers | ST and PLCopen Ladder → Neuron; SPEL+ subset; C subset; Verilog subset; fidelity per construct | Round trip by traces (import → run in interpreter → equal outputs) | A9, A10 | 22–29 nov | ✅ 20 nov: `neuron-import` reads ST, SCL, PLCopen XML, SPEL+, a C subset and a Verilog subset; round trips by traces equal for the whole corpus; the rest is `NE1002` |
 | C6 | Micro-Kernel hot reload | Small interpreters for PLC/robot/MCU that accept state tables from the daemon | Sequence changed without the vendor IDE in I5/I6 | C2, E5 | 27–29 nov | ✅🔌 20 nov: state tables, word encoding with checksum, ST, C99 and SPEL+ kernels equal to the reference executor (`m06`, `p09`, two more programs, random tables). 🔌 Run on a PLC and a robot (I5, I6); download by the daemon (E5) |
 | C7 | CLI and documentation | `neuron emit` and `neuron import`, `docs/translation.md`, CI smoke steps | Every emitter and importer runs from the command line; policy and diagnostics tested | C1–C6 | 29 nov | ✅ 20 nov: `crates/neuron-cli/src/translate.rs`, 15 CLI tests (`tests/c7_translate.rs`), `docs/translation.md`, smoke steps in CI and `tools/phase-check.ps1` |
@@ -214,6 +214,18 @@ robot arms → laboratory plants (pneumatic/hydraulic benches and the bottling s
 | I6 | Robot arms | SPEL+ program and slave interpreter; workspace and zone checks at reduced speed | C3, D4, E5 | 27–28 nov | ⬜ |
 | I7 | Laboratory plants | Pneumatic/hydraulic bench and bottling station in the full cell; mixed real/virtual mode | D, E, F7 | 28–29 nov | ⬜ |
 | I8 | Video recording | Real hardware alongside the twin; logos covered | I2–I7 | 30 nov–1 dec | ⬜ (You) |
+| I9 | Drone (added 20 nov) | Hexacopter with a Pixhawk 4 flight controller: inventory (firmware PX4 or ArduPilot, version, radio, GPS), bench tests with the propellers off, then a manifest and a link adapter. No software exists for it yet (MAVLink adapter, drone device manifest); see the note below | D1 (manifests), E5 (daemon links), a MAVLink adapter not yet specified | not scheduled | ⬜ (You) |
+
+Hell's plan (20 nov): tonight, the Arduino boards and the Raspberry Pi 5 with the other
+boards of I2 and I4 (the host node); next week, the PLCs (I5), the robot arms (I6), the
+FPGAs (I3) and the more complex cells (I7). The software side of every session is done
+and checked without hardware; each session only confirms it on the device.
+
+Drone note: the roadmap listed drones only as future work. A Pixhawk 4 flies with PX4 or
+ArduPilot and talks MAVLink, which no crate of this repository speaks. Before I9 can do
+more than inventory, someone has to write the spec for a MAVLink link, a drone
+manifest and the safety rules (arming, geofence, failsafe, propellers off on the bench).
+Until then it is an inventory and bench item only, and the project makes no flight claim.
 
 Lab safety for every session: isolated network, hardwired E-STOP, optocouplers/level
 shifters between 3.3 V and 24 V, dry run first, reduced speed for motion.
