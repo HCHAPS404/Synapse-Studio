@@ -416,3 +416,19 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
 - **Lessons:** only two corpus programs fit the kernel; robot motions, device actions,
   reals and edge reads stay outside it and are `NE0610`. The SPEL+ kernel is checked on
   boolean ports only, because the controller's numbers are floating point.
+
+## 2026-11-20 · Task C7 (command line, user guide, CI) and close of Phase C
+- **Kiro features:** spec-driven development (T8 and T9), steering (`current-work.md`
+  hands over the closed phase and the next steps), a sub-agent in a clean context.
+- **Produced:** `neuron emit <st|scl|plcopen|spel|python|kernel>` and `neuron import
+  <st|scl|plcopen|spel|c|verilog>` (module `translate.rs`; emit applies the fidelity
+  policy and writes nothing on `NE1003`), `docs/translation.md`, smoke steps in CI and
+  `tools/phase-check.ps1`, the roadmap and README status.
+- **Results:** 15 CLI tests (every emitter, every importer, policy, `NE0610`, `NE0804`,
+  `NE1001`, and a round trip that ends in `neuron check`). Phase C in total: 517
+  workspace tests, up from 423 at its start.
+- **Lessons:** the phase found three defects of earlier phases that 423 green tests had
+  not caught: robot programs did not run as written, motions in loops did not wait, and
+  an `io` input inside an expression was not read. Each was found by comparing a
+  translation with the reference interpreter, not by reading code. What is not proven:
+  nothing was run on a real PLC, robot or board (sessions I5 and I6).

@@ -2,8 +2,8 @@
 #   powershell -NoProfile -ExecutionPolicy Bypass -File tools\phase-check.ps1                  # checks only
 #   powershell -NoProfile -ExecutionPolicy Bypass -File tools\phase-check.ps1 -MessageFile m.txt  # checks, then ship
 # Steps: build the CLI; `neuron check`, `fmt --check` and `test` on examples, every corpus folder
-# and lib (blocking, as in CI); smoke runs of `build --native`, `emit-verilog` and `targets`
-# (informational); then tools\ship.ps1 (fmt, clippy, all tests, commit -s, push).
+# and lib (blocking, as in CI); smoke runs of `build --native`, `emit-verilog` and `targets`,
+# `emit` (st, spel, python, kernel) and `import st` of the emitted ST (informational); then tools\ship.ps1 (fmt, clippy, all tests, commit -s, push).
 # Takes 6-10 minutes with a warm build cache, 20-25 minutes after `cargo clean`.
 # Log: out/phase-check.log.
 param([string]$Message = '', [string]$MessageFile = '')
@@ -46,7 +46,13 @@ L '[3/4] Smoke runs of the Phase B commands (informational)...'
 $smoke = @(
   @('build', 'examples/corpus/mcu/m01_blink.neuron', '--native', '--out', 'out/native'),
   @('emit-verilog', 'examples/corpus/hdl/d01_counter.neuron', '--board', 'artix7_35t_board', '-o', 'out/hdl'),
-  @('targets')
+  @('targets'),
+  @('emit', 'st', 'examples/corpus/plc/p06_pump_with_levels.neuron', '-o', 'out/st'),
+  @('emit', 'spel', 'examples/corpus/robot/r02_palletize.neuron', '-o', 'out/spel'),
+  @('emit', 'python', 'examples/corpus/host/h01_gateway_counter.neuron', '-o', 'out/python'),
+  @('emit', 'kernel', 'examples/corpus/mcu/m06_traffic_light.neuron', '-o', 'out/kernel'),
+  @('import', 'st', 'out/st/p06_pump_with_levels.st', '-o', 'out/imported/p06_pump_with_levels.neuron'),
+  @('check', 'out/imported/p06_pump_with_levels.neuron')
 )
 foreach ($s in $smoke) {
   $out = cmd /c "`"$neuron`" $($s -join ' ') 2>&1" | Out-String

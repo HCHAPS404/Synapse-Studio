@@ -193,6 +193,8 @@ version = "0.0.1"
 dependencies = [
  "neuron-codegen-c",
  "neuron-codegen-hdl",
+ "neuron-emit",
+ "neuron-import",
  "neuron-interp",
  "neuron-lsp",
  "neuron-mir",

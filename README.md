@@ -633,7 +633,7 @@ accounts, forms, recordings and posts.
 | Standard library, base layers (core, units, time, logic, control, test) | ✅ (`lib/`, written in Neuron); HAL, protocols and drivers 📋 |
 | Partitioner, timing analysis, safety verifier, model checking | 📋 |
 | IEC 61131-3 emitters: Structured Text, SCL, PLCopen XML (LD, SFC), with fidelity report and source maps | ✅🔌 (checked in the virtual PLC of `neuron-st`; vendor import in session I5) |
-| Robot and Python/ROS 2 emitters, importers, micro-kernel | 🚧 Phase C in progress |
+| Robot (SPEL+-style) and Python emitters, importers (ST, SCL, PLCopen, SPEL+, C, Verilog), micro-kernel, `neuron emit` and `neuron import` | ✅🔌 Phase C done (checked in virtual controllers and the interpreter; vendor tools and arms in I5 and I6; no ROS 2 wrapper). See [docs/translation.md](docs/translation.md) |
 | Edge Daemon and hardware-in-the-loop | 📋 |
 | Synapse Engine and virtual devices | 📋 |
 | Web IDE and virtual lab | 📋 |
@@ -802,7 +802,7 @@ without hardware, and the 🔌 column is what the lab sessions still have to sho
 | B8 | Native backend | `neuron-native-avr`: own assembler and Intel HEX for the UNO ([`docs/native-backend.md`](docs/native-backend.md)); RV32IMC and Thumb-2 later | 🔌 native blink on the UNO |
 | B9 | `ui` dialect | `neuron-ui` and `runtime/neuron-rt/ui`: SSD1306, ILI9341, ST7789, HD44780, NE0604 ([`docs/ui.md`](docs/ui.md)) | 🔌 dashboard on an ESP32-S3 with a TFT |
 
-#### Phase C · Translation between languages · Hell · 22–29 nov · 📋
+#### Phase C · Translation between languages · Hell · 22–29 nov · ✅ (C1–C7 done 20 nov; vendor and arm checks pending in I5 and I6)
 
 **Goal:** import existing PLC, robot, C and Verilog code into Neuron and emit the native
 language of each device, with a fidelity report that says what translated exactly.
@@ -816,6 +816,7 @@ Feeds the virtual PLC and robot (F7) and routes B and C.
 | C4 | Python / ROS 2 emitter | `host` dialect to Python nodes | Runs on a Raspberry Pi and on a PC | C1 | 26–28 nov |
 | C5 | Importers | ST and PLCopen Ladder → Neuron; SPEL+, C and Verilog subsets; fidelity per construct | Round trip by traces: import, run in the interpreter, same outputs | A9, A10 | 22–29 nov |
 | C6 | Micro-Kernel hot reload | Small interpreters for PLC, robot and MCU that accept state tables from the daemon | A sequence changes without the vendor IDE in I5/I6 | C2, E5 | 27–29 nov |
+| C7 | CLI and documentation | `neuron emit` and `neuron import`, `docs/translation.md`, CI smoke steps | Every emitter and importer runs from the command line | C1–C6 | 29 nov |
 
 #### Phase D · Cell compiler · Hell · 23–28 nov · 📋
 

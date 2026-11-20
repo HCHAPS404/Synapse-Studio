@@ -18,7 +18,7 @@
 | C5.3 | C subset and Verilog subset importers | T6 | done |
 | C6.1 | State tables, reference executor, word encoding, `NE1004` | T7 | done |
 | C6.2 | ST, C99 and SPEL+ kernels with differential tests | T7 | done |
-| C7 | CLI `emit` and `import`, `docs/translation.md`, roadmap, README, kiro-log | T8, T9 | open |
+| C7 | CLI `emit` and `import`, `docs/translation.md`, roadmap, README, kiro-log | T8, T9 | done |
 
 Results of C2 (2026-11-19): the Structured Text of every `plc` program of the corpus gives
 the same output trace as the reference interpreter in the virtual PLC with scan-counted
@@ -194,3 +194,24 @@ Deviations: `long` is imported as 64 bits (LP64) and plain `char` as `i8` (both 
 operands narrower than `int` are not promoted (`equivalent`, one entry per file); a Verilog
 output register written by a clocked block gets an internal register `<name>_r` and a `comb`
 copy, so the re-emitted Verilog of a hand-written module is not identical to its source.
+
+Results of C7 (2026-11-20): `neuron emit <st|scl|plcopen|spel|python|kernel> <file|dir>...
+[-o dir] [--profile p] [--robot name|path.toml] [--policy exact|equivalent|approximate]` and
+`neuron import <st|scl|plcopen|spel|c|verilog> <file> [-o out.neuron]` live in
+`crates/neuron-cli/src/translate.rs` (a module of the binary; `main.rs` only dispatches and
+lists the usage). `emit` analyzes like `check` (same diagnostics, exit 1 on errors), runs the
+emitter, applies the policy (`NE1003`: diagnostics, nothing written, exit 1), writes the package
+to `-o` (default `out/<language>`) and prints the files and the fidelity counts; emitter
+diagnostics (`NE0610`, `NE0804`, `NE1004`) show file, line and source line. `--ros2` and
+unknown options or emitters exit 2. `import` prints the source or writes `-o` and
+`<out>.fidelity.json` (`out.neuron` gives `out.fidelity.json`), prints `NE1002` as warnings
+(exit 0) and exits 1 on `NE1001` writing nothing. `crates/neuron-cli/tests/c7_translate.rs` has
+15 tests that run the binary: st generic and `yaskawa`, scl, plcopen (SFC), spel with the default
+robot and an `NE0804` case (a manifest with a 100 mm reach), python, kernel (`m06`), the policy
+refusing `p03` (`NE1003`, no folder), `NE0610` (`r01` to the kernel), usage errors, analyzer
+errors, round trips for st, scl, plcopen and spel (emit, import, `neuron check` passes), c and
+verilog imports, `NE1002` and `NE1001`. `docs/translation.md` is the user guide (the target of the
+`NE1001` and `NE0610` help text). CI and `tools/phase-check.ps1` have smoke steps for emit
+(st, spel, python, kernel) and import (st). Workspace: 517 tests pass (baseline 502, plus the 15 of `c7_translate.rs`); `cargo fmt --check`,
+clippy with `-D warnings` and `cargo test --workspace` with `NEURON_REQUIRE_PYTHON=1` end with
+exit 0.

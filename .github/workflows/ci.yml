@@ -70,6 +70,15 @@ jobs:
             cargo run --quiet -p neuron-cli -- fmt --check "$d"
             cargo run --quiet -p neuron-cli -- test "$d"
           done
+      - name: Translation smoke runs (emit to ST, SPEL+, Python and kernel; import the ST back)
+        run: |
+          neuron="cargo run --quiet -p neuron-cli --"
+          $neuron emit st examples/corpus/plc/p06_pump_with_levels.neuron -o out/st
+          $neuron emit spel examples/corpus/robot/r02_palletize.neuron -o out/spel
+          $neuron emit python examples/corpus/host/h01_gateway_counter.neuron -o out/python
+          $neuron emit kernel examples/corpus/mcu/m06_traffic_light.neuron -o out/kernel
+          $neuron import st out/st/p06_pump_with_levels.st -o out/imported/p06_pump_with_levels.neuron
+          $neuron check out/imported/p06_pump_with_levels.neuron
       - name: Standard library is formatted, checked and tested
         run: |
           cargo run --quiet -p neuron-cli -- fmt --check lib

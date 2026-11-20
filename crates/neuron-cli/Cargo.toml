@@ -25,3 +25,5 @@ neuron-codegen-c = { path = "../neuron-codegen-c" }
 neuron-codegen-hdl = { path = "../neuron-codegen-hdl" }
 neuron-native-avr = { path = "../neuron-native-avr" }
 neuron-ui = { path = "../neuron-ui" }
+neuron-emit = { path = "../neuron-emit" }
+neuron-import = { path = "../neuron-import" }
