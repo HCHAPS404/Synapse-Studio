@@ -522,6 +522,14 @@ impl Builder {
                 self.emit(if kw == "on" { Ins::On(e) } else { Ins::Off(e) })?;
                 Ok(())
             }
+            "outw" => {
+                let w = p.expr()?;
+                p.expect(",")?;
+                let v = p.expr()?;
+                p.done()?;
+                self.emit(Ins::OutW(w, v))?;
+                Ok(())
+            }
             "wait" => {
                 let e = p.expr()?;
                 let timeout = if p.sym(",") { Some(p.expr()?) } else { None };

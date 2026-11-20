@@ -88,14 +88,29 @@ paragraph per task). User guide: `docs/translation.md`.
 - Not exact, by design (the fidelity reports say it): IEC timers (`equivalent`, one scan),
   sequences (two scans), SPEL+ motion time and `blend`, 16-bit kernel arithmetic.
 - Open: see the Phase status row (I5, I6, `--ros2`, Python timers/fsm), the
-  SPEL+ kernel checked on boolean ports only, no C emitter for `core` functions.
+  the SPEL+ kernel's integer I/O uses modelled `InW`/`OutW` (real statements: I6), no C emitter for `core` functions.
+
+Closed after C7 (2026-11-20): the Python emitter covers blocks, fsm, sequence, types,
+contracts and a ROS 2 node (stub-tested); `neuron emit c` (C99 for `core`); the SPEL+
+kernel is checked on integer ports (`OutW`/`InW`, to confirm in I6).
+
+## Phase D: spec drafted, waiting for Hell's review
+
+Spec: `.kiro/specs/neuron-cell/` (requirements D-R1 to D-R11, design, tasks D1.1 to D7).
+Nothing implemented yet. Three decisions to confirm before D3.1:
+1. Link endpoints generated as NIR items added to each device package (every backend
+   gets them for free) instead of per-backend endpoint code.
+2. Co-simulation runs NIR in the reference interpreter, not the translated code in the
+   virtual PLC/controllers (sound because Phase C checked translations against it).
+3. Dossier as Markdown plus a self-contained HTML with inline SVG; PDF printed from it.
+New codes planned: `NE0704` (placed on a device that cannot run the dialect), `NE0705`
+(no device fits). Implemented today: none of NE0701, NE0703, NE0801, NE0805.
 
 Next steps, in order:
-1. Commit and push Phase C (`tools/phase-check.ps1 -MessageFile ...`), check CI, then ask
-   Hell before promoting `develop` to `main`.
-2. E1: WASM and PyO3 bindings of the compiler (blocks Martin's G3).
-3. E4: relay protocol contract `spec/protocols/relay.md`.
-4. Phase D spec (cell compiler), then its tasks.
+1. Hell reviews the Phase D spec and the three decisions.
+2. Ask Hell whether E1 (WASM + PyO3 bindings, blocks Martin's G3) and E4 (relay protocol
+   contract) go before or in parallel with D1; the earlier plan put them first.
+3. D1.1 onward, one task per commit. Ask Hell before promoting `develop` to `main`.
 
 ## Phase C design decisions (keep them)
 

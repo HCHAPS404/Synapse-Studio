@@ -16,6 +16,7 @@
 //! | `Speed p`, `SpeedS v`, `CP On`, `CP Off` | motion settings |
 //! | `Go P3 [+Z(d)]`, `Move P3 [+Z(d)]`, `Arc P2, P3` | motions: each takes a fixed time |
 //! | `On b`, `Off b`, `Sw(b)`, `Out(b)` | outputs and inputs |
+//! | `OutW w, v`, `InW(w)` | output and input word registers (integers). Style of `On`/`Sw`; the real word I/O statements must be confirmed in session I6 |
 //! | `Wait seconds`, `Wait cond`, `Wait cond, seconds` and `TW` | waits polled on a 1 ms grid |
 //! | `Error n`, `OnErr GoTo label`, `Quit All`, `Halt` | errors |
 //! | `Call NeuronCheck(n)` | workspace check against [`Limits`] |
@@ -40,8 +41,8 @@ mod vm;
 
 pub use parse::{parse, ParseError};
 pub use vm::{
-    Controller, Limits, Motion, MotionKind, Options, OutChange, Outcome, Target, DEFAULT_MOVE_NS,
-    WORKSPACE_ERROR,
+    Controller, Limits, Motion, MotionKind, Options, OutChange, Outcome, Target, WordChange,
+    DEFAULT_MOVE_NS, WORKSPACE_ERROR,
 };
 
 /// A parsed program.
@@ -149,6 +150,8 @@ pub(crate) enum Ins {
     Arc(PRef, PRef),
     On(Ex),
     Off(Ex),
+    /// `OutW word, value`: writes an output word register.
+    OutW(Ex, Ex),
     Wait(Ex),
     WaitCond(Ex, Option<Ex>),
     Error(Ex),

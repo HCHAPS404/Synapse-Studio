@@ -87,6 +87,17 @@ pub struct OutChange {
     pub on: bool,
 }
 
+/// One change of an output word register.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WordChange {
+    /// Instant, in nanoseconds.
+    pub t_ns: i64,
+    /// Word register.
+    pub word: i64,
+    /// New value.
+    pub value: i64,
+}
+
 /// How a run ended.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Outcome {
@@ -164,6 +175,9 @@ pub struct Controller {
     prog: Program,
     opts: Options,
     inputs: Vec<(i64, i64, bool)>,
+    word_inputs: Vec<(i64, i64, i64)>,
+    word_out: BTreeMap<i64, i64>,
+    word_changes: Vec<WordChange>,
     limits: Option<Limits>,
     now: i64,
     vars: BTreeMap<String, f64>,
@@ -191,6 +205,9 @@ impl Controller {
             prog,
             opts,
             inputs: Vec::new(),
+            word_inputs: Vec::new(),
+            word_out: BTreeMap::new(),
+            word_changes: Vec::new(),
             limits: None,
             now: 0,
             vars: BTreeMap::new(),
@@ -215,6 +232,16 @@ impl Controller {
     /// Drives input `bit` to `on` from instant `t_ns` on.
     pub fn set_input(&mut self, t_ns: i64, bit: i64, on: bool) {
         self.inputs.push((t_ns, bit, on));
+    }
+
+    /// Drives input word register `word` to `value` from instant `t_ns` on (0 before).
+    pub fn set_input_word(&mut self, t_ns: i64, word: i64, value: i64) {
+        self.word_inputs.push((t_ns, word, value));
+    }
+
+    /// Output word changes in order. A word starts at 0; writing its current value is not a change.
+    pub fn word_outputs(&self) -> &[WordChange] {
+        &self.word_changes
     }
 
     /// Sets the limits that `Call NeuronCheck(n)` enforces.
@@ -274,6 +301,18 @@ impl Controller {
         v
     }
 
+    fn word_input_at(&self, word: i64) -> i64 {
+        let mut v = 0;
+        let mut best = i64::MIN;
+        for (t, w, x) in &self.word_inputs {
+            if *w == word && *t <= self.now && *t >= best {
+                best = *t;
+                v = *x;
+            }
+        }
+        v
+    }
+
     fn eval(&self, e: &Ex) -> Result<f64, String> {
         let b = |x: bool| if x { 1.0 } else { 0.0 };
         Ok(match e {
@@ -321,6 +360,7 @@ impl Controller {
                 }
                 match name.as_str() {
                     "sw" => b(self.input_at(a0 as i64)),
+                    "inw" => self.word_input_at(a0 as i64) as f64,
                     "out" => b(self.out.get(&(a0 as i64)).copied().unwrap_or(false)),
                     "sqr" => a0.sqrt(),
                     "abs" => a0.abs(),
@@ -599,6 +639,17 @@ impl Controller {
             Ins::Off(e) => {
                 let b = self.eval(e)? as i64;
                 self.write_out(b, false);
+            }
+            Ins::OutW(w, v) => {
+                let (word, value) = (self.eval(w)? as i64, self.eval(v)? as i64);
+                let old = self.word_out.insert(word, value).unwrap_or(0);
+                if old != value {
+                    self.word_changes.push(WordChange {
+                        t_ns: self.now,
+                        word,
+                        value,
+                    });
+                }
             }
             Ins::Wait(e) => {
                 let ns = self.secs(e)?;

@@ -142,6 +142,59 @@ safety:
     count = 0
 ";
 
+/// An integer input compared in guards and summed, so that 16-bit arithmetic wraps. The
+/// reference interpreter enters the safe state on an overflow, so this machine is checked
+/// against the reference executor only (the kernel columns), not against the interpreter.
+const WRAP: &str = "## C6 test: an integer input, guards and 16-bit wrap-around.
+module c6_wrap for plc
+scan 10 ms
+
+inputs:
+  sensor: i16 @ %IW0
+  go: bool @ %I0.0
+
+outputs:
+  total: i16 @ %QW0
+  scaled: i16 @ %QW1
+  high: bool @ %Q0.0
+
+memory:
+  acc: i16 @ %MW0
+
+sequence Wrap:
+  initial step Idle:
+    high = false
+    until go
+  step Sum:
+    acc = acc + sensor
+    total = acc
+    scaled = sensor * 3
+    high = acc > 20000
+    wait 20 ms
+  step Diff:
+    total = acc - sensor * 2
+    until not go
+    -> Idle
+
+safety:
+  safe_state:
+    total = 0
+    scaled = 0
+    high = false
+";
+
+/// Input values that make the sums and products above wrap.
+const WIDE: [i16; 8] = [32767, -32768, 20000, -20000, 12000, -1, 0, 17000];
+
+fn wrap_program() -> Prog {
+    Prog {
+        name: "c6_wrap",
+        file: "c6_wrap.neuron",
+        text: WRAP.to_string(),
+        bound: 1,
+    }
+}
+
 struct Prog {
     name: &'static str,
     file: &'static str,
@@ -1115,14 +1168,22 @@ fn spel_harness(words: &[u16], t: &Table, scans: u64) -> String {
     s.push_str("Fend\n\nFunction main\n  Call NkLoad\n");
     s.push_str(&format!("  nk_len = {}\n", words.len()));
     s.push_str(&format!("  For nk_k = 0 To {}\n", scans - 1));
-    for i in 0..t.inputs.len() {
-        s.push_str(&format!("    nk_in({i}) = Sw({i})\n"));
+    for (i, p) in t.inputs.iter().enumerate() {
+        if p.boolean {
+            s.push_str(&format!("    nk_in({i}) = Sw({i})\n"));
+        } else {
+            s.push_str(&format!("    nk_in({i}) = InW({i})\n"));
+        }
     }
     s.push_str("    Call NeuronKernel\n    If nk_err <> 0 Then\n      Quit All\n    EndIf\n");
     for (i, p) in t.outputs.iter().enumerate() {
         if p.boolean {
             s.push_str(&format!(
                 "    If nk_chg({i}) <> 0 Then\n      If nk_ov({i}) <> 0 Then\n        On {i}\n      Else\n        Off {i}\n      EndIf\n    EndIf\n"
+            ));
+        } else {
+            s.push_str(&format!(
+                "    If nk_chg({i}) <> 0 Then\n      OutW {i}, nk_ov({i})\n    EndIf\n"
             ));
         }
     }
@@ -1136,24 +1197,38 @@ fn the_spel_kernel_in_the_virtual_controller_equals_the_reference_executor() {
     let pkg = kernel_files();
     let kernel = &pkg.files["neuron_kernel.spel"];
     let mut lines = Vec::new();
-    for p in programs() {
+    let mut progs = programs();
+    progs.push(wrap_program());
+    for p in progs {
         let (_, c) = compile_one(&p);
         let t = &c.table;
         let scans = (END / t.scan_ns) as u64;
         let mut total = 0;
+        let mut int_total = 0;
         for seed in 1..=5 {
-            let sched = schedule(t, seed, END);
-            // The controller records the changes of boolean outputs; it starts them off, so
-            // the first report of a false value is not a change.
+            let mut sched = schedule(t, seed, END);
+            if p.name == "c6_wrap" {
+                for e in &mut sched {
+                    if !t.inputs[e.1].boolean {
+                        e.2 = WIDE[e.2 as usize % WIDE.len()];
+                    }
+                }
+            }
+            // The controller records the changes of boolean outputs and output words; it
+            // starts them at 0, so the first report of a 0 is not a change.
             let all = exec_changes(&t.machine, &sched, t.scan_ns, scans);
             let mut seen = std::collections::BTreeSet::new();
             let want: Changes = all
                 .into_iter()
                 .filter(|(_, o, v)| {
                     let first = seen.insert(*o);
-                    t.outputs[*o].boolean && !(first && *v == 0)
+                    !(first && *v == 0)
                 })
                 .collect();
+            int_total += want
+                .iter()
+                .filter(|(_, o, _)| !t.outputs[*o].boolean)
+                .count();
             let words = t.words().unwrap();
             let src = format!("{kernel}\n{}", spel_harness(&words, t, scans));
             let prog = neuron_spel::parse(&src).unwrap_or_else(|e| panic!("{e}"));
@@ -1165,7 +1240,11 @@ fn the_spel_kernel_in_the_virtual_controller_equals_the_reference_executor() {
                 },
             );
             for (at, i, v) in &sched {
-                ctl.set_input(*at, *i as i64, *v != 0);
+                if t.inputs[*i].boolean {
+                    ctl.set_input(*at, *i as i64, *v != 0);
+                } else {
+                    ctl.set_input_word(*at, *i as i64, i64::from(*v));
+                }
             }
             let outcome = ctl.run();
             assert_eq!(outcome, neuron_spel::Outcome::Finished, "{}", p.name);
@@ -1173,14 +1252,28 @@ fn the_spel_kernel_in_the_virtual_controller_equals_the_reference_executor() {
                 .outputs()
                 .iter()
                 .map(|c| ((c.t_ns / t.scan_ns) as u64, c.bit as usize, i16::from(c.on)))
+                .chain(ctl.word_outputs().iter().map(|c| {
+                    (
+                        (c.t_ns / t.scan_ns) as u64,
+                        c.word as usize,
+                        i16::try_from(c.value).unwrap(),
+                    )
+                }))
                 .collect();
             got.sort();
             assert_eq!(got, want, "{} seed {seed}", p.name);
             total += want.len();
         }
         assert!(total >= 10, "{}: only {total} changes", p.name);
+        if p.name == "c6_press" || p.name == "c6_wrap" {
+            assert!(
+                int_total >= 5,
+                "{}: only {int_total} integer changes",
+                p.name
+            );
+        }
         lines.push(format!(
-            "{:<20} SPEL+ kernel in neuron-spel = reference executor (boolean outputs) over 5 schedules x {scans} scans: {total} output changes identical",
+            "{:<20} SPEL+ kernel in neuron-spel = reference executor (boolean outputs and integer words) over 5 schedules x {scans} scans: {total} output changes identical, {int_total} of them integer",
             p.name
         ));
     }

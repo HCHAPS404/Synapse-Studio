@@ -417,6 +417,21 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   reals and edge reads stay outside it and are `NE0610`. The SPEL+ kernel is checked on
   boolean ports only, because the controller's numbers are floating point.
 
+## 2026-11-20 · SPEL+ kernel on integer ports, and the Phase D spec
+- **Kiro features:** spec-driven development (new spec `.kiro/specs/neuron-cell` written
+  before any Phase D code), a sub-agent in a clean context, steering (the decisions
+  waiting for review are in `current-work.md`).
+- **Produced:** `neuron-spel` gained word I/O (`OutW w, v`, `InW(w)`, to confirm on the
+  real controller in session I6); the SPEL+ micro-kernel is compared with the reference
+  executor on integer inputs and outputs, including 16-bit wrapping. Spec for the cell
+  compiler: manifests, partitioner, link synthesis and timing, cell safety,
+  co-simulation with a replay format for the twin, and the technical dossier.
+- **Results:** 125 integer output changes over 10 schedules equal the reference
+  executor. The spec lists three design decisions for review before link synthesis.
+- **Lessons:** the language and NIR already carry every cell construct; what was missing
+  is the compiler that checks them. `NE0701`, `NE0703`, `NE0801` and `NE0805` were
+  catalogued in chapter 10 but no code emits them yet.
+
 ## 2026-11-20 · C99 emitter for `core` modules
 - **Kiro features:** a sub-agent resumed the half-written code of an aborted one in a
   clean context, differential testing against the host compiler and the interpreter.

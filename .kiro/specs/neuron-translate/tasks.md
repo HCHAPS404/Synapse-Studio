@@ -144,9 +144,10 @@ Tests (`tests/c6_kernel.rs`, 10 tests, about 30 s):
 | Program | Table | (a) executor vs interpreter, 5 random schedules of 12 s | ST kernel | C99 kernel | SPEL+ kernel |
 |---|---|---|---|---|---|
 | `m06_traffic_light` (fsm, `mcu`) | 81 words, 3 states, 3 transitions | 35 output changes and 20 state changes, exact (0 ms) | 35 equal | 35 equal | 35 equal |
-| `p09_sfc_mixer` (sequence, `plc`) | 94 words, 5 states, 5 transitions | 44 changes, within one scan (worst 10 ms, the kernel is a scan earlier) | 44 equal | 44 equal | 29 equal (boolean outputs, no first `false`) |
+| `p09_sfc_mixer` (sequence, `plc`) | 94 words, 5 states, 5 transitions | 44 changes, within one scan (worst 10 ms, the kernel is a scan earlier) | 44 equal | 44 equal | 29 equal (no first 0) |
 | `c6_door` (fsm, inputs, variable, `do`, `when`/`after`) | 104 words, 3 states, 4 transitions | 2524 changes and 2149 state changes, exact | 2527 equal | 2527 equal | 2522 equal |
-| `c6_press` (sequence, timeout, `->`, counter, integer output) | 146 words, 6 states, 7 transitions | 209 changes, within one scan (worst 10 ms) | 209 equal | 209 equal | 144 equal (boolean outputs) |
+| `c6_press` (sequence, timeout, `->`, counter, integer output) | 146 words, 6 states, 7 transitions | 209 changes, within one scan (worst 10 ms) | 209 equal | 209 equal | 189 equal (45 on the integer output `count`, no first 0) |
+| `c6_wrap` (sequence, integer input `sensor`, guards, sums and products that wrap in 16 bits; executor only, the interpreter enters the safe state on overflow) | see `out/c6-d-spel-kernel.txt` | n/a | not in the ST/C99 columns | not in the ST/C99 columns | 94 equal (80 on integer outputs `total`, `scaled`) |
 
 "Equal" means the same scan, output and value in the same order as the reference executor over
 5 schedules of 1200 scans. Beyond the four programs: 12 random tables x 150 scans in the ST
@@ -173,7 +174,9 @@ initial values that are not constants, `/`, `%` and bit operators. Of the corpus
 Deviations: (1) the SPEL+ kernel needed arrays: `neuron-spel` now accepts `Integer t(100)`,
 `t(i) = x` and `t(i)` (global arrays of numbers) and its tests are unchanged; the controller's
 numbers are floating point, so the kernel wraps `+ - * -x` with a function (`NkWrap`) and the
-differential test covers only boolean outputs (`On`/`Off`) and inputs (`Sw`). (2) `neuron-st`
+differential test first covered only boolean ports (`On`/`Off`, `Sw`); it now covers integer
+ports too (see below): `neuron-spel` gained word registers `InW(w)` and `OutW w, v` in the style
+of `Sw`/`On` (the real word I/O statements must be confirmed in session I6). (2) `neuron-st`
 evaluates `a[i]` of a variable in place instead of copying the array (needed for a table of a
 thousand words); behaviour is unchanged. (3) The checksum is verified by the three kernels at
 the first scan; the kernels trust the structure of a checksummed table (the host `Machine::check`

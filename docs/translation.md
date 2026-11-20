@@ -354,8 +354,9 @@ A syntax error in any language is `NE1001`.
   the ST kernel on a PLC, and the download of tables by the Edge Daemon.
 - **Session I6 (robot arms):** SPEL+ dialect details (power-up, the `/L` suffix, reading a
   point in `NeuronCheck`), the network statements of `NeuronSlave.prg`, the contents of
-  `NeuronLib.prg` (checked only as text), and the SPEL+ kernel with numeric outputs
-  (verified on boolean ports only).
+  `NeuronLib.prg` (checked only as text), and the real word I/O statements of the SPEL+
+  kernel (the virtual controller models them as `InW(w)` and `OutW w, v`; the kernel is
+  verified on boolean ports and on these integer words, not on a real controller).
 - **Session I4 (Raspberry Pi 5):** the ROS 2 wrapper of the Python emitter on a real ROS 2
   install (verified against a stub `rclpy` only).
 - **Not done:** `class`, `interface`, `mut` parameters, string interpolation, lambdas and bit
