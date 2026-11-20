@@ -13,8 +13,8 @@
 | C3.2 | SPEL+ emitter and slave program | T4 | done |
 | C3.3 | `neuron-spel` virtual controller and differential tests | T4 | done |
 | C4.1 | Python emitter and `neuron_rt.py`, tests in simulated time | T5 | done |
-| C5.1 | ST and PLCopen importers with round trip | T6 | open |
-| C5.2 | SPEL+ importer with round trip | T6 | open |
+| C5.1 | ST and PLCopen importers with round trip | T6 | done |
+| C5.2 | SPEL+ importer with round trip | T6 | done |
 | C5.3 | C subset and Verilog subset importers | T6 | open |
 | C6.1 | State tables, reference executor, word encoding, `NE1004` | T7 | open |
 | C6.2 | ST, C99 and SPEL+ kernels with differential tests | T7 | open |
@@ -66,3 +66,30 @@ interrupts, `io`, `match`, options and results, lambdas, string interpolation, `
 parameters, `ensures`, bit vectors, `timer and counter` blocks (they belong to `plc`).
 `--ros2` is refused with exit code 2 and recorded as not supported in `wiring.md`; nothing
 needs `rclpy`. CI installs Python 3.12 and sets `NEURON_REQUIRE_PYTHON=1`.
+
+Results of C5.1/C5.2 (2026-11-20): `crates/neuron-import` reads Structured Text (`st`), the SCL
+of the emitter (`scl`), PLCopen XML (`plcopen`) and the SPEL+-style subset (`spel`) and writes
+formatted Neuron source (`neuron fmt` leaves it unchanged), a fidelity report and diagnostics.
+Round trip by traces (`tests/c5_import.rs`, original and imported program both run in the
+reference interpreter with the C2 random schedules, five per program): ST generic and `yaskawa`
+profiles, 22 programs (11 each), 518 output changes equal; SCL, 11 programs, 259 changes equal;
+PLCopen XML, 11 programs (7 LD, 1 SFC, 3 ST bodies), 259 changes equal. `p09` (a sequence) comes
+back as the same `sequence` with `initial step Idle`, `until`, `wait 5 s` and `-> Idle`, from the
+`CASE` machine of the ST, the SCL and the SFC. SPEL+: the six robot programs in the nine runs of
+C3 (both branches of `r02` and `r03`), 68 motions and 23 output changes equal (instant, kind
+and resolved target of each motion, instant, bit and value of each change, and the fault).
+Nothing in the corpus fails to round trip. Hand-written inputs: a latch with a `TON`, a counter
+with a memory variable, a SPEL+ cell, a `WHILE` loop (one `NE1002` with the span of the loop and
+one `unsupported` entry; the rest is imported and a `# not imported (NE1002)` comment marks the
+gap), a `CASE`, a user function block and a non-constant preset (one `NE1002` each), and a
+syntax error in each language (`NE1001` with the position). Not exact, as the reports say:
+every timer is `equivalent` (an IEC timer measures wall-clock time, a Neuron timer counts scans),
+a sequence is `equivalent` (up to two scans), an ST program without a safe state gets
+`false` or `0` for every output (`approximate`), a source without a `TASK` interval assumes 10 ms
+(`equivalent`), `CP On` becomes `blend 10 mm` because the radius is not in the program
+(`approximate`). Not read back yet (each one is `NE1002`): `fsm` and `when` rules of the Neuron
+emitter, the helper blocks other than `hysteresis`, `WHILE`/`REPEAT`/`CASE`/`EXIT`, strings and
+arrays, edge contacts of LD, SPEL+ `If` blocks other than `If TW Then GoTo`, points with an
+orientation or without a local. SPEL+ input and output bits get the names `din<n>` and `dout<n>`
+(the names are only in the wiring report); labels, frames and tools keep the names of the
+comments the emitter writes.

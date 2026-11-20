@@ -88,7 +88,11 @@ Done (C1, C2, committed with "feat(emit,st): IEC 61131-3 emitters ..."):
 
 Next, in order:
 1. NE0804 becomes implemented by C3 (update `docs/errors/reserved.md` when C3 lands).
-2. C5.1 importers ST and PLCopen (new crate `neuron-import`, roxmltree), round trip by traces.
+2. **C5.1 and C5.2 done on 2026-11-19**: crate `neuron-import` (`st`, `scl`, `plcopen`,
+   `spel`), `tests/c5_import.rs`, round trips by traces for every plc and robot corpus
+   program; 478 workspace tests. Interpreter now reads `io` inputs inside any expression.
+   Not imported (NE1002): fsm, WHILE/REPEAT/CASE/EXIT outside our sequences, strings,
+   arrays, LD edge contacts, SPEL+ `If` other than `If TW Then GoTo`.
 4. **C3 done on 2026-11-19** (stage 1 = commit `07fd966`; stage 2 = manifests, NE0804,
    `spel` emitter, `neuron-spel`, `tests/c3_spel.rs`; 453 workspace tests). Open from C3:
    CLI (C7), SPEL+ importer (C5.2), slave and `NeuronLib.prg` only checked as text.

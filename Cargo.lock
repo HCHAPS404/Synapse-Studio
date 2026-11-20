@@ -247,6 +247,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "neuron-import"
+version = "0.0.1"
+dependencies = [
+ "neuron-emit",
+ "neuron-interp",
+ "neuron-nir",
+ "neuron-sema",
+ "neuron-spel",
+ "neuron-st",
+ "neuron-syntax",
+ "proptest",
+ "roxmltree",
+]
+
+[[package]]
 name = "neuron-interp"
 version = "0.0.1"
 dependencies = [

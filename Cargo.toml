@@ -15,6 +15,7 @@ members = [
   "crates/neuron-st",
   "crates/neuron-spel",
   "crates/neuron-emit",
+  "crates/neuron-import",
   "crates/neuron-interp",
   "crates/neuron-lsp",
   "crates/neuron-cli",
@@ -40,4 +41,5 @@ proptest = "1"
 thiserror = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+roxmltree = "0.20"
 schemars = "1"

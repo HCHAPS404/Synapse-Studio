@@ -185,6 +185,23 @@ impl Interp {
         }
     }
 
+    /// Evaluates an expression used as a value (operand, condition, right-hand side): an
+    /// `io` input binding reads the input's current value, like a bare `until x`. Method
+    /// calls and properties go through [`Self::ev`] and keep the binding.
+    pub(crate) fn ev_val(&mut self, e: &Expr) -> R<Value> {
+        match self.ev(e)? {
+            Value::Io(k) => {
+                let kind = self.io.get(&k).map(|s| s.kind.clone()).unwrap_or_default();
+                if Self::io_is_input(&kind) {
+                    Ok(self.io_read(&k))
+                } else {
+                    Ok(Value::Io(k))
+                }
+            }
+            v => Ok(v),
+        }
+    }
+
     pub(crate) fn ev(&mut self, e: &Expr) -> R<Value> {
         let v = self.ev_raw(e)?;
         Ok(self.fit(v, &e.ty))
@@ -232,9 +249,9 @@ impl Interp {
             ExprKind::Result => Ok(self.locals.get("result").cloned().unwrap_or(Value::Unit)),
             ExprKind::Binary { op, lhs, rhs } => self.ev_binary(e, op, lhs, rhs),
             ExprKind::Compare { first, rest } => {
-                let mut left = self.ev(first)?;
+                let mut left = self.ev_val(first)?;
                 for c in rest {
-                    let right = self.ev(&c.rhs)?;
+                    let right = self.ev_val(&c.rhs)?;
                     let ok = self.binop(&c.op, left.clone(), right.clone(), &Type::Bool)?;
                     if !ok.truthy() {
                         return Ok(Value::Bool(false));
@@ -244,7 +261,7 @@ impl Interp {
                 Ok(Value::Bool(true))
             }
             ExprKind::Unary { op, operand } => {
-                let v = self.ev(operand)?;
+                let v = self.ev_val(operand)?;
                 self.unary(op, v, &e.ty)
             }
             ExprKind::Range { lo, hi, inclusive } => {
@@ -262,7 +279,7 @@ impl Interp {
                 then,
                 otherwise,
             } => {
-                if self.ev(cond)?.truthy() {
+                if self.ev_val(cond)?.truthy() {
                     self.ev(then)
                 } else {
                     self.ev(otherwise)
@@ -516,16 +533,16 @@ impl Interp {
     fn ev_binary(&mut self, e: &Expr, op: &str, l: &Expr, r: &Expr) -> R<Value> {
         match op {
             "and" => {
-                if !self.ev(l)?.truthy() {
+                if !self.ev_val(l)?.truthy() {
                     return Ok(Value::Bool(false));
                 }
-                return Ok(Value::Bool(self.ev(r)?.truthy()));
+                return Ok(Value::Bool(self.ev_val(r)?.truthy()));
             }
             "or" => {
-                if self.ev(l)?.truthy() {
+                if self.ev_val(l)?.truthy() {
                     return Ok(Value::Bool(true));
                 }
-                return Ok(Value::Bool(self.ev(r)?.truthy()));
+                return Ok(Value::Bool(self.ev_val(r)?.truthy()));
             }
             "??" => {
                 return match self.ev(l)? {
@@ -536,8 +553,8 @@ impl Interp {
             }
             _ => {}
         }
-        let a = self.ev(l)?;
-        let b = self.ev(r)?;
+        let a = self.ev_val(l)?;
+        let b = self.ev_val(r)?;
         if op == "++" {
             if let (Value::Int(x), Value::Int(y)) = (&a, &b) {
                 let wb = bits_width(&r.ty).unwrap_or(0);
@@ -1004,7 +1021,7 @@ impl Interp {
         }
         match &s.s {
             StmtKind::Let { pattern, value, .. } => {
-                let v = self.ev(value)?.deep();
+                let v = self.ev_val(value)?.deep();
                 self.bind_pat(pattern, &v)?;
                 Ok(())
             }
@@ -1015,11 +1032,11 @@ impl Interp {
                 when,
             } => {
                 if let Some(w) = when {
-                    if !self.ev(w)?.truthy() {
+                    if !self.ev_val(w)?.truthy() {
                         return Ok(());
                     }
                 }
-                let rhs = self.ev(value)?;
+                let rhs = self.ev_val(value)?;
                 let nv = if op == "=" {
                     rhs.deep()
                 } else {
@@ -1046,7 +1063,7 @@ impl Interp {
             StmtKind::Continue => Err(Stop::Continue),
             StmtKind::Fault { name, .. } => Err(Stop::Fault(name.clone())),
             StmtKind::Assert { cond, msg } => {
-                if self.ev(cond)?.truthy() {
+                if self.ev_val(cond)?.truthy() {
                     return Ok(());
                 }
                 let text = msg
@@ -1064,7 +1081,7 @@ impl Interp {
                 Ok(())
             }
             StmtKind::Coil { set, place, when } => {
-                if self.ev(when)?.truthy() {
+                if self.ev_val(when)?.truthy() {
                     self.assign(place, Value::Bool(*set))?;
                 }
                 Ok(())
@@ -1078,7 +1095,7 @@ impl Interp {
                 otherwise,
             } => {
                 for br in branches {
-                    if self.ev(&br.cond)?.truthy() {
+                    if self.ev_val(&br.cond)?.truthy() {
                         return self.exec_block(&br.body);
                     }
                 }
@@ -1092,7 +1109,7 @@ impl Interp {
                 for arm in arms {
                     if self.bind_pat(&arm.pattern, &v)? {
                         let pass = match &arm.guard {
-                            Some(g) => self.ev(g)?.truthy(),
+                            Some(g) => self.ev_val(g)?.truthy(),
                             None => true,
                         };
                         if pass {

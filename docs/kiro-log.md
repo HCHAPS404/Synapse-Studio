@@ -366,3 +366,20 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
 - **Lessons:** a plain heap of events reproduced the interpreter's order exactly where an
   asyncio loop would have added its own ordering. `--ros2` is refused for now; timers,
   counters, `pid`, `fsm`, `sequence`, `struct` and `match` in host modules are `NE0610`.
+
+## 2026-11-19 · Tasks C5.1 and C5.2 (ST, SCL, PLCopen XML and SPEL+ importers)
+- **Kiro features:** spec-driven development (T6), sub-agents in a clean context (one for
+  the importers, one for the two defects they exposed), round-trip testing by traces.
+- **Produced:** crate `neuron-import` (`st`, `scl`, `plcopen`, `spel`): each writes
+  formatted Neuron source, a fidelity report and `NE1001`/`NE1002` diagnostics. LD
+  networks are walked from each coil back to the rail; SFC and CASE machines come back as
+  `sequence`.
+- **Results:** every `plc` program of the corpus round trips (Neuron, emitted, imported,
+  analyzed and run gives the same trace) through ST generic and yaskawa, SCL and PLCopen:
+  1036 output changes compared; every robot program through SPEL+: 68 motions and 23
+  output changes. Hand-written ST and SPEL+ import with an entry for every construct.
+  Workspace tests: 478.
+- **Lessons:** the round trip found a defect of the reference interpreter: an `io` input
+  inside an expression (`until not holding`, `holding == false`) was compared as a
+  handle, not read; only a bare `until x` worked. Inputs are now read wherever a value is
+  needed. A module called like a keyword (`cell`) is renamed and reported.

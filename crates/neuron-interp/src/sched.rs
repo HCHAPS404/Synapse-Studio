@@ -841,7 +841,7 @@ impl Interp {
     // ---- rules, state machines, sequences ------------------------------------------
 
     fn rule_step(&mut self, rule: &Rule, rt: &mut RuleRt) -> R<()> {
-        let c = self.ev(&rule.cond)?.truthy();
+        let c = self.ev_val(&rule.cond)?.truthy();
         match &rule.hold {
             Some(h) => {
                 let d = self.dur(h)?;
@@ -896,7 +896,7 @@ impl Interp {
         for t in &st.transitions {
             let mut fire = t.when.is_none() && t.after.is_none();
             if let Some(w) = &t.when {
-                fire = self.ev(w)?.truthy();
+                fire = self.ev_val(w)?.truthy();
             }
             if !fire {
                 if let Some(d) = &t.after {
@@ -1267,7 +1267,9 @@ impl Interp {
         for (k, mem) in members.iter().enumerate() {
             match &mem.def {
                 SafetyDef::Rule { rule } => self.rule_step(rule, &mut rts[k])?,
-                SafetyDef::Reset { cond } if self.fault.is_some() && self.ev(cond)?.truthy() => {
+                SafetyDef::Reset { cond }
+                    if self.fault.is_some() && self.ev_val(cond)?.truthy() =>
+                {
                     self.fault = None;
                     self.halted = false;
                     self.trace_push(TraceKind::Reset, "fault".to_string(), String::new());

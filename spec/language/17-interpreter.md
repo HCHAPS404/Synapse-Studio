@@ -147,7 +147,7 @@ action, then the `entry` of the target. At most one fires per evaluation.
 `until`, `-> S`) are flattened into the sequence: each wait really waits, `break` and
 `continue` work, and a jump leaves every loop. A loop whose body only waits inside an
 `if` or `match` is not flattened. `let` bindings and loop variables of a sequence keep
-their values between ticks. `until x` on an `io` input reads the input.
+their values between ticks. An `io` input used as a value (`until x`, `until not x`, `x == false`, `if x`, operands, assignment right-hand sides) reads the input's current value; method calls and properties (`x.write(..)`, `x.read()`) act on the binding.
 
 In a `robot` module the `step` blocks after the motions are handlers: a step is entered
 by a jump or a timeout (`until c timeout D -> S`), never by falling through from the

@@ -403,7 +403,7 @@ impl Interp {
             }
         }
         for c in &func.contracts {
-            if c.kind == "requires" && !self.ev(&c.cond)?.truthy() {
+            if c.kind == "requires" && !self.ev_val(&c.cond)?.truthy() {
                 return Err(fault("ContractViolation"));
             }
         }
@@ -432,7 +432,7 @@ impl Interp {
         };
         self.locals.insert("result".to_string(), result.clone());
         for c in &func.contracts {
-            if c.kind == "ensures" && !self.ev(&c.cond)?.truthy() {
+            if c.kind == "ensures" && !self.ev_val(&c.cond)?.truthy() {
                 return Err(fault("ContractViolation"));
             }
         }

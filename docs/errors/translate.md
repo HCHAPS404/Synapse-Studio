@@ -14,9 +14,11 @@ or the exported XML.
 
 ### NE1002 construct of the source language has no Neuron equivalent
 The input is valid in its own language, but this construct cannot be represented in
-Neuron yet (for example a `CASE` on a step variable in ST, a pointer in C, or a latch
-inferred by a Verilog `always` block). The construct is listed in `fidelity.json` as
-`unsupported` and nothing is imported for it; write it in Neuron by hand.
+Neuron yet (for example a `WHILE` loop or a `CASE` that is not the state machine of a
+sequence in ST, a call of a user function block, a pointer in C, or a latch inferred by a
+Verilog `always` block). The import goes on without the construct: it is a warning,
+the construct is listed in `fidelity.json` as `unsupported` with its location, the source
+has a `# not imported (NE1002)` comment in its place, and you write it in Neuron by hand.
 
 ### NE1003 translation is less faithful than the project policy allows
 The project accepts translations up to a class (`exact`, `equivalent`, `approximate`,

@@ -275,6 +275,56 @@ fn sequence_locals_live_across_ticks_in_a_waiting_loop() {
     assert_eq!(m[7].2, "f.xyz(30, 0, 5) mm");
 }
 
+/// A gripper release: open, then wait until the part is gone (`{cond}`), then move.
+fn release(cond: &str) -> String {
+    format!(
+        "module probe for robot\n\nio close: gpio.output @ dout(1)\nio holding: gpio.input @ din(2)\n\npoint away = joints(0, 0, 0, 0, 0, 0) deg\n\nsequence release():\n  close.write(false)\n  until {cond} timeout 800 ms -> Stuck\n  move ptp to away speed 50 %\n  step Stuck:\n    fault Stuck\n\nsafety:\n  safe_state:\n    close.write(false)\n"
+    )
+}
+
+#[test]
+fn until_on_a_negated_io_input_waits_until_the_input_falls() {
+    for cond in ["not holding", "holding == false", "false == holding"] {
+        let src = release(cond);
+        // The input falls at 300 ms: the wait ends there and the motion starts.
+        let (t, fault) = run(&src, "0 ms: holding = true\n300 ms: holding = false", 3000);
+        assert_eq!(fault, None, "{cond}\n{}", neuron_interp::render(&t));
+        let m = moves(&t);
+        assert_eq!(m.len(), 1, "{cond}\n{}", neuron_interp::render(&t));
+        assert!(
+            (300..=302).contains(&m[0].0),
+            "{cond}: motion at {} ms",
+            m[0].0
+        );
+        // The input stays high: the time-out branch is taken.
+        let (t, fault) = run(&src, "0 ms: holding = true", 3000);
+        assert_eq!(fault.as_deref(), Some("Stuck"), "{cond}");
+        assert!(moves(&t).is_empty(), "{cond}");
+        // The input is low from the start: no wait at all.
+        let (t, fault) = run(&src, "", 3000);
+        assert_eq!(fault, None, "{cond}");
+        assert_eq!(moves(&t)[0].0, 0, "{cond}");
+    }
+}
+
+#[test]
+fn if_on_a_negated_io_input_in_a_sequence_reads_the_input() {
+    let src = "module probe for robot\n\nio lamp: gpio.output @ dout(1)\nio part_ok: gpio.input @ din(2)\n\nsequence check():\n  if not part_ok:\n    lamp.write(true)\n  wait 10 ms\n\nsafety:\n  safe_state:\n    lamp.write(false)\n";
+    let (t, _) = run(src, "0 ms: part_ok = true", 100);
+    assert!(outs(&t, "lamp").is_empty(), "{}", neuron_interp::render(&t));
+    let (t, _) = run(src, "", 100);
+    assert_eq!(outs(&t, "lamp"), vec![(0, s("true"))]);
+}
+
+#[test]
+fn an_mcu_task_writes_the_negation_of_an_input() {
+    let src = "module probe for mcu on arduino_uno_r3\n\nio led: gpio.output @ D13\nio button: gpio.input @ D2\n\ntask follow every 10 ms (prio 1):\n  led.write(not button)\n\nsafety:\n  safe_state:\n    led.write(false)\n";
+    let (t, _) = run(src, "0 ms: button = true\n55 ms: button = false", 100);
+    let o = outs(&t, "led");
+    let fell = o.iter().find(|(_, v)| v == "true").map(|(ms, _)| *ms);
+    assert_eq!(fell, Some(60), "{o:?}");
+}
+
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(24))]
 

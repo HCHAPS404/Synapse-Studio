@@ -1,0 +1,23 @@
+[package]
+name = "neuron-import"
+description = "Importers (Phase C): IEC 61131-3 Structured Text, PLCopen XML and SPEL+-style programs to Neuron source"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+neuron-emit = { path = "../neuron-emit" }
+neuron-st = { path = "../neuron-st" }
+neuron-syntax = { path = "../neuron-syntax" }
+roxmltree = { workspace = true }
+
+[dev-dependencies]
+neuron-sema = { path = "../neuron-sema" }
+neuron-interp = { path = "../neuron-interp" }
+neuron-nir = { path = "../neuron-nir" }
+neuron-spel = { path = "../neuron-spel" }
+proptest = { workspace = true }

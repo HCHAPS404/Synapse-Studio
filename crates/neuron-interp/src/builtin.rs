@@ -577,7 +577,7 @@ impl Interp {
 
     // ---- io bindings --------------------------------------------------------------
 
-    fn io_is_input(kind: &str) -> bool {
+    pub(crate) fn io_is_input(kind: &str) -> bool {
         !(kind.ends_with("output")
             || matches!(
                 kind,
