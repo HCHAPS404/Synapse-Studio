@@ -15,6 +15,7 @@
 //! | `spel` | `robot` modules | SPEL+-style program and command-interpreter slave |
 //! | `python` | `host` modules | Python 3 with an asyncio runtime in simulated or real time |
 //! | `kernel` | `fsm` and `sequence` | state tables and the ST, C99 and SPEL+ kernels that run them |
+//! | `c` | `core` modules | portable C99 functions (`<module>.c`, `.h`, `nrt_core.h`) |
 //!
 //! ```
 //! let names: Vec<&str> = neuron_emit::names().to_vec();
@@ -23,6 +24,7 @@
 
 #![forbid(unsafe_code)]
 
+pub mod c99;
 mod fidelity;
 pub mod iec;
 pub mod kernel;
@@ -90,7 +92,7 @@ pub trait Emitter {
 
 /// Names of the built-in emitters.
 pub fn names() -> &'static [&'static str] {
-    &["st", "scl", "plcopen", "spel", "python", "kernel"]
+    &["st", "scl", "plcopen", "spel", "python", "kernel", "c"]
 }
 
 /// A built-in emitter by name.
@@ -102,6 +104,7 @@ pub fn emitter(name: &str) -> Option<Box<dyn Emitter>> {
         "spel" => Box::new(spel::Spel),
         "python" => Box::new(python::Python),
         "kernel" => Box::new(kernel::Kernel),
+        "c" => Box::new(c99::C),
         _ => return None,
     })
 }

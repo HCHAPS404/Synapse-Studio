@@ -52,13 +52,15 @@ usage:
                                     build and write the board: avrdude (AVR, --port), the UF2
                                     drive (RP2040/RP2350, --drive or found), probe-rs/OpenOCD/
                                     st-flash (STM32), esptool (ESP32-S3, --port), openFPGALoader
-  neuron emit <st|scl|plcopen|spel|python|kernel> <file|dir>... [-o dir] [--profile p]
+  neuron emit <st|scl|plcopen|spel|python|kernel|c> <file|dir>... [-o dir] [--profile p]
               [--robot name|path.toml] [--policy exact|equivalent|approximate]
                                     translate a program to another language: writes the files,
                                     fidelity.json, wiring.md and source maps (default out/<language>);
                                     `--profile yaskawa` for st, `--robot` for spel (generic_6axis,
                                     generic_scara or a .toml manifest); `--policy` refuses a
-                                    translation worse than the class (NE1003, nothing written)
+                                    translation worse than the class (NE1003, nothing written);
+                                    `c` writes plain C99 functions for `core` modules (not the
+                                    firmware image of `emit-c`)
   neuron import <st|scl|plcopen|spel|c|verilog> <file> [-o out.neuron]
                                     read another language and print Neuron source (with `-o`, write it
                                     and out.fidelity.json); NE1002 lists what was not imported

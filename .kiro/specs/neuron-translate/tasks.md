@@ -247,3 +247,33 @@ verilog imports, `NE1002` and `NE1001`. `docs/translation.md` is the user guide 
 (st, spel, python, kernel) and import (st). Workspace: 517 tests pass (baseline 502, plus the 15 of `c7_translate.rs`); `cargo fmt --check`,
 clippy with `-D warnings` and `cargo test --workspace` with `NEURON_REQUIRE_PYTHON=1` end with
 exit 0.
+
+Addendum C8 (2026-11-20): the `c` emitter, `core` modules to portable C99
+(`crates/neuron-emit/src/c99/`: `mod.rs`, `nrt_core.h`, `nrt_core.c`). Output per module:
+`<module>.c`, `<module>.h`, plus `nrt_core.h`/`nrt_core.c`, `fidelity.json`, `wiring.md` and a
+source map of `<module>.c`. `neuron emit c` is wired in `neuron-cli` (usage text updated); the
+firmware command `neuron emit-c` is unchanged (`b4_cli.rs`: 13 tests green). Faults: the
+interpreter's `Overflow`, `DivideByZero` and `ContractViolation` are reproduced by checked
+helpers that set the global `nrt_fault` (the first fault wins), yield 0 and go on; the caller
+clears the flag before a call and reads it after (fidelity `equivalent`, "checked integer
+arithmetic"). Units are erased to `double` values in base SI units (fidelity entry "units").
+One fix to the first draft: arithmetic keeps the type the analyzer gave it instead of taking the
+type of its context (`x & ((1 << n) - 1)` with `n = 32` does not fault in the interpreter, so it
+must not in C). Not translated, `NE0610` with a location: classes, interfaces, options,
+results, arrays, tuples, strings, bit vectors, generics, `mut` parameters, contracts other than
+`requires`, recursion (also rejected by the analyzer, NE0302), and a program without a `core`
+module. Float to integer `as` does not exist in Neuron (NE0204), so the runtime's real to
+integer helpers are not reachable yet.
+Tests `crates/neuron-emit/tests/c8_core_c.rs` (15) build the emitted C with the host `gcc
+-std=c99 -pedantic -Wall -Wextra -Werror -O2` into a generated driver and compare with the
+interpreter: 13 programs (eight written in the test, `c01`, `c02`, `c05`, `std.core.bits`,
+`std.core.math`), 754 calls equal, 33 of them faults that fault the same way in C
+(per program: intmath 33 calls/7 faults, sat 369/3, gcd 191/2, bits 53/8, enum 13/0, struct
+10/3, calls 23/6, real 22/0, c01 5/1, c02 3/0, c05 5/0, bits lib 15/2, math lib 12/1); the
+round trip emitted C, `import c`, analysis, interpreter: 260 calls equal (the importer reads
+the part with no checked helpers); determinism; maps and fidelity; `-Werror` build of every
+program; `NE0610` for `c03`, `c04`, an array parameter, a tuple and a non-`core` module. A
+missing compiler fails with `NEURON_REQUIRE_TOOLCHAIN=1` and skips otherwise.
+`c7_translate.rs` has 16 tests (one new for `neuron emit c`). Workspace: 540 tests pass (baseline 524, plus 15 in `c8_core_c.rs` and 1 in `c7_translate.rs`;
+doc-tests included); `cargo fmt --check`, clippy with `-D warnings` and `cargo test --workspace`
+with `NEURON_REQUIRE_PYTHON=1` end with exit 0.

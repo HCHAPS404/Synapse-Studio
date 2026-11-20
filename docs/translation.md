@@ -12,7 +12,7 @@ authority; the generated code is not certified for any safety standard.
 ## Commands
 
 ```text
-neuron emit <st|scl|plcopen|spel|python|kernel> <file|dir>... [-o dir]
+neuron emit <st|scl|plcopen|spel|python|kernel|c> <file|dir>... [-o dir]
             [--profile p] [--robot name|path.toml] [--policy exact|equivalent|approximate]
 neuron import <st|scl|plcopen|spel|c|verilog> <file> [-o out.neuron]
 ```
@@ -101,6 +101,7 @@ The classes are ordered from best to worst. `--policy c` accepts nothing worse t
 | `spel` | `robot` modules | A SPEL+-style program `<module>.prg`, `NeuronLib.prg` and the command-interpreter slave `NeuronSlave.prg` |
 | `python` | `host` modules | Python 3.12 (standard library only) and the runtime `neuron_rt.py` |
 | `kernel` | `fsm` and `sequence` | A state table (`<module>.nst.json`, `.nst.hex`) and four table-independent kernels: `neuron_kernel.st`, `nrt_kernel.c`, `nrt_kernel.h`, `neuron_kernel.spel` |
+| `c` | `core` modules | Portable C99: `<module>.c`, `<module>.h`, and the runtime `nrt_core.h` and `nrt_core.c` |
 
 Output is byte-identical across runs.
 
@@ -222,6 +223,58 @@ compile. A sequence is `equivalent` (within one scan of the interpreter), 16-bit
 arithmetic is `equivalent` (the interpreter faults on overflow), and several writes to one
 output in one scan report the last.
 
+### C99 functions (`c`)
+
+`neuron emit c` translates the functions of `core` modules to plain C99 that builds with
+`-std=c99 -pedantic -Wall -Wextra -Werror`. It is not `neuron emit-c`, which builds the
+firmware image of a whole `mcu` program for a board.
+
+```text
+neuron emit c examples/corpus/core/c02_enum_match.neuron -o out/c
+cc -std=c99 -I out/c -c out/c/c02_enum_match.c out/c/nrt_core.c      # link with -lm
+```
+
+| Neuron | C |
+|---|---|
+| `fn` / `pub fn name` | `<module>_<name>`; `pub` functions are in the header, the others are `static` |
+| `const NAME` | `#define <MODULE>_<NAME>` (literals only) |
+| `struct S` | `typedef struct { ... } <module>_S;` (passed and returned by value) |
+| `enum E` without payloads | `typedef enum` with constants `<module>_E_<Variant>` |
+| `u8`..`u64`, `i8`..`i64`, `index`, `bool` | `uint8_t`..`uint64_t`, `int8_t`..`int64_t`, `uint64_t`, `bool` |
+| `f32`, `f64` | `float`, `double` |
+| a quantity (`f32 mm`, `duration`) | `double` in **base SI units**: a `mm` parameter takes metres, `ms` seconds, `degC` kelvin |
+| `if`, `match` (enum, integer, bool, ranges, `or`, guards), `while ... max N`, `loop max N`, `for` over a range, `break`, `continue` | the same C statements; loops are bounded like in the interpreter (cap 1 000 000) |
+| `+ - * / % ** << >>`, unary `-`, `abs`, widening `as` | checked helpers of `nrt_core.h` |
+| `+% -% *%`, `+\| -\| *\|` | wrapping and saturating helpers (never fault) |
+| `requires` | a check at the top of the function |
+| `min`, `max`, `clamp`, `floor`, `ceil`, `round`, `sqrt` | `nrt_min_*`, `nrt_max_*`, `nrt_clamp_*`, `floor`, `ceil`, `round`, `sqrt` |
+
+**Faults.** The interpreter stops the program on `Overflow` (an integer result outside the
+range of its type, or a negative or too large shift count), `DivideByZero` and
+`ContractViolation` (a false `requires`). C has no such stop, so the generated code records
+the first fault in the global `nrt_fault` (`NRT_OVERFLOW`, `NRT_DIVIDE_BY_ZERO`,
+`NRT_CONTRACT_VIOLATION`; `nrt_fault_name` gives the interpreter's word), yields 0 for the
+failing operation and keeps going. Every loop is bounded, so every call returns. The caller
+sets `nrt_fault = 0` before a call and reads it after; when it is not 0 the returned value is
+meaningless. The code is not thread safe. This is an `equivalent` entry in `fidelity.json`
+("checked integer arithmetic"). Arithmetic that the analyzer types as an untyped `integer` is
+computed in 64 bits (the interpreter uses 128), which is also an `equivalent` entry.
+
+**Reals.** `float` and `double` arithmetic follows the C library of the target: `pow` is
+`approximate`, everything else is checked within 1e-4 relative against the interpreter.
+
+**`NE0610`** (with the location of the construct): classes and interfaces, module
+variables, options and results, arrays, tuples, strings, bit vectors, generic functions and
+types, enums with payloads, `mut` parameters, contracts other than `requires`, methods,
+recursion, `for` over something that is not a range, `while let`, and a program without a
+`core` module. `test` blocks are not translated; run them with `neuron test`.
+
+The C importer reads the part of the output that has no checked arithmetic (comparisons,
+`&`, `|`, `^`, conditionals, calls between functions): `import c` of the emitted `.c`
+with the standard headers in place of the generated one gives a module whose results equal
+the original (see the verification table). A file that calls `nrt_add_u` and the other helpers
+is outside the importer's subset (`NE1002`).
+
 ## Importers
 
 | Language | Reads | Writes |
@@ -291,6 +344,7 @@ A syntax error in any language is `NE1001`.
 | C importer | 16 functions on 572 input rows equal to the host `gcc` result and to a Rust reference |
 | Verilog importer | six `hdl` programs, 3600 cycles, 4200 output values equal; re-emitted Verilog equal |
 | Kernels (ST, C99, SPEL+) against the reference executor | `m06`, `p09` and two more programs on 5 random schedules each; 12 + 60 random tables in the ST and C99 kernels; every flipped bit of a table is refused |
+| C99 emitter (`neuron-emit/tests/c8_core_c.rs`), built with `gcc -std=c99 -pedantic -Wall -Wextra -Werror -O2` | 13 programs (8 written in the test, the corpus `core` programs `c01`, `c02`, `c05`, and `std.core.bits` and `std.core.math`), 754 calls equal to the interpreter, 33 of them faults (`Overflow`, `DivideByZero`, `ContractViolation`) that fault the same way in C; round trip of emitted C through `import c`: 260 calls equal; `c03` and `c04` are `NE0610` |
 | Command line (`crates/neuron-cli/tests/c7_translate.rs`) | every emitter and importer, the policy, `NE0610`, `NE0804`, `NE1001`, `NE1002`, round trips followed by `neuron check` |
 
 ## Open items to confirm on real hardware
@@ -305,7 +359,8 @@ A syntax error in any language is `NE1001`.
 - **Session I4 (Raspberry Pi 5):** the ROS 2 wrapper of the Python emitter on a real ROS 2
   install (verified against a stub `rclpy` only).
 - **Not done:** `class`, `interface`, `mut` parameters, string interpolation, lambdas and bit
-  vectors in the Python emitter, a C emitter for `core` functions (so no Neuron to C to
-  Neuron round trip).
+  vectors in the Python emitter; in the C emitter, everything listed under `NE0610` above,
+  and a full Neuron to C to Neuron round trip (the importer does not read the checked
+  arithmetic helpers).
 
 Vendor names appear only to describe the language dialect an emitter targets.

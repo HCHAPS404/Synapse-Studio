@@ -187,6 +187,54 @@ fn emit_python_and_kernel() {
 }
 
 #[test]
+fn emit_c_writes_plain_c99_for_core_modules_and_ne0610_otherwise() {
+    let d = scratch("c99");
+    let a = s(&d.join("c"));
+    let t = ok(&[
+        "emit",
+        "c",
+        "examples/corpus/core/c02_enum_match.neuron",
+        "-o",
+        &a,
+    ]);
+    assert!(t.contains("fidelity:"), "{t}");
+    has(
+        &d.join("c"),
+        &[
+            "c02_enum_match.c",
+            "c02_enum_match.h",
+            "nrt_core.h",
+            "nrt_core.c",
+            "fidelity.json",
+            "c02_enum_match.c.map.json",
+        ],
+    );
+    let h = std::fs::read_to_string(d.join("c").join("c02_enum_match.h")).unwrap();
+    assert!(h.contains("uint16_t c02_enum_match_speed_limit("), "{h}");
+    // A module that is not `core`, and a `core` construct outside the subset.
+    let b = s(&d.join("plc"));
+    let t = fails(&["emit", "c", P01, "-o", &b], 1);
+    assert!(t.contains("NE0610"), "{t}");
+    assert!(!d.join("plc").exists());
+    let t = fails(
+        &[
+            "emit",
+            "c",
+            "examples/corpus/core/c03_option_result.neuron",
+            "-o",
+            &b,
+        ],
+        1,
+    );
+    assert!(
+        t.contains("NE0610") && t.contains("c03_option_result.neuron:"),
+        "{t}"
+    );
+    // The firmware command is a different thing and still there.
+    assert!(text(&neuron(&["help"])).contains("emit-c"));
+}
+
+#[test]
 fn the_policy_refuses_a_translation_and_writes_nothing() {
     let d = scratch("policy");
     let a = s(&d.join("refused"));

@@ -46,7 +46,7 @@ fn value<'a>(it: &mut std::slice::Iter<'a, String>, flag: &str) -> Result<&'a St
     })
 }
 
-/// `neuron emit <st|scl|plcopen|spel|python|kernel> <file|dir>... [-o dir] [--profile p]
+/// `neuron emit <st|scl|plcopen|spel|python|kernel|c> <file|dir>... [-o dir] [--profile p]
 /// [--robot name|path.toml] [--policy exact|equivalent|approximate]`
 pub fn cmd_emit(args: &[String]) -> ExitCode {
     match emit(args) {

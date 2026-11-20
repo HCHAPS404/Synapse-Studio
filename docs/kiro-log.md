@@ -417,6 +417,19 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   reals and edge reads stay outside it and are `NE0610`. The SPEL+ kernel is checked on
   boolean ports only, because the controller's numbers are floating point.
 
+## 2026-11-20 · C99 emitter for `core` modules
+- **Kiro features:** a sub-agent resumed the half-written code of an aborted one in a
+  clean context, differential testing against the host compiler and the interpreter.
+- **Produced:** `neuron emit c`: `core` functions become portable C99 (`<module>.c`,
+  `.h`, `nrt_core.h`). Overflow, division by zero and a false `requires` set `nrt_fault`
+  with the interpreter's fault name; units are erased to `double` in base SI units.
+- **Results:** 754 calls on 13 programs (8 written in the test, 3 of the corpus, 2 of
+  `lib/core`) built with `gcc -std=c99 -pedantic -Wall -Wextra -Werror` give the
+  interpreter's results; all 33 fault cases fault with the same code. Workspace tests: 540.
+- **Lessons:** arithmetic must keep the type the analyzer gave it: `x & ((1 << n) - 1)`
+  with `n = 32` faulted in C and not in the interpreter until the context type stopped
+  leaking into the operation.
+
 ## 2026-11-20 · Python emitter, second pass (blocks, fsm, sequence, types, ROS 2)
 - **Kiro features:** a sub-agent in a clean context with strict file-editing rules,
   differential testing against the reference interpreter, steering (the hardware plan
