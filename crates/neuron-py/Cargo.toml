@@ -1,0 +1,34 @@
+[package]
+name = "neuron-py"
+description = "PyO3 module neuron_py: the Neuron compiler API of neuron-wasm for Python services (strings in, JSON strings out)"
+version = "0.0.1"
+edition = "2021"
+license = "Apache-2.0"
+rust-version = "1.82"
+repository = "https://github.com/HCHAPS404/Synapse-Studio"
+
+# This crate is NOT a member of the cargo workspace (see `exclude` in the root
+# Cargo.toml): PyO3 needs a Python interpreter when it builds, so `cargo test --workspace`
+# must not depend on it. Build it with maturin, see README.md.
+[lib]
+name = "neuron_py"
+crate-type = ["cdylib"]
+
+# PyO3's macros generate `unsafe`, so the workspace-wide `forbid(unsafe_code)` cannot
+# apply. The hand-written code in src/lib.rs has no `unsafe`.
+[lints.rust]
+unsafe_code = "deny"
+missing_docs = "warn"
+
+[lints.clippy]
+unwrap_used = "warn"
+expect_used = "warn"
+
+[features]
+# maturin enables it (pyproject.toml). Without it `cargo build` links against libpython,
+# which `cargo check` and tests need on some platforms.
+extension-module = ["pyo3/extension-module"]
+
+[dependencies]
+neuron-wasm = { path = "../neuron-wasm" }
+pyo3 = { version = "0.25", features = ["abi3-py312"] }

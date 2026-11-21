@@ -147,7 +147,7 @@ on this phase.
 
 | ID | Task | Deliverable | Depends | Dates | Status |
 |---|---|---|---|---|---|
-| E1 | Compiler bindings | PyO3 module and WASM build of the compiler (browser diagnostics without server) | A9 | 20–21 nov | ⬜ |
+| E1 | Compiler bindings | PyO3 module and WASM build of the compiler (browser diagnostics without server) | A9 | 20–21 nov | ✅ 21 nov: `crates/neuron-wasm` (JSON API `check`, `format`, `hover`, `definition`, `run`, `test`, `emit`, `importSource`, `version`; wasm-bindgen exports on wasm32; CI builds `wasm32-unknown-unknown`), `crates/neuron-py` (PyO3 module `neuron_py`, built with maturin, outside the workspace), usage in `packages/wasm-glue/README.md` |
 | E2 | Core API | Projects, versions, builds, devices; Neon + Alembic; guest mode for judges; rate limits | E1 | 21–24 nov | ⬜ |
 | E3 | Auth, RBAC, audit | viewer / operator / engineer roles; audit log | E2 | 24–25 nov | ⬜ |
 | E4 | Relay and twin gateway | WebSocket protocol, daemon pairing, telemetry (TimescaleDB) | E2 | 24–26 nov | 🟡 contract done (`spec/protocols/relay.md`, crate `synapse-protocol`, schemas in `spec/schemas/relay/`); relay server not done |

@@ -35,10 +35,32 @@ today:
 | Virtual displays | `crates/neuron-ui` (`render`, `emu`) | `render` gives the reference image; `emu::replay` rebuilds the screen from the firmware's I2C/SPI bus traffic (SSD1306, TFT, HD44780) |
 | Virtual FPGA | `crates/neuron-codegen-hdl` | `neuron emit-verilog <pkg>` writes Verilog-2005 plus a source map |
 | Source maps for G5 inspectors | `app.map.json` (C backend), the Verilog map | map generated lines back to `.neuron` spans |
-| Diagnostics in the editor | `crates/neuron-lsp`, `neuron check`, `neuron explain NE####` | WASM build of the compiler comes with E1 |
+| Diagnostics in the editor | `crates/neuron-wasm` (E1, delivered), `neuron check`, `neuron explain NE####` | `check(filesJson)` from the WASM build, see [The compiler in the browser](#the-compiler-in-the-browser-e1) |
 
 All of these are Rust crates with `#![forbid(unsafe_code)]`, deterministic output and
 no I/O in the core, so they compile to `wasm32-unknown-unknown` for the engine.
+
+## The compiler in the browser (E1)
+
+Delivered 2026-11-21. The compiler is a WASM module with nine functions that take
+strings and return one JSON string each: `check`, `format`, `hover`, `definition`, `run`,
+`test`, `emit`, `importSource` and `version`. They need no server and no files: the
+package is passed as `{"<path>": "<text>"}`.
+
+- **Where:** `crates/neuron-wasm` (the plain-Rust API is `src/api.rs`, the wasm-bindgen
+  exports are `src/wasm.rs`). Usage, JSON shapes and one example per function:
+  [`packages/wasm-glue/README.md`](../packages/wasm-glue/README.md).
+- **Build:** `cargo build -p neuron-wasm --target wasm32-unknown-unknown --release`
+  (CI does this on every push), then `wasm-pack build crates/neuron-wasm --target web`
+  or `wasm-bindgen` for the JS glue. Commands are in the glue README.
+- **For G3 (Monaco):** call `check` on change (debounced) and map `diagnostics[].start` and
+  `.end` (1-based line and column) to markers; use `format` for format on save, `hover` and
+  `definition` for the editor providers. `diagnostics[].code` is the same `NE####` that
+  `neuron check` prints, and `rendered` is its text. `span` offsets are UTF-8 bytes.
+- **For the virtual lab:** `run(filesJson, endNs, scenario)` returns the interpreter's trace
+  as text and as `events`; `emit(lang, filesJson, profile)` returns the generated files.
+- **Errors:** a failed call returns `{"ok": false, "error": {"kind", "message"}}`; no
+  function throws on bad input.
 
 ## Contracts
 

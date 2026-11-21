@@ -69,7 +69,8 @@ when a task finishes; delete sections that become obsolete.
 |---|---|
 | 0, A, B | done. B4–B9 verified without hardware; device steps pending (G2 UNO, I2 boards, I3 FPGA, ESP32-S3 TFT) |
 | C | **done** (C1–C7, 2026-11-20; 517 workspace tests). Open: hardware sessions I5 (yaskawa profile, vendor import, ST kernel on a PLC) and I6 (SPEL+ dialect, `NeuronSlave.prg`, `NeuronLib.prg`), `--ros2`, timers/counters/fsm in the Python emitter |
-| D, E, H | not started. E1 (WASM + PyO3 compiler bindings, overdue, blocks Martin's G3) and the E4 protocol contract (`spec/protocols/relay.md`) come first |
+| E1 | **done** (2026-11-21): `crates/neuron-wasm` (JSON API in `src/api.rs`: check, format, hover, definition, run, test, emit, importSource, version; wasm-bindgen exports on wasm32; CI builds `wasm32-unknown-unknown`), `crates/neuron-py` (PyO3, maturin, excluded from the workspace: `cargo test --workspace` never builds it), usage in `packages/wasm-glue/README.md`. Martin's G3 is unblocked. The E4 relay contract (`spec/protocols/relay.md`) is also done |
+| D, E (E2–E7), H | not started (D1–D2 next) |
 | F, G | Martin, not started; his F2 engine WASM API and `.scene.json` are overdue |
 
 Phase B facts: `neuron test examples` passes 18/18 since A10.12 (each test runs its module
@@ -112,8 +113,8 @@ New codes planned: `NE0704` (placed on a device that cannot run the dialect), `N
 (no device fits). Implemented today: none of NE0701, NE0703, NE0801, NE0805.
 
 Next steps, in order:
-1. E4: relay protocol contract `spec/protocols/relay.md` + JSON Schemas (Martin needs it).
-2. D1.1, D1.2, D2.1, D2.2, with E1 (WASM + PyO3 bindings) alongside.
+1. (done) E4 relay protocol contract and E1 compiler bindings.
+2. D1.1, D1.2, D2.1, D2.2.
 3. D3.1 to D7, one task per commit. Ask Hell before promoting `develop` to `main`.
 
 ## Phase C design decisions (keep them)

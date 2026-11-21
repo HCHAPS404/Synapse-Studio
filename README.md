@@ -579,7 +579,7 @@ of truth for status; Martin's working guide is [`docs/martin.md`](docs/martin.md
 | B | Direct programming of devices | Hell | 9 | 9 | ✅ (B4–B9 ✅🔌) | 16–30 nov |
 | C | Translation between languages | Hell | 6 | 2 | 🚧 (C1 ✅, C2 ✅🔌) | 19–29 nov |
 | D | Cell compiler (multi-device) | Hell | 5 | 0 | 📋 | 23–28 nov |
-| E | Services: Core API, relay, Edge Daemon | Hell | 7 | 0 | 📋 | 20–29 nov |
+| E | Services: Core API, relay, Edge Daemon | Hell | 7 | 1 | 🚧 (E1 ✅) | 20–29 nov |
 | F | Synapse Engine and digital twin | Martin | 9 | 0 | 📋 | 15–29 nov |
 | G | Client apps: web, desktop, Android | Martin (G7 with Hell) | 8 | 0 | 📋 | 15–30 nov |
 | H | AI, optional | Hell | 4 | 0 | 📋 | 25–30 nov |
@@ -703,7 +703,7 @@ person in the daily sync. **Bold** rows unblock the other person.
 | Verilog for the virtual FPGA | Hell → Martin | ready | `neuron emit-verilog` + map | ✅ |
 | Engine WASM API | Martin → Hell | 17 nov | `spec/engine/api.md` + `VirtualDevice` trait | ⬜ overdue |
 | `.scene.json` | Martin → both | 18 nov | `spec/schemas/scene.schema.json` | ⬜ |
-| Compiler in the browser | Hell → Martin | 21 nov | `packages/wasm-glue` (E1) | ⬜ |
+| Compiler in the browser | Hell → Martin | 21 nov | `crates/neuron-wasm` + [`packages/wasm-glue`](packages/wasm-glue/README.md) (E1) | ✅ |
 | Twin and relay WebSocket protocol | Hell → Martin | 20 nov | [`spec/protocols/relay.md`](spec/protocols/relay.md) (E4 contract; relay server pending) | ✅ |
 | Core API OpenAPI + `sdk-ts` | Hell → Martin | 21 nov | generated, never hand-written (E2) | ⬜ |
 | Virtual PLC and robot code | Hell → Martin | 25–27 nov | emitted ST and SPEL+ (C2, C3) | ⬜ |
@@ -842,7 +842,7 @@ the judges.
 
 | ID | Task | Do | Done when | Depends | Dates |
 |---|---|---|---|---|---|
-| E1 | Compiler bindings | PyO3 module and WASM build of the compiler | Diagnostics in the browser with no server; Martin's editor (G3) uses it | A9 | 20–21 nov |
+| E1 | Compiler bindings | PyO3 module and WASM build of the compiler | Diagnostics in the browser with no server; Martin's editor (G3) uses it | A9 | 20–21 nov ✅ 21 nov: `crates/neuron-wasm`, `crates/neuron-py` |
 | E2 | Core API | Projects, versions, builds, devices; Neon + Alembic; guest mode for judges; rate limits; OpenAPI and generated `packages/sdk-ts` | A guest builds a project through the API | E1 | 21–24 nov |
 | E3 | Auth, RBAC, audit | viewer, operator and engineer roles; audit log | Each role is denied what it may not do (tests) | E2 | 24–25 nov |
 | E4 | Relay and twin gateway | WebSocket protocol (contract for Martin done: `spec/protocols/relay.md`; relay server pending), daemon pairing, telemetry in TimescaleDB | Web and mobile receive live telemetry | E2 | 24–26 nov |

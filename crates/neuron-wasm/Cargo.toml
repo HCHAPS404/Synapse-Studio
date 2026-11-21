@@ -1,0 +1,41 @@
+[package]
+name = "neuron-wasm"
+description = "Compiler bindings (E1): a JSON-in/JSON-out API of the Neuron compiler, exported to WebAssembly with wasm-bindgen"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+# `cdylib` is what wasm-bindgen and wasm-pack consume; `rlib` is what the tests and the
+# PyO3 crate (crates/neuron-py) link.
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+# The workspace lints forbid `unsafe_code`. The code that wasm-bindgen generates contains
+# `unsafe`, and `forbid` cannot be lifted for one module, so this crate uses the same lints
+# with `deny`: only `src/wasm.rs` (compiled for wasm32 only) allows it. The hand-written
+# `api` module has none.
+[lints.rust]
+unsafe_code = "deny"
+missing_docs = "warn"
+
+[lints.clippy]
+unwrap_used = "warn"
+expect_used = "warn"
+
+[dependencies]
+neuron-syntax = { path = "../neuron-syntax" }
+neuron-nir = { path = "../neuron-nir" }
+neuron-sema = { path = "../neuron-sema" }
+neuron-interp = { path = "../neuron-interp" }
+neuron-emit = { path = "../neuron-emit" }
+neuron-import = { path = "../neuron-import" }
+neuron-lsp = { path = "../neuron-lsp" }
+synapse-protocol = { path = "../synapse-protocol" }
+serde_json = { workspace = true }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true }

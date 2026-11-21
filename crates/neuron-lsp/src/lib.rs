@@ -380,65 +380,12 @@ impl Server {
     }
 
     fn name_at(text: &str, offset: usize) -> Option<(String, usize, usize)> {
-        lex(text)
-            .tokens
-            .iter()
-            .find(|t| {
-                matches!(t.kind, TokenKind::Ident | TokenKind::Keyword(_))
-                    && t.span.start <= offset
-                    && offset <= t.span.end
-            })
-            .map(|t| (t.text(text).to_string(), t.span.start, t.span.end))
+        name_at(text, offset)
     }
 
     /// Declaration of `name` in any file: `(file index, line, header text, doc comment)`.
     fn declaration(&self, name: &str) -> Option<(usize, usize, String, String)> {
-        let a = self.last.as_ref()?;
-        for (i, text) in a.texts.iter().enumerate() {
-            let p = parse(text);
-            let lines: Vec<&str> = text.split('\n').collect();
-            for l in outline(&p.file, text).lines().skip(1) {
-                let mut words = l.split_whitespace();
-                let (Some(num), Some(_kind)) = (words.next(), words.next()) else {
-                    continue;
-                };
-                let mut next = words.next();
-                if next == Some("pub") {
-                    next = words.next();
-                }
-                let decl: String = next
-                    .unwrap_or("")
-                    .chars()
-                    .take_while(|c| c.is_alphanumeric() || *c == '_')
-                    .collect();
-                if decl != name {
-                    continue;
-                }
-                let mut line = num.parse::<usize>().ok()?.saturating_sub(1);
-                // An item may start at its documentation or its attributes.
-                while lines.get(line).is_some_and(|l| {
-                    l.trim_start().starts_with("##") || l.trim_start().starts_with('@')
-                }) {
-                    line += 1;
-                }
-                let header = lines.get(line).copied().unwrap_or("").trim().to_string();
-                let mut doc = Vec::new();
-                let mut k = line;
-                while k > 0 && lines[k - 1].trim_start().starts_with("##") {
-                    k -= 1;
-                    doc.push(
-                        lines[k]
-                            .trim_start()
-                            .trim_start_matches('#')
-                            .trim()
-                            .to_string(),
-                    );
-                }
-                doc.reverse();
-                return Some((i, line, header, doc.join("\n")));
-            }
-        }
-        None
+        find_declaration(&self.last.as_ref()?.texts, name)
     }
 
     fn doc_text(&self, uri: &str) -> Option<(usize, String)> {
@@ -475,11 +422,7 @@ impl Server {
     }
 
     fn type_at(nir: &Nir, module: usize, off: usize) -> Option<String> {
-        let m = nir.modules.get(module)?;
-        let v = serde_json::to_value(m).ok()?;
-        let mut best = None;
-        smallest_expr(&v, off, &mut best);
-        best.map(|(_, t)| t)
+        type_at(nir, module, off)
     }
 
     fn definition(&self, params: &Value) -> Option<Value> {
@@ -518,6 +461,79 @@ impl Server {
             _ => json!([]),
         }
     }
+}
+
+/// The identifier or keyword token that contains `offset`: `(text, start, end)` in bytes.
+///
+/// Transport-free helper shared with the WASM and Python bindings (`neuron-wasm`).
+pub fn name_at(text: &str, offset: usize) -> Option<(String, usize, usize)> {
+    lex(text)
+        .tokens
+        .iter()
+        .find(|t| {
+            matches!(t.kind, TokenKind::Ident | TokenKind::Keyword(_))
+                && t.span.start <= offset
+                && offset <= t.span.end
+        })
+        .map(|t| (t.text(text).to_string(), t.span.start, t.span.end))
+}
+
+/// Declaration of `name` in any of `texts`: `(file index, 0-based line, header text, doc comment)`.
+pub fn find_declaration(texts: &[String], name: &str) -> Option<(usize, usize, String, String)> {
+    for (i, text) in texts.iter().enumerate() {
+        let p = parse(text);
+        let lines: Vec<&str> = text.split('\n').collect();
+        for l in outline(&p.file, text).lines().skip(1) {
+            let mut words = l.split_whitespace();
+            let (Some(num), Some(_kind)) = (words.next(), words.next()) else {
+                continue;
+            };
+            let mut next = words.next();
+            if next == Some("pub") {
+                next = words.next();
+            }
+            let decl: String = next
+                .unwrap_or("")
+                .chars()
+                .take_while(|c| c.is_alphanumeric() || *c == '_')
+                .collect();
+            if decl != name {
+                continue;
+            }
+            let mut line = num.parse::<usize>().ok()?.saturating_sub(1);
+            // An item may start at its documentation or its attributes.
+            while lines.get(line).is_some_and(|l| {
+                l.trim_start().starts_with("##") || l.trim_start().starts_with('@')
+            }) {
+                line += 1;
+            }
+            let header = lines.get(line).copied().unwrap_or("").trim().to_string();
+            let mut doc = Vec::new();
+            let mut k = line;
+            while k > 0 && lines[k - 1].trim_start().starts_with("##") {
+                k -= 1;
+                doc.push(
+                    lines[k]
+                        .trim_start()
+                        .trim_start_matches('#')
+                        .trim()
+                        .to_string(),
+                );
+            }
+            doc.reverse();
+            return Some((i, line, header, doc.join("\n")));
+        }
+    }
+    None
+}
+
+/// Type text of the smallest typed expression of module `module` that contains `off`.
+pub fn type_at(nir: &Nir, module: usize, off: usize) -> Option<String> {
+    let m = nir.modules.get(module)?;
+    let v = serde_json::to_value(m).ok()?;
+    let mut best = None;
+    smallest_expr(&v, off, &mut best);
+    best.map(|(_, t)| t)
 }
 
 fn publish(uri: &str, diagnostics: Vec<Value>) -> Value {

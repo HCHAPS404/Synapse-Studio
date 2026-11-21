@@ -1,0 +1,15 @@
+[build-system]
+requires = ["maturin>=1.5,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "neuron-py"
+version = "0.0.1"
+description = "The Neuron compiler as a Python module: check, format, run, test, emit and import (JSON in, JSON out)"
+requires-python = ">=3.12"
+license = { text = "Apache-2.0" }
+classifiers = ["Programming Language :: Rust"]
+
+[tool.maturin]
+module-name = "neuron_py"
+features = ["extension-module"]

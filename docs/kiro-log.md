@@ -417,6 +417,21 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   reals and edge reads stay outside it and are `NE0610`. The SPEL+ kernel is checked on
   boolean ports only, because the controller's numbers are floating point.
 
+## 2026-11-21 · Task E1 (compiler bindings: WebAssembly and Python)
+- **Kiro features:** a sub-agent in a clean context, property-based testing of every entry
+  point with random and mutated input.
+- **Produced:** crate `neuron-wasm`: a plain-Rust JSON API (`check`, `format`, `hover`,
+  `definition`, `run`, `test`, `emit` for all seven emitters, `import`, `version`) and its
+  wasm-bindgen exports; crate `neuron-py` (PyO3, built with maturin, outside the
+  workspace build); `packages/wasm-glue/README.md` for Martin. The LSP hover and
+  definition logic became public functions so both the LSP and the bindings use it. CI
+  builds `neuron-wasm` for `wasm32-unknown-unknown`.
+- **Results:** 22 tests compare every API result with the crate it wraps; malformed input
+  never panics. The wasm32 release build passes locally. Workspace tests: 578.
+- **Lessons:** the workspace `forbid(unsafe_code)` cannot hold in crates where
+  wasm-bindgen and PyO3 generate unsafe glue; those two use `deny` and allow it only in
+  the generated module. The browser glue and the Python wheel are not run yet.
+
 ## 2026-11-21 · Task E4 contract (relay and twin gateway protocol)
 - **Kiro features:** spec-driven development (the contract is written before the relay
   server), a sub-agent in a clean context, property-based testing, single source of
