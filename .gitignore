@@ -55,3 +55,10 @@ Thumbs.db
 
 # Local concept document (decide later whether to publish it under docs/)
 /SYNAPSE Studio - Documento Maestro de Proyecto.pdf
+
+# --- ltm-power ---
+ltm/store/*.jsonl
+ltm/runtime/*
+ltm/reports/*
+ltm/snapshots/*
+# --- /ltm-power ---
