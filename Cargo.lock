@@ -660,6 +660,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "synapse-protocol"
+version = "0.0.1"
+dependencies = [
+ "neuron-interp",
+ "proptest",
+ "schemars",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
 name = "tempfile"
 version = "3.27.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

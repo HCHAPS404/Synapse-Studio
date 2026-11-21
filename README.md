@@ -704,7 +704,7 @@ person in the daily sync. **Bold** rows unblock the other person.
 | Engine WASM API | Martin → Hell | 17 nov | `spec/engine/api.md` + `VirtualDevice` trait | ⬜ overdue |
 | `.scene.json` | Martin → both | 18 nov | `spec/schemas/scene.schema.json` | ⬜ |
 | Compiler in the browser | Hell → Martin | 21 nov | `packages/wasm-glue` (E1) | ⬜ |
-| Twin and relay WebSocket protocol | Hell → Martin | 20 nov | `spec/protocols/relay.md` (E4) | ⬜ |
+| Twin and relay WebSocket protocol | Hell → Martin | 20 nov | [`spec/protocols/relay.md`](spec/protocols/relay.md) (E4 contract; relay server pending) | ✅ |
 | Core API OpenAPI + `sdk-ts` | Hell → Martin | 21 nov | generated, never hand-written (E2) | ⬜ |
 | Virtual PLC and robot code | Hell → Martin | 25–27 nov | emitted ST and SPEL+ (C2, C3) | ⬜ |
 
@@ -845,7 +845,7 @@ the judges.
 | E1 | Compiler bindings | PyO3 module and WASM build of the compiler | Diagnostics in the browser with no server; Martin's editor (G3) uses it | A9 | 20–21 nov |
 | E2 | Core API | Projects, versions, builds, devices; Neon + Alembic; guest mode for judges; rate limits; OpenAPI and generated `packages/sdk-ts` | A guest builds a project through the API | E1 | 21–24 nov |
 | E3 | Auth, RBAC, audit | viewer, operator and engineer roles; audit log | Each role is denied what it may not do (tests) | E2 | 24–25 nov |
-| E4 | Relay and twin gateway | WebSocket protocol (contract for Martin, due 20 nov), daemon pairing, telemetry in TimescaleDB | Web and mobile receive live telemetry | E2 | 24–26 nov |
+| E4 | Relay and twin gateway | WebSocket protocol (contract for Martin done: `spec/protocols/relay.md`; relay server pending), daemon pairing, telemetry in TimescaleDB | Web and mobile receive live telemetry | E2 | 24–26 nov |
 | E5 | Edge Daemon | Serial, Modbus TCP/RTU, S7, TCP, MQTT, CAN drivers; flashing tools; signed packages; heartbeat and local E-STOP; serves the PWA on the LAN | Flashes the UNO and talks to a PLC in the lab | B4 | 21–29 nov |
 | E6 | Black box and calibration | Records around faults; timing profiles fed back to D3 and the twin | A measured profile changes a D3 result | E5, I1 | 26–29 nov |
 | E7 | Deployment | Render (judging), Neon branches, Vercel; budget until 2027-01-29 | Public URL works with no login | E2 | 25–28 nov |

@@ -47,7 +47,7 @@ no I/O in the core, so they compile to `wasm32-unknown-unknown` for the engine.
 | NIR JSON schema | Hell | ✅ 15 nov | `spec/schemas/nir.schema.json`; CI fails on drift |
 | **Engine WASM API** (load scene, step, inject signal, read state, snapshot/rewind) | **Martin** | **17 nov** | Hell plugs the virtual MCUs (F7) into it; publish as `spec/engine/api.md` plus a Rust trait |
 | **`.scene.json` format** | **Martin** | **18 nov** | JSON Schema in `spec/schemas/scene.schema.json`; scenes live in `scenes/` |
-| Twin / relay WebSocket protocol | Hell | 20 nov | Martin consumes it in web and mobile |
+| Twin / relay WebSocket protocol | Hell | 20 nov | Done: [`spec/protocols/relay.md`](../spec/protocols/relay.md), JSON Schemas in `spec/schemas/relay/`, examples in `spec/protocols/examples/`. Martin consumes it in web and mobile |
 | Core API OpenAPI + `packages/sdk-ts` | Hell | 21 nov | generated types, never hand-written |
 
 Suggested shape of the engine API, so the virtual MCUs fit without glue:

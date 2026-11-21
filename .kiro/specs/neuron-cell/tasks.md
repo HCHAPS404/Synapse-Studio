@@ -22,6 +22,8 @@ a Conventional Commit with `-s` and CI checked.
 | D7 | CLI `neuron cell check|build|sim|dossier`, `docs/cells.md`, CI smoke steps, roadmap, README | D-R10 | no | open |
 | D-HW | Confirm timing profiles (I1), run the bottling cell on real devices (I4 to I7) | D-R1, D-R4 | **yes** | pending (sessions) |
 
-Decisions to confirm with Hell before D3.1: endpoints as NIR items (design decision 1),
-co-simulation on the interpreter (decision 2), dossier as HTML with PDF printed from it
-(decision 3).
+Decisions accepted by Hell on 2026-11-20: endpoints as NIR items (design decision 1),
+co-simulation on the interpreter with the fidelity bounds of Phase C added to the link
+budgets (decision 2), dossier as Markdown plus HTML with the PDF printed from it
+(decision 3). Order: E4 (relay protocol contract) first, E1 (WASM and PyO3 bindings)
+alongside D1 and D2, then D3 to D7.

@@ -62,7 +62,7 @@ as such in the dossier.
    Verilog, ST/SCL/PLCopen, SPEL+, Python, kernel). The plan (`CellPlan`) lists device,
    modules, backend, generated files and fidelity summary.
 
-Decision 1 (to confirm): the endpoints are generated as Neuron NIR items added to the
+Decision 1 (accepted): the endpoints are generated as Neuron NIR items added to the
 device package, so every backend gets them for free and they are checked by the same
 rules, instead of writing endpoint code per backend.
 
@@ -107,17 +107,20 @@ resolution, each device at its own period). A link is a queue with the computed
 latency, the sender's period, and optional loss (`--cut link@t`). The observable cell
 trace is the union of device traces tagged with the device name. `Replay` is a JSON
 file (schema in `spec/schemas/replay.schema.json`) with the cell, the devices, and the
-time-ordered events; Martin's twin (F7) plays it. Decision 2 (to confirm): the
+time-ordered events; Martin's twin (F7) plays it. Decision 2 (accepted): the
 co-simulation runs NIR in the reference interpreter, not the translated code in the
 virtual PLC and controllers; the translated programs are already checked against the
-interpreter in Phase C, so this is sound and much faster.
+interpreter in Phase C, so this is sound and much faster. The per-target bounds of the
+Phase C fidelity reports (one scan for IEC timers, two for sequences, motion time) are
+added to the link latency budgets of D3, so the budget covers the translated program
+too. A mode that runs the virtual PLC and controllers can come later.
 
 ## D5 Dossier
 
 Generated from `CellPlan`, `LinkTable`, the safety report and a co-simulation run:
 wiring list, I/O list per device, pin/address tables, link table with budgets and trust
 level, a timing diagram (SVG), a BOM from the manifests, the safety report and the
-test report. Decision 3 (to confirm): output Markdown plus a single self-contained
+test report. Decision 3 (accepted): output Markdown plus a single self-contained
 HTML file with the SVGs inline; a PDF is printed from the HTML (no PDF library in the
 Rust build). All numbers come from the analysis; nothing is typed by hand.
 

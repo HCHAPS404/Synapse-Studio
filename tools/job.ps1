@@ -16,6 +16,9 @@ if (Test-Path (Join-Path $tc 'arm-none-eabi/bin')) { $env:NEURON_ARM_GCC = 'arm-
 $env:NEURON_REQUIRE_TOOLCHAIN = '1'
 $env:CARGO_TERM_COLOR = 'never'
 $env:CARGO_TERM_PROGRESS_WHEN = 'never'
+# A full rebuild with one rustc per core ran this PC out of memory on 2026-11-21
+# (os error 1455, page file too small). Two parallel jobs keep it within RAM.
+if (-not $env:CARGO_BUILD_JOBS) { $env:CARGO_BUILD_JOBS = '2' }
 $path = Join-Path $root "out/$Log"
 "JOB START $(Get-Date -Format o): $Cmd" | Out-File -Encoding utf8 $path
 # Parentheses make the redirection cover every command of an `a && b` chain.

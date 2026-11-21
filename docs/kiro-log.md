@@ -417,6 +417,24 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   reals and edge reads stay outside it and are `NE0610`. The SPEL+ kernel is checked on
   boolean ports only, because the controller's numbers are floating point.
 
+## 2026-11-21 · Task E4 contract (relay and twin gateway protocol)
+- **Kiro features:** spec-driven development (the contract is written before the relay
+  server), a sub-agent in a clean context, property-based testing, single source of
+  truth (Rust types generate the JSON Schemas; a test fails on drift).
+- **Produced:** crate `synapse-protocol` (versioned messages tagged by `type`: session,
+  subscriptions, cell snapshot, telemetry, trace, simulation control, replay, deployment
+  status, advisory E-STOP), `spec/protocols/relay.md`, `spec/schemas/relay/` and 28
+  example messages. The hardwired E-STOP is the authority: the only E-STOP message a
+  client sends is an advisory request, and no message can disable a safety function.
+  The replay format is the one the Phase D co-simulation will write.
+- **Results:** every example parses and re-serializes to the same JSON; invalid messages
+  are rejected; workspace tests: 554.
+- **Lessons:** the property test found that a telemetry real lost its last bit through
+  JSON; `serde_json`'s `float_roundtrip` fixes it. Turning that feature on rebuilt the
+  whole workspace with one compiler per core and ran the PC out of memory (os error
+  1455); `tools/job.ps1` now limits cargo to two jobs. `tools/setup-kiro.ps1` sets the
+  Kiro permissions and Autopilot, which the agent cannot edit itself.
+
 ## 2026-11-20 · SPEL+ kernel on integer ports, and the Phase D spec
 - **Kiro features:** spec-driven development (new spec `.kiro/specs/neuron-cell` written
   before any Phase D code), a sub-agent in a clean context, steering (the decisions

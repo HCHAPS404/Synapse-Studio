@@ -50,6 +50,10 @@ when a task finishes; delete sections that become obsolete.
   after a single `Start-Sleep 25` while a cargo job ran. Avoid `Start-Sleep` in the agent
   shell altogether: poll a background job only by reading its log with the file reader.
   The file reader keeps working while the shell is frozen.
+- **Memory (2026-11-21):** a full rebuild with one rustc per core ran the PC out of RAM
+  and page file (os error 1455, "memory allocation failed") and froze the editor.
+  `tools/job.ps1` now sets `CARGO_BUILD_JOBS=2` unless it is already set. Changing a
+  feature of a shared dependency (e.g. `serde_json`) rebuilds the whole workspace.
 - Sub-agent rule that worked (C5.3 to C7): edit files only with the file tools, never from
   the shell; poll jobs only with the file reader.
 - `tools/phase-check.ps1 [-MessageFile f]`: everything CI runs (CLI checks on examples,
@@ -94,10 +98,11 @@ Closed after C7 (2026-11-20): the Python emitter covers blocks, fsm, sequence, t
 contracts and a ROS 2 node (stub-tested); `neuron emit c` (C99 for `core`); the SPEL+
 kernel is checked on integer ports (`OutW`/`InW`, to confirm in I6).
 
-## Phase D: spec drafted, waiting for Hell's review
+## Phase D: spec accepted (2026-11-20), in progress
 
 Spec: `.kiro/specs/neuron-cell/` (requirements D-R1 to D-R11, design, tasks D1.1 to D7).
-Nothing implemented yet. Three decisions to confirm before D3.1:
+Hell accepted the three decisions and the order (E4 first, E1 alongside D1-D2, then
+D3-D7). Decisions:
 1. Link endpoints generated as NIR items added to each device package (every backend
    gets them for free) instead of per-backend endpoint code.
 2. Co-simulation runs NIR in the reference interpreter, not the translated code in the
@@ -107,10 +112,9 @@ New codes planned: `NE0704` (placed on a device that cannot run the dialect), `N
 (no device fits). Implemented today: none of NE0701, NE0703, NE0801, NE0805.
 
 Next steps, in order:
-1. Hell reviews the Phase D spec and the three decisions.
-2. Ask Hell whether E1 (WASM + PyO3 bindings, blocks Martin's G3) and E4 (relay protocol
-   contract) go before or in parallel with D1; the earlier plan put them first.
-3. D1.1 onward, one task per commit. Ask Hell before promoting `develop` to `main`.
+1. E4: relay protocol contract `spec/protocols/relay.md` + JSON Schemas (Martin needs it).
+2. D1.1, D1.2, D2.1, D2.2, with E1 (WASM + PyO3 bindings) alongside.
+3. D3.1 to D7, one task per commit. Ask Hell before promoting `develop` to `main`.
 
 ## Phase C design decisions (keep them)
 

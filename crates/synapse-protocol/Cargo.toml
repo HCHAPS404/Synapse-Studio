@@ -1,0 +1,18 @@
+[package]
+name = "synapse-protocol"
+description = "Relay and twin gateway wire protocol: message types, JSON Schema and replay format"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+[lints]
+workspace = true
+[dependencies]
+serde = { workspace = true }
+# Telemetry values must come back bit-identical after a JSON round trip.
+serde_json = { workspace = true, features = ["float_roundtrip"] }
+schemars = { workspace = true }
+thiserror = { workspace = true }
+[dev-dependencies]
+proptest = { workspace = true }
+neuron-interp = { path = "../neuron-interp" }

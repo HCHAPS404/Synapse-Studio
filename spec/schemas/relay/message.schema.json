@@ -1,0 +1,1361 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Message",
+  "description": "A protocol message: the version plus a body tagged by `type`.",
+  "type": "object",
+  "properties": {
+    "v": {
+      "description": "Protocol version, always 1.",
+      "$ref": "#/$defs/ProtocolVersion"
+    }
+  },
+  "oneOf": [
+    {
+      "description": "Client to server, first message of a session.",
+      "type": "object",
+      "properties": {
+        "capabilities": {
+          "description": "Optional features the client understands.",
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string"
+          }
+        },
+        "client": {
+          "description": "Kind of client.",
+          "$ref": "#/$defs/ClientKind"
+        },
+        "client_version": {
+          "description": "Client software version, informational.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "protocol": {
+          "description": "Highest protocol version the client supports.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "token": {
+          "description": "Bearer token. Absent for guests.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "type": {
+          "type": "string",
+          "const": "hello"
+        }
+      },
+      "required": [
+        "type",
+        "client",
+        "protocol"
+      ]
+    },
+    {
+      "description": "Server to client, answer to `hello`.",
+      "type": "object",
+      "properties": {
+        "capabilities": {
+          "description": "Optional features the server enables.",
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string"
+          }
+        },
+        "protocol": {
+          "description": "Negotiated protocol version.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "roles": {
+          "description": "Roles granted to the session.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Role"
+          }
+        },
+        "server_time_ns": {
+          "description": "Server time in nanoseconds since the Unix epoch, for a first clock estimate.",
+          "type": "integer",
+          "format": "int64"
+        },
+        "session": {
+          "description": "Session id.",
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "const": "welcome"
+        }
+      },
+      "required": [
+        "type",
+        "session",
+        "server_time_ns",
+        "roles",
+        "protocol"
+      ]
+    },
+    {
+      "description": "Server to client. The session stays open unless the code is fatal (see the spec).",
+      "type": "object",
+      "properties": {
+        "code": {
+          "description": "Error code.",
+          "$ref": "#/$defs/ErrorCode"
+        },
+        "id": {
+          "description": "Request id this answers, when there was one.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "message": {
+          "description": "Human-readable text, English.",
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "const": "error"
+        }
+      },
+      "required": [
+        "type",
+        "code",
+        "message"
+      ]
+    },
+    {
+      "description": "Server to client. Confirms a request that has no other reply.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "description": "Request id being confirmed.",
+          "type": "string"
+        },
+        "request": {
+          "description": "The `type` of the confirmed request.",
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "const": "ack"
+        }
+      },
+      "required": [
+        "type",
+        "id",
+        "request"
+      ]
+    },
+    {
+      "description": "Either direction. Answered with `pong`.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "description": "Sender-chosen sequence number, echoed in `pong`.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "t_ns": {
+          "description": "Sender clock when sent, nanoseconds.",
+          "type": "integer",
+          "format": "int64"
+        },
+        "type": {
+          "type": "string",
+          "const": "ping"
+        }
+      },
+      "required": [
+        "type",
+        "id",
+        "t_ns"
+      ]
+    },
+    {
+      "description": "Either direction. Answer to `ping`.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "description": "Echo of the ping id.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "t_ns": {
+          "description": "Responder clock when it received the ping, nanoseconds.",
+          "type": "integer",
+          "format": "int64"
+        },
+        "t_ping_ns": {
+          "description": "Echo of the ping `t_ns`.",
+          "type": "integer",
+          "format": "int64"
+        },
+        "type": {
+          "type": "string",
+          "const": "pong"
+        }
+      },
+      "required": [
+        "type",
+        "id",
+        "t_ping_ns",
+        "t_ns"
+      ]
+    },
+    {
+      "description": "Client to server. Start receiving channels for a cell or one device.",
+      "type": "object",
+      "properties": {
+        "cell": {
+          "description": "Cell id.",
+          "type": "string"
+        },
+        "channels": {
+          "description": "Channels wanted.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Channel"
+          }
+        },
+        "device": {
+          "description": "Restrict to one device; absent means the whole cell.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "id": {
+          "description": "Request id, echoed in `ack` or `error`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "type": {
+          "type": "string",
+          "const": "subscribe"
+        }
+      },
+      "required": [
+        "type",
+        "cell",
+        "channels"
+      ]
+    },
+    {
+      "description": "Client to server. Stop receiving a cell or device.",
+      "type": "object",
+      "properties": {
+        "cell": {
+          "description": "Cell id.",
+          "type": "string"
+        },
+        "device": {
+          "description": "Restrict to one device; absent means the whole cell.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "id": {
+          "description": "Request id.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "type": {
+          "type": "string",
+          "const": "unsubscribe"
+        }
+      },
+      "required": [
+        "type",
+        "cell"
+      ]
+    },
+    {
+      "description": "Server to client. Full description of a cell; sent after subscribing and on change.",
+      "type": "object",
+      "properties": {
+        "cell": {
+          "description": "Cell id.",
+          "type": "string"
+        },
+        "description": {
+          "description": "The description.",
+          "$ref": "#/$defs/CellDescription"
+        },
+        "type": {
+          "type": "string",
+          "const": "cell_snapshot"
+        }
+      },
+      "required": [
+        "type",
+        "cell",
+        "description"
+      ]
+    },
+    {
+      "description": "Publisher (twin or daemon) to server to subscribers. Batched samples.",
+      "type": "object",
+      "properties": {
+        "cell": {
+          "description": "Cell id.",
+          "type": "string"
+        },
+        "samples": {
+          "description": "Samples, oldest first.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Sample"
+          }
+        },
+        "type": {
+          "type": "string",
+          "const": "telemetry"
+        }
+      },
+      "required": [
+        "type",
+        "cell",
+        "samples"
+      ]
+    },
+    {
+      "description": "Publisher to server to subscribers. Batched trace events.",
+      "type": "object",
+      "properties": {
+        "cell": {
+          "description": "Cell id.",
+          "type": "string"
+        },
+        "events": {
+          "description": "Events, oldest first.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TraceEvent"
+          }
+        },
+        "type": {
+          "type": "string",
+          "const": "trace"
+        }
+      },
+      "required": [
+        "type",
+        "cell",
+        "events"
+      ]
+    },
+    {
+      "description": "Operator to twin. Start or resume the simulation of virtual devices.",
+      "type": "object",
+      "properties": {
+        "cell": {
+          "description": "Cell id.",
+          "type": "string"
+        },
+        "id": {
+          "description": "Request id.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "type": {
+          "type": "string",
+          "const": "sim_start"
+        }
+      },
+      "required": [
+        "type",
+        "cell"
+      ]
+    },
+    {
+      "description": "Operator to twin. Pause the simulation.",
+      "type": "object",
+      "properties": {
+        "cell": {
+          "description": "Cell id.",
+          "type": "string"
+        },
+        "id": {
+          "description": "Request id.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "type": {
+          "type": "string",
+          "const": "sim_pause"
+        }
+      },
+      "required": [
+        "type",
+        "cell"
+      ]
+    },
+    {
+      "description": "Operator to twin. Advance a paused simulation by whole cell steps.",
+      "type": "object",
+      "properties": {
+        "cell": {
+          "description": "Cell id.",
+          "type": "string"
+        },
+        "id": {
+          "description": "Request id.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "steps": {
+          "description": "Number of fixed steps, at least 1.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "type": {
+          "type": "string",
+          "const": "sim_step"
+        }
+      },
+      "required": [
+        "type",
+        "cell",
+        "steps"
+      ]
+    },
+    {
+      "description": "Operator to twin. Set an input of a virtual device (a writable tag).",
+      "type": "object",
+      "properties": {
+        "cell": {
+          "description": "Cell id.",
+          "type": "string"
+        },
+        "device": {
+          "description": "Device id.",
+          "type": "string"
+        },
+        "id": {
+          "description": "Request id.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "description": "Tag or input name.",
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "const": "sim_set_input"
+        },
+        "value": {
+          "description": "New value.",
+          "$ref": "#/$defs/Value"
+        }
+      },
+      "required": [
+        "type",
+        "cell",
+        "device",
+        "name",
+        "value"
+      ]
+    },
+    {
+      "description": "Operator to twin. Cut a link at a simulated time.",
+      "type": "object",
+      "properties": {
+        "at_ns": {
+          "description": "Simulated time of the cut, nanoseconds since the cell epoch.",
+          "type": "integer",
+          "format": "int64"
+        },
+        "cell": {
+          "description": "Cell id.",
+          "type": "string"
+        },
+        "id": {
+          "description": "Request id.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "link": {
+          "description": "Link id.",
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "const": "sim_cut_link"
+        }
+      },
+      "required": [
+        "type",
+        "cell",
+        "link",
+        "at_ns"
+      ]
+    },
+    {
+      "description": "Operator to twin. Set the speed factor (1.0 is real time).",
+      "type": "object",
+      "properties": {
+        "cell": {
+          "description": "Cell id.",
+          "type": "string"
+        },
+        "factor": {
+          "description": "Speed factor, greater than 0.",
+          "type": "number",
+          "format": "double"
+        },
+        "id": {
+          "description": "Request id.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "type": {
+          "type": "string",
+          "const": "sim_speed"
+        }
+      },
+      "required": [
+        "type",
+        "cell",
+        "factor"
+      ]
+    },
+    {
+      "description": "Twin to server to subscribers. Current state of the simulation.",
+      "type": "object",
+      "properties": {
+        "cell": {
+          "description": "Cell id.",
+          "type": "string"
+        },
+        "running": {
+          "description": "True while time advances.",
+          "type": "boolean"
+        },
+        "speed": {
+          "description": "Current speed factor.",
+          "type": "number",
+          "format": "double"
+        },
+        "t_ns": {
+          "description": "Simulated time, nanoseconds since the cell epoch.",
+          "type": "integer",
+          "format": "int64"
+        },
+        "type": {
+          "type": "string",
+          "const": "sim_state"
+        }
+      },
+      "required": [
+        "type",
+        "cell",
+        "running",
+        "t_ns",
+        "speed"
+      ]
+    },
+    {
+      "description": "Operator to twin. Play a replay file on the twin.",
+      "type": "object",
+      "properties": {
+        "cell": {
+          "description": "Cell id.",
+          "type": "string"
+        },
+        "id": {
+          "description": "Request id.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "replay": {
+          "description": "The replay to play.",
+          "$ref": "#/$defs/ReplayFile"
+        },
+        "type": {
+          "type": "string",
+          "const": "replay_play"
+        }
+      },
+      "required": [
+        "type",
+        "cell",
+        "replay"
+      ]
+    },
+    {
+      "description": "Twin to subscribers. A replay stream starts.",
+      "type": "object",
+      "properties": {
+        "header": {
+          "description": "The replay header.",
+          "$ref": "#/$defs/ReplayHeader"
+        },
+        "type": {
+          "type": "string",
+          "const": "replay_header"
+        }
+      },
+      "required": [
+        "type",
+        "header"
+      ]
+    },
+    {
+      "description": "Twin to subscribers. Replay events, in time order.",
+      "type": "object",
+      "properties": {
+        "cell": {
+          "description": "Cell id.",
+          "type": "string"
+        },
+        "events": {
+          "description": "Events.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TraceEvent"
+          }
+        },
+        "type": {
+          "type": "string",
+          "const": "replay_events"
+        }
+      },
+      "required": [
+        "type",
+        "cell",
+        "events"
+      ]
+    },
+    {
+      "description": "Twin to subscribers. The replay stream ended.",
+      "type": "object",
+      "properties": {
+        "cell": {
+          "description": "Cell id.",
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "const": "replay_end"
+        }
+      },
+      "required": [
+        "type",
+        "cell"
+      ]
+    },
+    {
+      "description": "Daemon to server to subscribers. Read-only for clients.",
+      "type": "object",
+      "properties": {
+        "cell": {
+          "description": "Cell id.",
+          "type": "string"
+        },
+        "devices": {
+          "description": "Status of each device the daemon manages.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/DeviceStatus"
+          }
+        },
+        "type": {
+          "type": "string",
+          "const": "deployment_status"
+        }
+      },
+      "required": [
+        "type",
+        "cell",
+        "devices"
+      ]
+    },
+    {
+      "description": "Client to server. ADVISORY ONLY: asks that the machine be stopped. The hardwired\nE-STOP is the authority. This request neither trips nor releases it and cannot be\nused to disable any safety function. The answer is `estop_state`.",
+      "type": "object",
+      "properties": {
+        "cell": {
+          "description": "Cell id.",
+          "type": "string"
+        },
+        "id": {
+          "description": "Request id.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "reason": {
+          "description": "Free-text reason, for the log.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "type": {
+          "type": "string",
+          "const": "advisory_estop_request"
+        }
+      },
+      "required": [
+        "type",
+        "cell"
+      ]
+    },
+    {
+      "description": "Daemon to server to subscribers, and the server's answer to an advisory request.\nAlways the state reported by the daemon, never a state the server decided.",
+      "type": "object",
+      "properties": {
+        "cell": {
+          "description": "Cell id.",
+          "type": "string"
+        },
+        "id": {
+          "description": "Id of the advisory request this answers, if any.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "state": {
+          "description": "Reported state of the hardwired circuit.",
+          "$ref": "#/$defs/EstopState"
+        },
+        "t_ns": {
+          "description": "Time of the daemon report, nanoseconds since the cell epoch.",
+          "type": "integer",
+          "format": "int64"
+        },
+        "type": {
+          "type": "string",
+          "const": "estop_state"
+        }
+      },
+      "required": [
+        "type",
+        "cell",
+        "state",
+        "t_ns"
+      ]
+    }
+  ],
+  "required": [
+    "v"
+  ],
+  "$defs": {
+    "CellDescription": {
+      "description": "Description of a cell, as produced by Phase D.",
+      "type": "object",
+      "properties": {
+        "devices": {
+          "description": "Devices.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/DeviceInfo"
+          }
+        },
+        "links": {
+          "description": "Links with their budgets.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/LinkInfo"
+          }
+        },
+        "name": {
+          "description": "Display name of the cell.",
+          "type": "string"
+        },
+        "tags": {
+          "description": "Tags.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TagInfo"
+          }
+        },
+        "zones": {
+          "description": "Zones.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ZoneInfo"
+          }
+        }
+      },
+      "required": [
+        "name",
+        "devices",
+        "links",
+        "tags",
+        "zones"
+      ]
+    },
+    "Channel": {
+      "description": "Channel a client can subscribe to.",
+      "oneOf": [
+        {
+          "description": "Cell description snapshots and simulation state.",
+          "type": "string",
+          "const": "cell"
+        },
+        {
+          "description": "Telemetry samples.",
+          "type": "string",
+          "const": "telemetry"
+        },
+        {
+          "description": "Trace events.",
+          "type": "string",
+          "const": "trace"
+        },
+        {
+          "description": "Deployment status of real devices.",
+          "type": "string",
+          "const": "deployment"
+        },
+        {
+          "description": "Replay streams.",
+          "type": "string",
+          "const": "replay"
+        },
+        {
+          "description": "E-STOP state reports.",
+          "type": "string",
+          "const": "safety"
+        }
+      ]
+    },
+    "ClientKind": {
+      "description": "Kind of client that opens a session.",
+      "oneOf": [
+        {
+          "description": "Web IDE in a browser.",
+          "type": "string",
+          "const": "web"
+        },
+        {
+          "description": "Desktop application.",
+          "type": "string",
+          "const": "desktop"
+        },
+        {
+          "description": "Android application.",
+          "type": "string",
+          "const": "android"
+        },
+        {
+          "description": "The 3D digital twin (authority for virtual devices only).",
+          "type": "string",
+          "const": "twin"
+        },
+        {
+          "description": "The Edge Daemon next to real hardware.",
+          "type": "string",
+          "const": "daemon"
+        }
+      ]
+    },
+    "DeviceInfo": {
+      "description": "A device in a cell description.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "description": "Device id, unique in the cell.",
+          "type": "string"
+        },
+        "kind": {
+          "description": "Device kind (manifest name, for example `generic-mcu` or `generic-plc`).",
+          "type": "string"
+        },
+        "simulated": {
+          "description": "True when the device runs in the twin; false for real hardware behind a daemon.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "simulated"
+      ]
+    },
+    "DeviceStatus": {
+      "description": "Status of one device as reported by the Edge Daemon.",
+      "type": "object",
+      "properties": {
+        "build_id": {
+          "description": "Identifier of the build running on the device, when known.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "device": {
+          "description": "Device id.",
+          "type": "string"
+        },
+        "last_heartbeat_ns": {
+          "description": "Time of the last heartbeat, in nanoseconds since the cell epoch.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int64"
+        },
+        "online": {
+          "description": "True when the daemon has a live connection to the device.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "device",
+        "online"
+      ]
+    },
+    "ErrorCode": {
+      "description": "Error codes carried by the `error` message.",
+      "oneOf": [
+        {
+          "description": "The frame is not a valid message.",
+          "type": "string",
+          "const": "bad_message"
+        },
+        {
+          "description": "The `v` or `protocol` value is not supported.",
+          "type": "string",
+          "const": "unsupported_version"
+        },
+        {
+          "description": "The token in `hello` is invalid or expired.",
+          "type": "string",
+          "const": "unauthenticated"
+        },
+        {
+          "description": "The session's roles do not allow the message.",
+          "type": "string",
+          "const": "forbidden"
+        },
+        {
+          "description": "The cell, device, link or tag does not exist.",
+          "type": "string",
+          "const": "unknown_target"
+        },
+        {
+          "description": "The client sent too much; slow down.",
+          "type": "string",
+          "const": "rate_limited"
+        },
+        {
+          "description": "The target cannot do it now (twin or daemon not connected, replay running).",
+          "type": "string",
+          "const": "not_ready"
+        },
+        {
+          "description": "Server fault.",
+          "type": "string",
+          "const": "internal"
+        }
+      ]
+    },
+    "EstopState": {
+      "description": "State of the hardwired E-STOP circuit as reported by the Edge Daemon.",
+      "oneOf": [
+        {
+          "description": "Circuit closed; machine may run.",
+          "type": "string",
+          "const": "released"
+        },
+        {
+          "description": "Circuit open; machine is stopped.",
+          "type": "string",
+          "const": "tripped"
+        },
+        {
+          "description": "The daemon is offline or has not reported.",
+          "type": "string",
+          "const": "unknown"
+        }
+      ]
+    },
+    "LinkBudget": {
+      "description": "Time budget of a link.",
+      "type": "object",
+      "properties": {
+        "heartbeat_ns": {
+          "description": "Heartbeat period, in nanoseconds.",
+          "type": "integer",
+          "format": "int64"
+        },
+        "max_latency_ns": {
+          "description": "Largest accepted delivery latency, in nanoseconds.",
+          "type": "integer",
+          "format": "int64"
+        }
+      },
+      "required": [
+        "max_latency_ns",
+        "heartbeat_ns"
+      ]
+    },
+    "LinkInfo": {
+      "description": "A link between two devices.",
+      "type": "object",
+      "properties": {
+        "budget": {
+          "description": "Time budget of the link.",
+          "$ref": "#/$defs/LinkBudget"
+        },
+        "from": {
+          "description": "Source device id.",
+          "type": "string"
+        },
+        "id": {
+          "description": "Link id, unique in the cell.",
+          "type": "string"
+        },
+        "to": {
+          "description": "Destination device id.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "from",
+        "to",
+        "budget"
+      ]
+    },
+    "ProtocolVersion": {
+      "description": "Protocol version of the message format. Always 1.",
+      "type": "integer",
+      "const": 1
+    },
+    "Quality": {
+      "description": "Quality of a sample.",
+      "oneOf": [
+        {
+          "description": "Fresh and trustworthy.",
+          "type": "string",
+          "const": "good"
+        },
+        {
+          "description": "Older than the tag's expected update period.",
+          "type": "string",
+          "const": "stale"
+        },
+        {
+          "description": "Source failed or the value is not trustworthy.",
+          "type": "string",
+          "const": "bad"
+        }
+      ]
+    },
+    "ReplayFile": {
+      "description": "A replay file: header plus events ordered by time. Same content as the stream messages\n`replay_header`, `replay_events`, `replay_end`. Written by D6, played by the twin.",
+      "type": "object",
+      "properties": {
+        "events": {
+          "description": "Events in non-decreasing time order.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TraceEvent"
+          }
+        },
+        "header": {
+          "description": "Header.",
+          "$ref": "#/$defs/ReplayHeader"
+        },
+        "v": {
+          "description": "Protocol version.",
+          "$ref": "#/$defs/ProtocolVersion"
+        }
+      },
+      "required": [
+        "v",
+        "header",
+        "events"
+      ]
+    },
+    "ReplayHeader": {
+      "description": "Header of a replay.",
+      "type": "object",
+      "properties": {
+        "cell": {
+          "description": "Cell id.",
+          "type": "string"
+        },
+        "devices": {
+          "description": "Devices that appear in the events.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "schema_version": {
+          "description": "Version of the replay format (1).",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "start_ns": {
+          "description": "Time of the first event's reference point, in nanoseconds since the cell epoch.",
+          "type": "integer",
+          "format": "int64"
+        }
+      },
+      "required": [
+        "cell",
+        "devices",
+        "start_ns",
+        "schema_version"
+      ]
+    },
+    "Role": {
+      "description": "Role granted to a session. A session may hold several.",
+      "oneOf": [
+        {
+          "description": "No login (judges' virtual lab). Read-only.",
+          "type": "string",
+          "const": "guest"
+        },
+        {
+          "description": "Authenticated read-only user.",
+          "type": "string",
+          "const": "viewer"
+        },
+        {
+          "description": "Authenticated user that may control simulations and send advisory E-STOP requests.",
+          "type": "string",
+          "const": "operator"
+        },
+        {
+          "description": "The twin: publishes virtual-device data and replay streams.",
+          "type": "string",
+          "const": "twin"
+        },
+        {
+          "description": "The Edge Daemon: publishes real-device data and deployment status.",
+          "type": "string",
+          "const": "daemon"
+        }
+      ]
+    },
+    "Sample": {
+      "description": "One telemetry sample.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "description": "Tag id or signal id from the cell description.",
+          "type": "string"
+        },
+        "quality": {
+          "description": "Sample quality.",
+          "$ref": "#/$defs/Quality"
+        },
+        "t_ns": {
+          "description": "Time in nanoseconds since the cell epoch.",
+          "type": "integer",
+          "format": "int64"
+        },
+        "value": {
+          "description": "The value.",
+          "$ref": "#/$defs/Value"
+        }
+      },
+      "required": [
+        "id",
+        "t_ns",
+        "value",
+        "quality"
+      ]
+    },
+    "TagInfo": {
+      "description": "A tag (named process value).",
+      "type": "object",
+      "properties": {
+        "device": {
+          "description": "Owning device id.",
+          "type": "string"
+        },
+        "id": {
+          "description": "Tag id, used as `Sample.id`.",
+          "type": "string"
+        },
+        "unit": {
+          "description": "Unit of the value, for example `degC`; absent for dimensionless values.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "value_type": {
+          "description": "Neuron type name, for example `bool`, `real` or `u16`.",
+          "type": "string"
+        },
+        "writable": {
+          "description": "True when clients with the operator role may set it with `sim_set_input`.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "device",
+        "value_type",
+        "writable"
+      ]
+    },
+    "TraceEvent": {
+      "description": "One trace event of one device.",
+      "type": "object",
+      "properties": {
+        "device": {
+          "description": "Device id the event belongs to.",
+          "type": "string"
+        },
+        "kind": {
+          "description": "Event kind.",
+          "$ref": "#/$defs/TraceKind"
+        },
+        "name": {
+          "description": "Name of the output, signal, state, fault or event.",
+          "type": "string"
+        },
+        "t_ns": {
+          "description": "Time in nanoseconds since the cell epoch.",
+          "type": "integer",
+          "format": "int64"
+        },
+        "value": {
+          "description": "Rendered value; empty when the kind has none.",
+          "type": "string",
+          "default": ""
+        }
+      },
+      "required": [
+        "device",
+        "t_ns",
+        "kind",
+        "name"
+      ]
+    },
+    "TraceKind": {
+      "description": "Kind of a trace event; the same eight kinds as the reference interpreter.",
+      "oneOf": [
+        {
+          "description": "Output written.",
+          "type": "string",
+          "const": "OUT"
+        },
+        {
+          "description": "Signal changed.",
+          "type": "string",
+          "const": "SIG"
+        },
+        {
+          "description": "Fault raised.",
+          "type": "string",
+          "const": "FAULT"
+        },
+        {
+          "description": "Fault reset.",
+          "type": "string",
+          "const": "RESET"
+        },
+        {
+          "description": "Event emitted.",
+          "type": "string",
+          "const": "EVENT"
+        },
+        {
+          "description": "State machine or sequence state entered.",
+          "type": "string",
+          "const": "STATE"
+        },
+        {
+          "description": "Log line.",
+          "type": "string",
+          "const": "LOG"
+        },
+        {
+          "description": "Motion command.",
+          "type": "string",
+          "const": "MOVE"
+        }
+      ]
+    },
+    "Value": {
+      "description": "A value: JSON number, boolean or string. The unit is in the cell description.",
+      "anyOf": [
+        {
+          "description": "Boolean.",
+          "type": "boolean"
+        },
+        {
+          "description": "Number (integer or floating point).",
+          "type": "number"
+        },
+        {
+          "description": "Text or enumeration name.",
+          "type": "string"
+        }
+      ]
+    },
+    "ZoneInfo": {
+      "description": "A safety or working zone.",
+      "type": "object",
+      "properties": {
+        "devices": {
+          "description": "Devices in the zone.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "id": {
+          "description": "Zone id.",
+          "type": "string"
+        },
+        "name": {
+          "description": "Display name.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "devices"
+      ]
+    }
+  }
+}

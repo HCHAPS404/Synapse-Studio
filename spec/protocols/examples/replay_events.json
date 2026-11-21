@@ -1,0 +1,1 @@
+{"v":1,"type":"replay_events","cell":"bottling","events":[{"device":"plc1","t_ns":0,"kind":"OUT","name":"valve","value":"true"},{"device":"plc1","t_ns":100000000,"kind":"MOVE","name":"arm","value":"home"}]}

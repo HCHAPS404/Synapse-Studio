@@ -1,6 +1,6 @@
 # Requirements: cell compiler (Phase D, tasks D1 to D6)
 
-Status: draft for review (2026-11-20). Parent spec: `neuron-language`. Normative text:
+Status: v1.0, accepted by Hell (2026-11-20). Parent spec: `neuron-language`. Normative text:
 `spec/language/06-time-concurrency.md` §6.11 (Standard Time Model at cell level),
 `07-hardware.md` §7.8 (electrical model), `08-safety.md` (zones, `verify`),
 `09-dialects.md` §9.9 (`cell`), `11-interchange.md` (tags, links, Neuron Wire),

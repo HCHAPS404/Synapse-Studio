@@ -1,0 +1,1 @@
+{"v":1,"type":"deployment_status","cell":"bottling","devices":[{"device":"mcu1","online":true,"build_id":"b-20261120-1","last_heartbeat_ns":2900000000},{"device":"plc1","online":false}]}

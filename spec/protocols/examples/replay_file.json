@@ -1,0 +1,1 @@
+{"v":1,"header":{"cell":"bottling","devices":["plc1","mcu1"],"start_ns":0,"schema_version":1},"events":[{"device":"plc1","t_ns":0,"kind":"OUT","name":"valve","value":"true"},{"device":"mcu1","t_ns":600000000,"kind":"FAULT","name":"overheat","value":""}]}

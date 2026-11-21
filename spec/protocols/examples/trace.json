@@ -1,0 +1,1 @@
+{"v":1,"type":"trace","cell":"bottling","events":[{"device":"plc1","t_ns":0,"kind":"OUT","name":"valve","value":"true"},{"device":"plc1","t_ns":500000000,"kind":"STATE","name":"filling","value":""},{"device":"mcu1","t_ns":600000000,"kind":"FAULT","name":"overheat","value":""}]}

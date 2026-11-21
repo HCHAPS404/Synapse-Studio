@@ -1,0 +1,148 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ReplayFile",
+  "description": "A replay file: header plus events ordered by time. Same content as the stream messages\n`replay_header`, `replay_events`, `replay_end`. Written by D6, played by the twin.",
+  "type": "object",
+  "properties": {
+    "events": {
+      "description": "Events in non-decreasing time order.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/TraceEvent"
+      }
+    },
+    "header": {
+      "description": "Header.",
+      "$ref": "#/$defs/ReplayHeader"
+    },
+    "v": {
+      "description": "Protocol version.",
+      "$ref": "#/$defs/ProtocolVersion"
+    }
+  },
+  "required": [
+    "v",
+    "header",
+    "events"
+  ],
+  "$defs": {
+    "ProtocolVersion": {
+      "description": "Protocol version of the message format. Always 1.",
+      "type": "integer",
+      "const": 1
+    },
+    "ReplayHeader": {
+      "description": "Header of a replay.",
+      "type": "object",
+      "properties": {
+        "cell": {
+          "description": "Cell id.",
+          "type": "string"
+        },
+        "devices": {
+          "description": "Devices that appear in the events.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "schema_version": {
+          "description": "Version of the replay format (1).",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "start_ns": {
+          "description": "Time of the first event's reference point, in nanoseconds since the cell epoch.",
+          "type": "integer",
+          "format": "int64"
+        }
+      },
+      "required": [
+        "cell",
+        "devices",
+        "start_ns",
+        "schema_version"
+      ]
+    },
+    "TraceEvent": {
+      "description": "One trace event of one device.",
+      "type": "object",
+      "properties": {
+        "device": {
+          "description": "Device id the event belongs to.",
+          "type": "string"
+        },
+        "kind": {
+          "description": "Event kind.",
+          "$ref": "#/$defs/TraceKind"
+        },
+        "name": {
+          "description": "Name of the output, signal, state, fault or event.",
+          "type": "string"
+        },
+        "t_ns": {
+          "description": "Time in nanoseconds since the cell epoch.",
+          "type": "integer",
+          "format": "int64"
+        },
+        "value": {
+          "description": "Rendered value; empty when the kind has none.",
+          "type": "string",
+          "default": ""
+        }
+      },
+      "required": [
+        "device",
+        "t_ns",
+        "kind",
+        "name"
+      ]
+    },
+    "TraceKind": {
+      "description": "Kind of a trace event; the same eight kinds as the reference interpreter.",
+      "oneOf": [
+        {
+          "description": "Output written.",
+          "type": "string",
+          "const": "OUT"
+        },
+        {
+          "description": "Signal changed.",
+          "type": "string",
+          "const": "SIG"
+        },
+        {
+          "description": "Fault raised.",
+          "type": "string",
+          "const": "FAULT"
+        },
+        {
+          "description": "Fault reset.",
+          "type": "string",
+          "const": "RESET"
+        },
+        {
+          "description": "Event emitted.",
+          "type": "string",
+          "const": "EVENT"
+        },
+        {
+          "description": "State machine or sequence state entered.",
+          "type": "string",
+          "const": "STATE"
+        },
+        {
+          "description": "Log line.",
+          "type": "string",
+          "const": "LOG"
+        },
+        {
+          "description": "Motion command.",
+          "type": "string",
+          "const": "MOVE"
+        }
+      ]
+    }
+  }
+}

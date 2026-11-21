@@ -19,6 +19,7 @@ members = [
   "crates/neuron-interp",
   "crates/neuron-lsp",
   "crates/neuron-cli",
+  "crates/synapse-protocol",
 ]
 
 [workspace.package]

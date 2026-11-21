@@ -1,0 +1,1 @@
+{"v":1,"type":"telemetry","cell":"bottling","samples":[{"id":"plc1.level","t_ns":1000000000,"value":42.5,"quality":"good"},{"id":"plc1.start","t_ns":1000000000,"value":true,"quality":"good"},{"id":"plc1.mode","t_ns":1000000000,"value":"auto","quality":"stale"},{"id":"plc1.count","t_ns":1000000000,"value":12,"quality":"bad"}]}
