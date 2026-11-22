@@ -723,4 +723,23 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
 - **Lessons:** the bottling example named `plc.press_cylinder` but no PLC module declared
   it, so the new check found a real gap; a module with that output was added. Replacing
   text in source files through PowerShell string methods silently did nothing twice
-  (no match), so every edit was re-read.
+  (no match), so every edit was re-read. The new example also changed the NIR and parser
+  golden files, which the first commit missed and the amend fixed.
+## 2026-11-23 · Task D4.3 (cell verify over the composed machines, shortest counterexample)
+- **Kiro features:** spec-driven development (D-R7, spec 08 §8.3 and 15 §15.6), property
+  tests (CEX-1 minimality against a closed-form chain, MUTEX-1 over lock delays), the
+  existing A8 model checker reused instead of a second one.
+- **Produced:** `neuron_sema::{verify_cell, CellModel, CellMember, CellChannel, ChannelEnd,
+  CellVerification, Proved}` (the checker takes members and channels; module verification
+  is unchanged); `neuron-cell::{verify_cell, prove_zone, prove_zone_with, CellVerdict,
+  ZoneProof, CellCounterexample, CellStep, Handshake}`; spec text in 15-analysis.md.
+- **Results:** x02's mutex is proved at its real lock delay (two ticks), at four ticks and
+  with three parties; the two-phase handshake is refuted at a 30 ms delay with a shortest
+  trace, so the four-phase protocol is justified by the checker; a cell with two sequences
+  joined by a link proves one property and gives a two-step counterexample for another;
+  the delay bound decides an `eventually_within`; a one-tick pulse is not lost.
+- **Lessons:** the first channel model let the destination skip samples, which loses
+  pulses and made the proofs too weak; the lossless FIFO fixed it. Putting every link
+  delay into the greatest common divisor of the durations made the tick 400 ns and the
+  search explode, so delays are now rounded up to a tick chosen from the scan periods.
+  Properties of a cell cannot be checked by `analyze` alone, so it now defers them.

@@ -33,6 +33,7 @@ mod visit;
 
 pub use lower::rat_text;
 pub use manifest::Manifest;
+pub use mc::{CellChannel, ChannelEnd, Proved};
 pub use model::{FileDiag, SourceFile};
 pub use neuron_nir as nir;
 pub use report::{ActivityTiming, Counterexample, MemoryReport, Reports, ResourceInfo, TraceStep};
@@ -186,4 +187,109 @@ pub fn analyze(sources: Vec<SourceFile>, manifest: Option<&str>, opts: &SemaOpti
             counterexamples,
         },
     }
+}
+
+/// A module whose state machines and sequences join the product of a cell.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CellMember {
+    /// Declared name of the module.
+    pub module: String,
+    /// Device that runs it; the inputs of its machines are qualified with this name
+    /// (`plc.sensor`), so that a [`CellChannel`] can name them.
+    pub device: String,
+}
+
+/// What [`verify_cell`] composes.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CellModel {
+    /// Module (or cell) that declares the `verify:` properties and whose own machines
+    /// are part of the product.
+    pub owner: String,
+    /// Modules placed on the devices of the cell.
+    pub members: Vec<CellMember>,
+    /// Links, abstracted as bounded-delay channels.
+    pub channels: Vec<CellChannel>,
+    /// A duration that the tick must divide (the scan period of the fastest device), so
+    /// that delays are counted in scans. `None`: the tick comes from the durations of the
+    /// modules and the channel delays only.
+    pub tick_ns: Option<u64>,
+}
+
+/// Result of [`verify_cell`].
+#[derive(Debug)]
+pub struct CellVerification {
+    /// Paths of the analyzed files, by index.
+    pub paths: Vec<String>,
+    /// Source texts, by index.
+    pub texts: Vec<String>,
+    /// `NE0901` (violated), `NL0901` (undecided or approximated) and the static checks of
+    /// the owner's machines.
+    pub diagnostics: Vec<FileDiag>,
+    /// A shortest counterexample for each violated property.
+    pub counterexamples: Vec<Counterexample>,
+    /// The properties that hold, with the number of states explored.
+    pub proved: Vec<Proved>,
+}
+
+/// Model-checks the `verify:` properties of `model.owner` over the product of its
+/// machines and those of `model.members`, each channel delaying the value it carries by
+/// `0..=k` ticks (spec 15 §15.6, task D4.3). The tick is the greatest common divisor of
+/// every duration in the product and of the channel delays.
+///
+/// # Errors
+/// A message when `owner` or a member is not a module of `sources`.
+pub fn verify_cell(
+    sources: Vec<SourceFile>,
+    model: &CellModel,
+    opts: &SemaOptions,
+) -> Result<CellVerification, String> {
+    let mut diags: Vec<FileDiag> = Vec::new();
+    let sources: Vec<SourceFile> = sources
+        .into_iter()
+        .map(|s| SourceFile {
+            text: s.text.trim_start_matches('\u{feff}').to_string(),
+            ..s
+        })
+        .collect();
+    let paths = sources.iter().map(|s| s.path.clone()).collect();
+    let texts = sources.iter().map(|s| s.text.clone()).collect();
+    let prog = model::Program::build(sources, None, &mut diags);
+    let resolved = resolve::resolve_program(&prog, &mut diags);
+    let find = |name: &str| {
+        prog.by_name
+            .get(name)
+            .copied()
+            .ok_or_else(|| format!("`{name}` is not a module of the sources"))
+    };
+    let owner = find(&model.owner)?;
+    let members = model
+        .members
+        .iter()
+        .map(|m| find(&m.module).map(|i| (i, m.device.clone())))
+        .collect::<Result<Vec<_>, _>>()?;
+    let mut out = Vec::new();
+    let mut counterexamples = Vec::new();
+    let mut proved = Vec::new();
+    mc::verify_with(
+        &prog,
+        &resolved,
+        owner,
+        &members,
+        &model.channels,
+        opts,
+        &mut out,
+        &mut counterexamples,
+        &mut proved,
+        model.tick_ns,
+        false,
+    );
+    sort_diags(&mut out);
+    out.dedup();
+    Ok(CellVerification {
+        paths,
+        texts,
+        diagnostics: out,
+        counterexamples,
+        proved,
+    })
 }

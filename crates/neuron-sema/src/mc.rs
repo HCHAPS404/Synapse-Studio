@@ -94,8 +94,13 @@ struct Build<'a> {
     mi: usize,
     atoms: Vec<String>,
     comps: Vec<Comp>,
-    comp_of_fsm: BTreeMap<String, usize>,
+    comp_of_fsm: BTreeMap<(usize, String), usize>,
     durations: Vec<u64>,
+    /// Device that runs the module being compiled; atoms are qualified with it.
+    prefix: Option<String>,
+    /// Name and states of every machine and sequence, by component index, once all of
+    /// them are compiled (properties may name a step of a sequence).
+    known: Vec<(String, Vec<String>)>,
 }
 
 struct Segment<'a> {
@@ -198,7 +203,12 @@ impl Build<'_> {
     }
 
     fn atom(&mut self, e: &Expr) -> G {
-        let t = self.text(e);
+        let mut t = self.text(e);
+        if let Some(dev) = &self.prefix {
+            if !t.starts_with(&format!("{dev}.")) {
+                t = format!("{dev}.{t}");
+            }
+        }
         let idx = match self.atoms.iter().position(|a| *a == t) {
             Some(i) => i,
             None => {
@@ -212,7 +222,7 @@ impl Build<'_> {
     fn state_ref(&self, id: &Ident) -> Option<G> {
         match self.resolved.res.get(&key(self.mi, id.span))? {
             Res::State { fsm, state } => {
-                let c = *self.comp_of_fsm.get(fsm)?;
+                let c = *self.comp_of_fsm.get(&(self.mi, fsm.clone()))?;
                 let s = self.comps[c].states.iter().position(|x| x == state)?;
                 Some(G::In(c, s))
             }
@@ -220,6 +230,15 @@ impl Build<'_> {
         }
     }
 
+    /// `module.Machine.State` of a machine of a member module, which the name resolver
+    /// does not see from the module that declares the property.
+    fn state_by_text(&self, e: &Expr) -> Option<G> {
+        let text = self.text(e);
+        let (m, s) = text.rsplit_once('.')?;
+        let c = self.known.iter().position(|(n, _)| n == m)?;
+        let si = self.known[c].1.iter().position(|x| x == s)?;
+        Some(G::In(c, si))
+    }
     fn guard(&mut self, e: &Expr) -> G {
         match &e.kind {
             ExprKind::Lit(Lit::Bool(true)) => G::True,
@@ -235,7 +254,7 @@ impl Build<'_> {
                 Some(g) => g,
                 None => self.atom(e),
             },
-            ExprKind::Field(_, id) => match self.state_ref(id) {
+            ExprKind::Field(_, id) => match self.state_ref(id).or_else(|| self.state_by_text(e)) {
                 Some(g) => g,
                 None => self.atom(e),
             },
@@ -307,6 +326,82 @@ pub fn verify_module(
     diags: &mut Vec<FileDiag>,
     out: &mut Vec<Counterexample>,
 ) {
+    let mut proved = Vec::new();
+    verify_with(
+        prog,
+        resolved,
+        mi,
+        &[],
+        &[],
+        opts,
+        diags,
+        out,
+        &mut proved,
+        None,
+        // The properties of a cell mention inputs that its links couple to machines of
+        // other modules; alone they would fail on an implausible environment, so they are
+        // checked by `verify_cell` (task D4.3), not here.
+        prog.modules[mi].dialect == neuron_syntax::ast::Dialect::Cell,
+    );
+}
+
+/// The end of a cell channel that a value is read from.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ChannelEnd {
+    /// A boolean input, by the text of its expression (`plc.part_ready`).
+    Atom(String),
+    /// True while one of the named machine states is current (`Machine.State`; a machine
+    /// of a member module is `module.Machine`).
+    InState(Vec<String>),
+}
+
+/// A link between two parts of a cell, abstracted as a bounded-delay channel: the value
+/// of `from` at tick `t` is seen by `to` at some tick `t..=t+k`, in order, where `k` is
+/// the delay in ticks.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CellChannel {
+    /// What is written.
+    pub from: ChannelEnd,
+    /// The input (an atom, by its text) that reads it.
+    pub to: String,
+    /// Worst-case delay in nanoseconds.
+    pub delay_ns: u64,
+}
+
+/// A property that holds, with the size of the search that proved it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Proved {
+    /// Module that declares the property.
+    pub module: String,
+    /// The property as written.
+    pub property: String,
+    /// States of the product that were explored.
+    pub states: usize,
+}
+
+/// A channel with its delay in ticks.
+struct Chan {
+    src: G,
+    dst: usize,
+    k: u16,
+}
+
+/// Static checks and `verify` properties of module `mi`, over its own machines and the
+/// machines of the member modules `(module index, device)`, joined by `chans`.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn verify_with(
+    prog: &Program,
+    resolved: &Resolved,
+    mi: usize,
+    members: &[(usize, String)],
+    chans: &[CellChannel],
+    opts: &SemaOptions,
+    diags: &mut Vec<FileDiag>,
+    out: &mut Vec<Counterexample>,
+    proved: &mut Vec<Proved>,
+    tick_hint: Option<u64>,
+    defer_props: bool,
+) {
     let file = &prog.files[mi];
     let mut b = Build {
         prog,
@@ -317,6 +412,8 @@ pub fn verify_module(
         comps: Vec::new(),
         comp_of_fsm: BTreeMap::new(),
         durations: Vec::new(),
+        prefix: None,
+        known: Vec::new(),
     };
     fn push_err(
         diags: &mut Vec<FileDiag>,
@@ -334,38 +431,55 @@ pub fn verify_module(
     }
 
     // ---- collect fsms and sequences, register component names first ----
-    let mut fsms: Vec<&FsmDecl> = Vec::new();
-    let mut seqs: Vec<&SequenceDecl> = Vec::new();
-    for it in &file.ast.items {
-        match &it.kind {
-            ItemKind::Fsm(f) => fsms.push(f),
-            ItemKind::Circuit(c) => {
-                for m in &c.members {
-                    if let CircuitMember::Fsm(f) = &m.node {
-                        fsms.push(f);
+    // Each machine remembers its file, and the device of a member module.
+    let mut fsms: Vec<(usize, Option<&str>, &FsmDecl)> = Vec::new();
+    let mut seqs: Vec<(usize, Option<&str>, &SequenceDecl)> = Vec::new();
+    let sources: Vec<(usize, Option<&str>)> = std::iter::once((mi, None))
+        .chain(members.iter().map(|(m, d)| (*m, Some(d.as_str()))))
+        .collect();
+    for (fi, dev) in &sources {
+        for it in &prog.files[*fi].ast.items {
+            match &it.kind {
+                ItemKind::Fsm(f) => fsms.push((*fi, *dev, f)),
+                ItemKind::Circuit(c) => {
+                    for m in &c.members {
+                        if let CircuitMember::Fsm(f) = &m.node {
+                            fsms.push((*fi, *dev, f));
+                        }
                     }
                 }
+                ItemKind::Sequence(s) => seqs.push((*fi, *dev, s)),
+                _ => {}
             }
-            ItemKind::Sequence(s) => seqs.push(s),
-            _ => {}
         }
     }
+    // Display name of a machine: bare in the module under verification, else qualified.
+    let machine_name = |fi: usize, n: &str| -> String {
+        if fi == mi {
+            n.to_string()
+        } else {
+            format!("{}.{n}", prog.modules[fi].name)
+        }
+    };
+    let mut comp_file: Vec<usize> = Vec::new();
     let mut raws: Vec<RawComp> = Vec::new();
     let mut spans: Vec<Vec<Span>> = Vec::new();
     let mut final_flags: Vec<Vec<bool>> = Vec::new();
     // Placeholder components so that `In(comp, state)` can be resolved while compiling guards.
-    for f in &fsms {
+    for (fi, _, f) in &fsms {
         let ci = b.comps.len();
-        b.comp_of_fsm.insert(f.name.name.clone(), ci);
+        b.comp_of_fsm.insert((*fi, f.name.name.clone()), ci);
         b.comps.push(Comp {
-            name: f.name.name.clone(),
+            name: machine_name(*fi, &f.name.name),
             states: f.states.iter().map(|s| s.name.name.clone()).collect(),
             init: 0,
             trans: Vec::new(),
             cap: 1,
         });
     }
-    for f in &fsms {
+    for (fi, dev, f) in &fsms {
+        b.mi = *fi;
+        b.prefix = dev.map(str::to_string);
         let initials: Vec<usize> = f
             .states
             .iter()
@@ -373,7 +487,7 @@ pub fn verify_module(
             .filter(|(_, s)| s.initial)
             .map(|(i, _)| i)
             .collect();
-        if !f.states.is_empty() && initials.len() != 1 {
+        if !f.states.is_empty() && initials.len() != 1 && *fi == mi {
             push_err(
                 diags,
                 mi,
@@ -418,30 +532,40 @@ pub fn verify_module(
         }
         spans.push(f.states.iter().map(|s| s.name.span).collect());
         final_flags.push(finals);
+        comp_file.push(*fi);
         raws.push(RawComp {
-            name: f.name.name.clone(),
+            name: machine_name(*fi, &f.name.name),
             states: f.states.iter().map(|s| s.name.name.clone()).collect(),
             init: initials.first().copied().unwrap_or(0),
             trans,
         });
     }
-    for s in &seqs {
+    for (fi, dev, s) in &seqs {
+        b.mi = *fi;
+        b.prefix = dev.map(str::to_string);
         let mut counter = 0usize;
         let segs = build_segments(&s.items, &mut counter);
         compile_sequence(
             &mut b,
-            &s.name.name,
+            &machine_name(*fi, &s.name.name),
             &segs,
             &mut raws,
             &mut spans,
             &mut final_flags,
             None,
         );
+        comp_file.resize(raws.len(), *fi);
     }
+    b.mi = mi;
+    b.prefix = None;
+    b.known = raws
+        .iter()
+        .map(|r| (r.name.clone(), r.states.clone()))
+        .collect();
 
     // ---- static checks: NE0903 deadlock, NE0902 unreachable ----
     for (ci, rc) in raws.iter().enumerate() {
-        if rc.states.is_empty() {
+        if rc.states.is_empty() || comp_file.get(ci).copied() != Some(mi) {
             continue;
         }
         for (si, ts) in rc.trans.iter().enumerate() {
@@ -489,7 +613,7 @@ pub fn verify_module(
         }
     }
     // Sequence steps blocked forever: `until false`.
-    for s in &seqs {
+    for (_, _, s) in seqs.iter().filter(|(fi, _, _)| *fi == mi) {
         let mut all: Vec<&Stmt> = Vec::new();
         let mut v = Vec::new();
         crate::visit::seq_stmts(&s.items, &mut v);
@@ -567,10 +691,48 @@ pub fn verify_module(
             }
         }
     }
-    if props.is_empty() {
+    if props.is_empty() || defer_props {
         return;
     }
+    // ---- channels: resolve the ends once every atom of the module is known ----
+    // A channel whose destination (or atom source) no machine or property reads has no
+    // effect on any property and is left out; the destination is then a free input,
+    // which only adds behaviors.
+    let state_of = |name: &str| -> Option<G> {
+        let (m, s) = name.rsplit_once('.')?;
+        let c = raws.iter().position(|r| r.name == m)?;
+        let si = raws[c].states.iter().position(|x| x == s)?;
+        Some(G::In(c, si))
+    };
+    let mut raw_chans: Vec<(G, usize, u64)> = Vec::new();
+    for ch in chans {
+        let Some(dst) = b.atoms.iter().position(|a| *a == ch.to) else {
+            continue;
+        };
+        let src = match &ch.from {
+            ChannelEnd::Atom(t) => b.atoms.iter().position(|a| a == t).map(G::Atom),
+            ChannelEnd::InState(names) => names
+                .iter()
+                .map(|n| state_of(n))
+                .collect::<Option<Vec<G>>>()
+                .and_then(|gs| {
+                    gs.into_iter()
+                        .reduce(|a, c| G::Or(Box::new(a), Box::new(c)))
+                }),
+        };
+        if let Some(src) = src {
+            // With a tick hint the delay is only rounded up to ticks; without one it
+            // takes part in the tick like any other duration.
+            if ch.delay_ns > 0 && tick_hint.is_none() {
+                b.durations.push(ch.delay_ns);
+            }
+            raw_chans.push((src, dst, ch.delay_ns));
+        }
+    }
 
+    if let Some(t) = tick_hint.filter(|t| *t > 0) {
+        b.durations.push(t);
+    }
     // ---- time discretization ----
     // Without any duration in the module a tick has no natural size: use 1 ms.
     let mut tick = match b.durations.iter().copied().fold(0, gcd) {
@@ -583,7 +745,22 @@ pub fn verify_module(
         tick *= max_d.div_ceil(tick).div_ceil(4096);
         coarse = true;
     }
+    // A channel history is kept in 15 bits: a longer delay coarsens the tick (delays
+    // are rounded up, which only adds behaviors).
+    let chan_max = raw_chans.iter().map(|c| c.2).max().unwrap_or(0);
+    if chan_max.div_ceil(tick) > MAX_CHANNEL_TICKS {
+        tick = chan_max.div_ceil(MAX_CHANNEL_TICKS);
+        coarse = true;
+    }
     let ticks_of = |ns: u64| ns.div_ceil(tick);
+    let chans: Vec<Chan> = raw_chans
+        .into_iter()
+        .map(|(src, dst, ns)| Chan {
+            src,
+            dst,
+            k: u16::try_from(ticks_of(ns).min(MAX_CHANNEL_TICKS)).unwrap_or(0),
+        })
+        .collect();
     let mut comps: Vec<Comp> = Vec::new();
     for rc in &raws {
         let mut cap = 1;
@@ -663,8 +840,12 @@ pub fn verify_module(
             },
             other => other,
         };
-        match check(&comps, &atoms, &prop, tick, opts) {
-            Outcome::Holds => {}
+        match check(&comps, &atoms, &prop, &chans, tick, opts) {
+            Outcome::Holds(states) => proved.push(Proved {
+                module: prog.modules[mi].name.clone(),
+                property: text,
+                states,
+            }),
             Outcome::Inconclusive(why) => diags.push(FileDiag {
                 file: mi,
                 diag: Diagnostic::warning(
@@ -875,8 +1056,11 @@ fn compile_sequence(
     ci
 }
 
+/// Longest channel delay in ticks (the history of a channel is kept in 15 bits).
+const MAX_CHANNEL_TICKS: u64 = 14;
 enum Outcome {
-    Holds,
+    /// The property holds; the number of states of the product that were explored.
+    Holds(usize),
     Violated(Vec<TraceStep>),
     Inconclusive(String),
 }
@@ -943,10 +1127,60 @@ fn prop_step(prop: &Prop, cfg: &[u16], val: u32, monitor: u16) -> (bool, u16) {
     }
 }
 
+/// Every way the channels can deliver at this tick, given the free inputs `free`: the
+/// valuation with the destination bits set, and the new history words of the channels
+/// (`history`, `delay` per channel, after the monitor word of the configuration).
+///
+/// A channel is a lossless FIFO with delay `0..=k`: the destination reads the value the
+/// source had `d` ticks ago, and `d` may grow by one per tick (the channel stalls). It may
+/// fall (the channel catches up) only over samples equal to the one read last, so the
+/// destination sees every change of the source, in order, and never an older value after
+/// a newer one.
+fn deliveries(chans: &[Chan], cfg: &[u16], n: usize, free: u32) -> Vec<(u32, Vec<u16>)> {
+    let mut acc: Vec<(u32, Vec<u16>)> = vec![(free, Vec::new())];
+    for (i, ch) in chans.iter().enumerate() {
+        let hist = cfg[2 * n + 1 + 2 * i];
+        let prev = cfg[2 * n + 2 + 2 * i];
+        // `hist` bit `i` is the value of the source `i + 1` ticks ago, `k + 1` of them.
+        let mask = (1u16 << (ch.k + 1)) - 1;
+        let dmax = (prev + 1).min(ch.k);
+        let mut next = Vec::new();
+        for (val, words) in acc {
+            let s = eval(&ch.src, &cfg[..2 * n], val);
+            let new_hist = ((hist << 1) | u16::from(s)) & mask;
+            // The source `j` ticks ago.
+            let at = |j: u16| {
+                if j == 0 {
+                    s
+                } else {
+                    (hist >> (j - 1)) & 1 == 1
+                }
+            };
+            // The sample read at the previous tick, to be repeated or passed.
+            let last = at(prev + 1);
+            for d in 0..=dmax {
+                // The channel is lossless: the destination may skip samples only while
+                // they equal the one it saw last, so it never misses a change.
+                if (d + 1..=prev).any(|j| at(j) != last) {
+                    continue;
+                }
+                let bit = at(d);
+                let v = if bit { val | (1 << ch.dst) } else { val };
+                let mut w = words.clone();
+                w.push(new_hist);
+                w.push(d);
+                next.push((v, w));
+            }
+        }
+        acc = next;
+    }
+    acc
+}
 fn check(
     comps: &[Comp],
     atoms: &[String],
     prop: &Prop,
+    chans: &[Chan],
     tick_ns: u64,
     opts: &SemaOptions,
 ) -> Outcome {
@@ -958,7 +1192,8 @@ fn check(
         ));
     }
     let valuations: u32 = 1 << atoms.len();
-    let mut init = vec![0u16; 2 * n + 1];
+    let dst_mask: u32 = chans.iter().fold(0, |m, c| m | (1 << c.dst));
+    let mut init = vec![0u16; 2 * n + 1 + 2 * chans.len()];
     for (i, c) in comps.iter().enumerate() {
         init[i] = u16::try_from(c.init).unwrap_or(0);
     }
@@ -976,25 +1211,28 @@ fn check(
             return Outcome::Inconclusive("the state space is too large".to_string());
         }
         let cfg = nodes[idx].cfg.clone();
-        for val in 0..valuations {
-            work += 1;
-            let (violated, mon) = prop_step(prop, &cfg[..2 * n], val, cfg[2 * n]);
-            if violated {
-                return Outcome::Violated(trace(comps, atoms, &nodes, idx, val, tick_ns));
-            }
-            let mut nxt = step(comps, &cfg, val);
-            nxt[2 * n] = mon;
-            if seen.insert(nxt.clone()) {
-                nodes.push(Node {
-                    cfg: nxt,
-                    parent: idx,
-                    val,
-                });
+        for free in (0..valuations).filter(|v| v & dst_mask == 0) {
+            for (val, words) in deliveries(chans, &cfg, n, free) {
+                work += 1;
+                let (violated, mon) = prop_step(prop, &cfg[..2 * n], val, cfg[2 * n]);
+                if violated {
+                    return Outcome::Violated(trace(comps, atoms, &nodes, idx, val, tick_ns));
+                }
+                let mut nxt = step(comps, &cfg, val);
+                nxt[2 * n] = mon;
+                nxt[2 * n + 1..].copy_from_slice(&words);
+                if seen.insert(nxt.clone()) {
+                    nodes.push(Node {
+                        cfg: nxt,
+                        parent: idx,
+                        val,
+                    });
+                }
             }
         }
         idx += 1;
     }
-    Outcome::Holds
+    Outcome::Holds(nodes.len())
 }
 
 struct Node {

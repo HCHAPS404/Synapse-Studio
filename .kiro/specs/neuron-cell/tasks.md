@@ -15,7 +15,7 @@ a Conventional Commit with `-s` and CI checked.
 | D3.4 | Tags across devices, `NE0703`, single writer | D-R6 | no | done |
 | D4.1 | Zones and mutexes, `NE0805`, robot targets in zones | D-R7 | no | done |
 | D4.2 | Electrical compatibility, `NE0801` | D-R7 | no | done |
-| D4.3 | Cell `verify:` over the composed machines, shortest counterexample | D-R7 | no | open |
+| D4.3 | Cell `verify:` over the composed machines, shortest counterexample | D-R7 | no | done |
 | D6.1 | Co-simulation on the cell clock, link models, `--cut`, partition equivalence | D-R8, MOC-C1, MOC-C2 | no | open |
 | D6.2 | Replay format and JSON Schema for the twin | D-R8 | no | open |
 | D5.1 | Dossier: Markdown and HTML with SVG timing diagram, BOM, reports | D-R9 | no | open |
@@ -241,6 +241,36 @@ SPEL+ emitter has no wait on a variable so the robot side of the handshake is de
 but not executed, and the model-checked proof of the mutex is D4.3. `examples/press_plc`
 was added because the bottling cell's `plc.press_cylinder` was declared by no module.
 Tests: 11 in `d4_zones.rs`, 87 in the crate.
+## Results of D4.3
+`neuron-sema` gains `verify_cell(sources, &CellModel, opts)` (the A8 checker refactored
+into `verify_with`; `verify_module` and `analyze` behave as before, except that the
+`verify:` properties of a `cell` module are no longer checked by `analyze`, since a cell
+property needs its links). The product is the cell's own `fsm`/`sequence` items plus those
+of every placed module; the inputs of a placed module are qualified with its device
+(`plc.sensor`) so that a `link plc.x -> arm.y` becomes a channel between the atoms `plc.x`
+and `arm.y`. Channel: a lossless FIFO with delay `0..=k` ticks (the destination reads the
+source as it was `d` ticks ago; `d` grows by at most one per tick and falls only over
+samples equal to the one read last, so no change is missed or reordered); `k` is the
+`within` budget of the link, else its computed worst case, rounded up to the tick, at most
+14 (a longer delay coarsens the tick). The tick is the fastest endpoint period of the
+devices and divides every duration of the product. Loss is not modeled. Properties may
+name a sequence step (`Seq.Step`) and a member machine state (`module.Machine.State`).
+`neuron-cell::verify`: `verify_cell` (links to channels, `NE0901` with the counterexample
+as plain data, `NL0901` notes) and `prove_zone` (the mutex of D4.1: one machine per party
+with Idle, Wait, Inside, Leaving, one for the arbiter, the request and grant signals as
+channels with the lock delay of the plan, and "never both inside" for each pair of
+parties). x02 is proved at its real lock delay (14 ms over Modbus TCP, two ticks), also at
+four ticks and with three parties. The two-phase variant (no wait for the grant to fall)
+is violated at a 30 ms delay with a shortest trace, which is why the generated protocol
+has four phases. The model is the protocol, not the translated rungs: the arbiter's
+single-scan hand-over is one tick faster than the model's `Free` step, which does not
+change the argument (a grant falls only after the request fell). Not done: the
+properties are not yet read from `neuron cell check` (D7), machines of placed modules are
+modeled at every tick (a slower device reacts more often than it can), and the replay
+format of the counterexample is D6.2. Tests: 6 in `neuron-sema/tests/d4_cell_verify.rs`
+(shortest trace, delay bound, lossless pulse, property CEX-1), 8 in
+`neuron-cell/tests/d4_verify.rs` (mutex proofs, two-phase counterexample, a cell with two
+sequences and a link, property MUTEX-1), 1 doctest.
 Decisions accepted by Hell on 2026-11-20: endpoints as NIR items (design decision 1),
 co-simulation on the interpreter with the fidelity bounds of Phase C added to the link
 budgets (decision 2), dossier as Markdown plus HTML with the PDF printed from it

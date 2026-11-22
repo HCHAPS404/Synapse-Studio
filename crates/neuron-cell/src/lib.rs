@@ -21,6 +21,7 @@ mod manifest;
 mod partition;
 mod tags;
 mod units;
+mod verify;
 mod watchdog;
 
 pub mod wire;
@@ -43,6 +44,10 @@ pub use manifest::{
 pub use partition::{partition, CellPlan, DevicePlan, How, Placed};
 pub use tags::{address_fits, check_tags, parse_direct_address, type_bits, DirectAddress};
 pub use units::{duration_ns, rate_bd};
+pub use verify::{
+    prove_zone, prove_zone_with, verify_cell, CellCounterexample, CellStep, CellVerdict,
+    ChannelInfo, Handshake, ProvedProperty, ZoneProof,
+};
 pub use watchdog::{
     watchdog_plans, DeviceWatchdog, WatchdogPlan, DEFAULT_WATCHDOG_NS, HEARTBEAT_NS,
     MISSED_HEARTBEATS,

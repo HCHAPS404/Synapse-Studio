@@ -311,6 +311,20 @@ holds it with the state of every automaton and the value of every atom at every 
 Limits: 14 atoms and the state budget of the options; beyond them the result is
 `NL0901`, never a silent pass.
 
+**Cells.** The properties of a `cell` are not checked by `analyze` (alone they would fail
+on an environment that the links rule out). The cell compiler checks them with
+`verify_cell` over the product of the cell's own machines and sequences and those of every
+placed module. Inputs of a placed module are qualified with its device (`plc.sensor`), so a
+`link a.x -> b.y` joins the atoms `a.x` and `b.y` through a **channel**: a lossless FIFO
+with delay `0..=k` ticks, where `k` is the `within` budget of the link (else its computed
+latency) rounded up to the tick, at most 14 ticks (a longer delay coarsens the tick and
+`NL0901` says so). The destination sees every change of the source, in order; it may be
+late, never early, and never misses a change. Loss is not modeled (the cell watchdog turns
+it into a fault). The counterexample of a violated property is the shortest trace over the
+product and is plain data (tick, time, state of every machine, value of every input). A
+property may name a step of a sequence (`Seq.Step`), and a state of a placed module's
+machine as `module.Machine.State`.
+
 > **SAFE-1 and SAFE-2** concern execution and are tested on the interpreter (task A10).
 > Here the static part is checked: every output has a safe value and `on fault` cannot
 > change it.
