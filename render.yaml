@@ -8,7 +8,10 @@ services:
     name: synapse-core
     runtime: python
     plan: starter
-    region: ohio # same region as the Neon project (AWS US East 2)
+    # TODO(region): the service runs in Oregon (Render default) while Neon is in AWS US East 2
+    # (Ohio). Render cannot change the region of an existing service. To fix: add
+    # `region: ohio` here, delete and recreate the service, then set SYNAPSE_DATABASE_URL and
+    # update the Vercel API URL. Cost today: about 50-70 ms per database round trip.
     rootDir: services/core
     buildCommand: pip install uv && uv sync --locked --no-dev
     startCommand: uv run --no-dev uvicorn synapse_core.main:app --host 0.0.0.0 --port $PORT

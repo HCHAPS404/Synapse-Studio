@@ -163,6 +163,18 @@ that needs a physical device stays pending until its session.
   B4-B9 on boards (I2, I3); Python `host` node on the Pi 5 (I4).
 - Rule: work that does not need a device is done in the repo, not left pending.
 
+## Cloud services (2026-11-22)
+
+- Neon: project `synapse-studio` (`muddy-glade-31845276`, AWS US East 2 Ohio, branch `production`),
+  linked in `services/core` (`neon.ts`, `.neon`; `.env.local` is ignored). Only Postgres is on.
+- Render: `synapse-core` (Starter, Blueprint from `main`) at https://synapse-core-jqqk.onrender.com;
+  `/health` returned ok with database ok. Secret `SYNAPSE_DATABASE_URL` is set in the dashboard.
+- **Known debt (TODO region):** Render runs in Oregon, Neon in Ohio. Fix and cost are in the
+  comment at the top of the service in `render.yaml`. Hell chose to leave it for now.
+- Neon MCP API key id 3566976 sits in `~/.kiro/settings/mcp.json`; revoke it with
+  `neon api-keys revoke 3566976` when setup is finished.
+- Next: Vercel (`apps/web`), then set `SYNAPSE_CORS_ORIGINS` in `render.yaml` to the real URL.
+
 ## Human actions still open (Hell)
 
 Add Martin as collaborator and protect `main`/`develop`; Neon, Render (paid) and Vercel
