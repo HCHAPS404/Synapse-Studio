@@ -232,6 +232,7 @@ dependencies = [
  "neuron-syntax",
  "neuron-target",
  "neuron-ui",
+ "serde_json",
 ]
 
 [[package]]

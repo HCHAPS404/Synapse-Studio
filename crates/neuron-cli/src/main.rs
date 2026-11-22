@@ -6,6 +6,9 @@
 //! and `flash` (tasks B1 to B4), `emit` and `import` (task C7), and `cell` (task D7).
 //! Planned: `doc`, `pkg`.
 
+#[macro_use]
+mod report;
+
 mod cell;
 mod translate;
 
@@ -20,7 +23,7 @@ usage:
   neuron --version
   neuron lex <file.neuron>          print the token stream
   neuron ast <file.neuron>          print the syntax tree
-  neuron check [options] <file|dir>...
+  neuron check [options] [--format human|json] <file|dir>...
                                     analyze files, or a package (a directory with neuron.toml);
                                     when the package has cells it also runs the cell checks of
                                     `neuron cell check`; exit code 1 on errors
@@ -40,7 +43,7 @@ usage:
   neuron emit-c <file|dir>... [--board b] [-o dir]
                                     check the program against its board and print the C
                                     (with `-o`, write it with the runtime sources)
-  neuron build <file|dir>... [--board b] [--out dir] [--host | --native]
+  neuron build <file|dir>... [--board b] [--out dir] [--host | --native] [--format human|json]
                                     check, generate C and compile the firmware for the board
                                     (default build/<board>/): app.hex (AVR), app.elf/app.bin/
                                     app.uf2 (RP2040, RP2350, STM32), an idf.py project (ESP32-S3);
@@ -57,6 +60,7 @@ usage:
                                     st-flash (STM32), esptool (ESP32-S3, --port), openFPGALoader
   neuron emit <st|scl|plcopen|spel|python|kernel|c> <file|dir>... [-o dir] [--profile p]
               [--robot name|path.toml] [--policy exact|equivalent|approximate]
+              [--format human|json]
                                     translate a program to another language: writes the files,
                                     fidelity.json, wiring.md and source maps (default out/<language>);
                                     `--profile yaskawa` for st, `--robot` for spel (generic_6axis,
@@ -86,6 +90,11 @@ run options:
   --scenario <file>   scripted inputs (one `at 100 ms: button = true` per line)
   --jitter <seed>     random execution delays, to check that signals do not depend on them
   --action-time <t>   time a device action takes in the model (default 100 ms)
+
+--format json (check, build, emit):
+  prints one JSON document on standard output instead of the human text: the diagnostics
+  (code, severity, message, file, line, column, help), other messages and the files written
+  (docs/cli-json.md); the exit code is unchanged
 
 check options:
   --cpu-hz <n>     CPU clock in Hz: enables worst-case execution time analysis
@@ -580,10 +589,12 @@ fn prepare_hw(h: &HwArgs) -> Result<neuron_cli::hw::Prepared, ExitCode> {
 }
 
 fn out_dir(h: &HwArgs, p: &neuron_cli::hw::Prepared) -> PathBuf {
-    match &h.out {
+    let dir = match &h.out {
         Some(o) => PathBuf::from(o),
         None => Path::new("build").join(&p.target.board.name),
-    }
+    };
+    report::set_output_dir(&dir);
+    dir
 }
 
 /// `neuron emit-c <file|dir>... [--board b] [-o dir]`: the generated C, without compiling it.
@@ -809,6 +820,7 @@ fn hdl_flow(
         print!("{}", v.text);
         return Ok(None);
     };
+    report::set_output_dir(&out);
     std::fs::create_dir_all(&out).map_err(fail)?;
     std::fs::write(out.join("top.v"), &v.text).map_err(fail)?;
     let Some(board) = board else {
@@ -1213,7 +1225,30 @@ fn cmd_check(args: &[String]) -> ExitCode {
 }
 
 fn main() -> ExitCode {
-    let args: Vec<String> = std::env::args().skip(1).collect();
+    let mut args: Vec<String> = std::env::args().skip(1).collect();
+    let command = args.first().cloned().unwrap_or_default();
+    let mut json = false;
+    if matches!(command.as_str(), "check" | "build" | "emit") {
+        match report::take_format(&mut args) {
+            Ok(j) => json = j,
+            Err(message) => {
+                eprintln!("error: {message}\n\n{USAGE}");
+                return ExitCode::from(2);
+            }
+        }
+        if json {
+            report::begin();
+        }
+    }
+    let code = run(&args);
+    if json {
+        report::finish(&command, code)
+    } else {
+        code
+    }
+}
+
+fn run(args: &[String]) -> ExitCode {
     match args.first().map(String::as_str) {
         Some("--version" | "-V") => {
             println!(

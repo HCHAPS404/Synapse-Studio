@@ -133,6 +133,7 @@ fn emit(args: &[String]) -> Result<(), ExitCode> {
         }
     }
     let dir = PathBuf::from(out.unwrap_or_else(|| format!("out/{name}")));
+    crate::report::set_output_dir(&dir);
     let written = package.write(&dir).map_err(|e| {
         eprintln!("error: cannot write to {}: {e}", dir.display());
         ExitCode::from(2)

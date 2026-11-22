@@ -6,7 +6,7 @@ tested against simulated peers.
 | Id | Task | Requirements | Needs hardware | Status |
 |---|---|---|---|---|
 | E2.1 | Service layout, settings, structured logging with redaction, `ErrorBody` and `NE11xx` handlers, SQLAlchemy async session, Alembic baseline, `docs/errors/services.md`; CI Postgres container | E-R1, E-R19 | no | done |
-| E2.2 | `neuron check`, `build`, `emit --format json` (diagnostics and artifact list) with CLI tests | E-R2 | no | open |
+| E2.2 | `neuron check`, `build`, `emit --format json` (diagnostics and artifact list) with CLI tests | E-R2 | no | done |
 | E2.3 | Compile runner: temp dir, path checks, limits, timeout and process-group kill, environment stripping, network self-test, `NE1101` `NE1102` | E-R2 | no | open |
 | E2.4 | Projects, immutable versions and files (tables, routes, content hash, `row_version`, `NE1107`) | E-R1 | no | open |
 | E2.5 | Builds API on the runner: queue and semaphore, stored diagnostics and artifacts with SHA-256, `GET /v1/capabilities` | E-R1, E-R2 | no | open |
@@ -77,3 +77,22 @@ messages, never input values; transport errors without a catalogue entry use `HT
 catch-all 500 handler runs outside the request-id middleware, so its body has no request id.
 Open: `pyright` is not configured (the spec does not ask for it); the Postgres tests
 (migration round trip, async query) run in CI only. Tests: 23 pass, 2 skipped locally.
+
+## Results of E2.2
+`crates/neuron-cli/src/report.rs` (new), `--format human|json` for `check`, `build` and
+`emit`, document layout in `docs/cli-json.md` (`"format": 1`: `ok`, `diagnostics` with code,
+severity, message, file, line, column, help and notes, `messages`, `output_dir`, sorted
+`artifacts` with path and size). Method: the binary shadows `eprint!`, `eprintln!`, `print!`
+and `println!` with macros that write to the real streams as before, or to buffers in JSON
+mode; after the command, the captured rendered diagnostics (the one layout all stages share:
+analyzer, hardware, cell, emitters) are parsed into data, so the human and JSON modes
+cannot disagree and no command needed rewriting. The exit code is returned unchanged;
+`ok` is "no error diagnostic". Choices: SHA-256 is not computed by the CLI (the runner
+hashes artifacts, E2.3/E2.5); stages that print no code (missing tool, usage) become
+diagnostics with `code: null`; a usage error in JSON mode still prints a document.
+Open: diagnostics are parsed from text, so a new stage that prints a different layout needs
+its header recognised in `report::parse`; `import` has no `--format` yet (the spec asks for
+check, build and emit only). Tests: 13 integration tests in `tests/e2_json.rs` (success,
+errors with position, hardware error, native build artifacts, emit artifacts, policy
+refusal, usage errors, human default unchanged, human/JSON agreement, determinism) and 5
+unit tests of the parser; all other `neuron-cli` suites still pass; clippy `-D warnings` clean.

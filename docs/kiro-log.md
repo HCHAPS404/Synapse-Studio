@@ -828,3 +828,13 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
 - **Lessons:** a property test of redaction first failed because the generated password
   was a substring of "postgresql"; generated secrets need a prefix that cannot occur in
   the surrounding text. Writing source from the shell added a byte-order mark: use the file tools.
+
+## 2026-11-23 · Task E2.2 (`--format json` for check, build and emit)
+- **Kiro features:** spec-driven task from `.kiro/specs/core-services/`, workspace rules.
+- **Produced:** `crates/neuron-cli/src/report.rs`, `tests/e2_json.rs`, `docs/cli-json.md`,
+  `--format` in the usage text of `check`, `build` and `emit`.
+- **Results:** 13 new CLI tests and 5 parser unit tests pass with every older `neuron-cli`
+  suite; clippy and fmt clean. Human output is unchanged and still the default.
+- **Lessons:** shadowing the print macros in the binary gave structured output without
+  touching about sixty print sites. The price is that the JSON diagnostics come from parsing
+  the rendered text, which a test pins against the human mode.

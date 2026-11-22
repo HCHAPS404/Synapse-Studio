@@ -28,3 +28,4 @@ neuron-ui = { path = "../neuron-ui" }
 neuron-emit = { path = "../neuron-emit" }
 neuron-cell = { path = "../neuron-cell" }
 neuron-import = { path = "../neuron-import" }
+serde_json = { workspace = true }
