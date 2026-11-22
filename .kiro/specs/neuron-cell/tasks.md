@@ -19,7 +19,7 @@ a Conventional Commit with `-s` and CI checked.
 | D6.1 | Co-simulation on the cell clock, link models, `--cut`, partition equivalence | D-R8, MOC-C1, MOC-C2 | no | done |
 | D6.2 | Replay format and JSON Schema for the twin | D-R8 | no | done |
 | D5.1 | Dossier: Markdown and HTML with SVG timing diagram, BOM, reports | D-R9 | no | done |
-| D7 | CLI `neuron cell check|build|sim|dossier`, `docs/cells.md`, CI smoke steps, roadmap, README | D-R10 | no | open |
+| D7 | CLI `neuron cell check|build|sim|dossier`, `docs/cells.md`, CI smoke steps, roadmap, README | D-R10 | no | done |
 | D-HW | Confirm timing profiles (I1), run the bottling cell on real devices (I4 to I7) | D-R1, D-R4 | **yes** | pending (sessions) |
 
 ## Results of D1.1
@@ -376,6 +376,54 @@ until session I1. `electrical::{output_volts, input_volts}` became `pub(crate)`.
 self-contained HTML, safety and generic wording, per-device build status, test report
 with a delivery at 23.005 ms and a cut that raises `LinkLost`) and 5 in the module
 (escaping properties, lane sums), 130 in the crate.
+## Results of D7
+`crates/neuron-cli/src/cell.rs` (wired in `main.rs` like `translate.rs`; `neuron-cell` is
+a new dependency of `neuron-cli`): `neuron cell check|build|sim|dossier`, `--help` text,
+`docs/cells.md`. Inputs are the files or package directories of `neuron check`; a package
+folder may carry its own `devices/` (overlaid on the built-in manifests), and `--devices
+dir` adds another. `check` runs partition, link table, tags, electrical, zones and cell
+verify with the mutex proofs, prints each diagnostic as `error[NE####]` with ` --> file:line:col`,
+the source line and `= help:`, then a summary per cell (devices, one row per link with
+worst case, budget and trust, the mutex proof of each zone, properties proved and
+violated, the counterexample as a tick table); exit 1 on errors. `build [--cell] [-o dir]`
+refuses a cell with static errors or a backend refusal and writes nothing then; otherwise
+it writes `dir/<device>/...` (default `build/<cell>`) plus `links.json` and
+`watchdogs.json`. `sim [--cell] [--for T] [--cut link@T]... [--drive dev.name=value@T]...
+[--replay out.json]` prints the cell trace and one line per loss against its MOC-C2 bound.
+`dossier [--cell] [-o dir] [--for T] [--cut] [--drive]` writes `dossier.md` and
+`dossier.html`. With several cells in the inputs `--cell` is required (exit 2).
+**`--cut` syntax (decided here):** `<link>@<time>`, where `<link>` is the number printed by
+`check` (`l0` or `0`, source order from 0) or the link as written (`a.x->b.y`, spaces
+ignored), and `<time>` is any duration (`50ms`, `120 ms`). `--drive` is an addition for
+the same reason as in the dossier: without stimuli a cell with modules shows no delivery.
+**`neuron check` and cells (decided here):** since D4.3 the analyzer does not check the
+`verify:` of a cell, so `neuron check` now calls the same checks as `neuron cell check`
+(through `cell::check_package`) after the analyzer and the hardware checks; their errors
+count per file and in the exit code. One deliberate difference: a module that fits no
+device of any cell (`NE0705`) is left out with a note, because a package such as
+`examples/` (which includes the whole corpus) holds modules for no cell; `neuron cell
+check` reports them. Tests: 20 in `crates/neuron-cli/tests/d7_cell.rs` (one per command,
+the `--cut` forms and its errors, `--drive`, a deterministic build and dossier, a build
+that refuses and writes nothing, the usage, and one per diagnostic: `NE0607`, `NE0701`,
+`NE0703`, `NE0704`, `NE0705`, `NE0801`, `NE0805`, `NE0901`, plus `neuron check` failing on
+a violated `verify:`). CI and `tools/phase-check.ps1` run `cell check` on the four corpus
+cells and `cell build`, `cell dossier` and `cell sim --cut` on x02 (so no new corpus file
+was needed: x01, x02 and x04 build). While running the suites the NIR golden of the
+examples was found stale since the formatting of `press_plc` (every span moved by one);
+it was refreshed. Not done: `--cell` by position, `neuron cell` on a `.nir.json`, a
+`--format json` of `check`, and the items of the next paragraph.
+## Phase D closed
+Phase D is done in software (D1 to D7): manifests, partitioner, per-device builds, link
+endpoints, latency and `NE0701`, watchdog, tags, zones, electrical checks, cell verify,
+co-simulation, replay, dossier and the command line, with `docs/cells.md` as the user
+guide. Open, and not claimed: **D-HW**, the confirmation of the timing profiles in lab
+session I1 (every number is `generic`) and the cell on real devices in sessions I4 to I7;
+the bottling example does not build for all devices (the C backend lacks function blocks,
+`pick` is six-axis on a SCARA arm, the SPEL+ emitter does not translate `dest`); the robot
+watchdog logic and the robot side of the zone lock (session I6); sequences are checked
+but not executed in the co-simulation and build to no program; no run-time transport
+adapter; joint and computed robot targets in zones; several tag location forms
+(`db`, `hr`, `opcua`, `mqtt`, `ros2`).
 Decisions accepted by Hell on 2026-11-20: endpoints as NIR items (design decision 1),
 co-simulation on the interpreter with the fidelity bounds of Phase C added to the link
 budgets (decision 2), dossier as Markdown plus HTML with the PDF printed from it

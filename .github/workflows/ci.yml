@@ -83,6 +83,17 @@ jobs:
           $neuron emit kernel examples/corpus/mcu/m06_traffic_light.neuron -o out/kernel
           $neuron import st out/st/p06_pump_with_levels.st -o out/imported/p06_pump_with_levels.neuron
           $neuron check out/imported/p06_pump_with_levels.neuron
+      - name: Cell smoke runs (check the corpus cells; build, dossier and simulate one)
+        run: |
+          neuron="cargo run --quiet -p neuron-cli --"
+          for f in examples/corpus/cell/*.neuron; do
+            $neuron cell check "$f"
+          done
+          $neuron cell build examples/corpus/cell/x02_robot_zone.neuron -o out/cell/x02
+          $neuron cell dossier examples/corpus/cell/x02_robot_zone.neuron -o out/cell/x02 --for 200ms
+          $neuron cell sim examples/corpus/cell/x02_robot_zone.neuron --for 200ms --cut l0@100ms --replay out/cell/x02/replay.json
+          test -s out/cell/x02/dossier.html
+          test -s out/cell/x02/replay.json
       - name: Standard library is formatted, checked and tested
         run: |
           cargo run --quiet -p neuron-cli -- fmt --check lib

@@ -3,8 +3,10 @@
 //! Implemented: `--version`, `lex <file>`, `ast <file>`, `check <file|dir>...`
 //! (syntax and full semantic analysis), `emit-nir` and `print-nir` (spec 16), `fmt`,
 //! `explain`, `lsp`, `run`, `test`, and the hardware path `targets`, `emit-c`, `build`
-//! and `flash` (tasks B1 to B4), and `emit` and `import` (task C7). Planned: `doc`, `pkg`.
+//! and `flash` (tasks B1 to B4), `emit` and `import` (task C7), and `cell` (task D7).
+//! Planned: `doc`, `pkg`.
 
+mod cell;
 mod translate;
 
 use neuron_sema::{analyze, Reports, SemaOptions, SourceFile};
@@ -20,7 +22,8 @@ usage:
   neuron ast <file.neuron>          print the syntax tree
   neuron check [options] <file|dir>...
                                     analyze files, or a package (a directory with neuron.toml);
-                                    exit code 1 on errors
+                                    when the package has cells it also runs the cell checks of
+                                    `neuron cell check`; exit code 1 on errors
   neuron emit-nir <file|dir>... [-o out.nir.json]
                                     analyze and write the program as canonical NIR JSON
                                     (stdout by default); nothing is written on errors
@@ -64,6 +67,19 @@ usage:
   neuron import <st|scl|plcopen|spel|c|verilog> <file> [-o out.neuron]
                                     read another language and print Neuron source (with `-o`, write it
                                     and out.fidelity.json); NE1002 lists what was not imported
+  neuron cell check <file|dir>... [--devices dir]
+                                    check the cells: partition, links and budgets, tags,
+                                    electrical, zones and `verify:`; exit code 1 on errors
+  neuron cell build <file|dir>... [--cell name] [-o dir] [--devices dir]
+                                    write the program of every device to dir/<device>/ (default
+                                    build/<cell>) with links.json; nothing is written on errors
+  neuron cell sim <file|dir>... [--cell name] [--for T] [--cut link@T]... [--drive d.n=v@T]...
+                  [--replay out.json]
+                                    run the devices together on the cell clock and print the
+                                    cell trace; `--cut l0@50ms` (or `a.x->b.y@50ms`) loses a
+                                    link from that instant; `--replay` writes the twin's file
+  neuron cell dossier <file|dir>... [--cell name] [-o dir] [--for T] [--cut ..] [--drive ..]
+                                    write dossier.md and dossier.html (default build/<cell>)
 
 run options:
   --for <time>        simulated time to run, such as `2 s` or `500ms` (default 1 s)
@@ -1141,6 +1157,7 @@ fn cmd_check(args: &[String]) -> ExitCode {
         Ok(x) => x,
         Err(code) => return code,
     };
+    let cell_sources = sources.clone();
     let analysis = analyze(sources, manifest.as_deref(), &opts);
     eprint!("{}", analysis.render());
     let mut per_file = vec![0usize; analysis.paths.len()];
@@ -1159,6 +1176,19 @@ fn cmd_check(args: &[String]) -> ExitCode {
                 "{}",
                 neuron_cli::hw::render_diag(&d, &analysis.paths, &analysis.texts)
             );
+            if let Some(i) = analysis.paths.iter().position(|p| *p == d.file) {
+                per_file[i] += 1;
+            }
+            hw_errors += 1;
+        }
+        // Cell checks (task D7). The analyzer no longer checks the `verify:` of a cell, so
+        // they run here: partition, links, tags, electrical, zones and cell verify.
+        let diags = match cell::check_package(&cell_sources, nir, &paths) {
+            Ok(d) => d,
+            Err(code) => return code,
+        };
+        for d in &diags {
+            eprintln!("{}", cell::render_diag(d, &analysis.paths, &analysis.texts));
             if let Some(i) = analysis.paths.iter().position(|p| *p == d.file) {
                 per_file[i] += 1;
             }
@@ -1240,6 +1270,7 @@ fn main() -> ExitCode {
         Some("flash") => cmd_flash(&args[1..]),
         Some("emit") => translate::cmd_emit(&args[1..]),
         Some("import") => translate::cmd_import(&args[1..]),
+        Some("cell") => cell::cmd_cell(&args[1..]),
         Some("test") => cmd_test(&args[1..]),
         Some("print-nir") => match args.get(1) {
             Some(path) => cmd_print_nir(path),

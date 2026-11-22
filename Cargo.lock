@@ -218,6 +218,7 @@ dependencies = [
 name = "neuron-cli"
 version = "0.0.1"
 dependencies = [
+ "neuron-cell",
  "neuron-codegen-c",
  "neuron-codegen-hdl",
  "neuron-emit",

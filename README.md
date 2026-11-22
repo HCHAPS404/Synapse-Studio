@@ -545,6 +545,9 @@ cargo run -p neuron-cli -- build examples/corpus/mcu/m01_blink.neuron --host    
 cargo run -p neuron-cli -- build examples/corpus/mcu/m01_blink.neuron --native  # UNO hex, no compiler
 cargo run -p neuron-cli -- flash examples/corpus/mcu/m01_blink.neuron --port COM3   # UNO on USB
 cargo run -p neuron-cli -- emit-verilog examples/corpus/hdl/d01_counter.neuron --board artix7_35t_board -o target/hdl
+cargo run -p neuron-cli -- cell check examples/corpus/cell/x01_two_devices.neuron   # partition, links, safety checks
+cargo run -p neuron-cli -- cell build examples/corpus/cell/x02_robot_zone.neuron -o target/cell/x02     # one program per device
+cargo run -p neuron-cli -- cell dossier examples/corpus/cell/x02_robot_zone.neuron -o target/cell/x02   # dossier.md and dossier.html
 
 # Core API
 cd services/core
@@ -593,6 +596,7 @@ the points where a phase was complete in software and CI was green.
 | 20 nov | Phase D spec accepted | Cell compiler design (`.kiro/specs/neuron-cell/`): link endpoints as NIR items, co-simulation on the interpreter, dossier as Markdown and HTML |
 | 21 nov | E1 and the E4 contract | The compiler in the browser (`crates/neuron-wasm`) and in Python (`crates/neuron-py`); the relay and twin WebSocket protocol for the web and mobile apps (`spec/protocols/relay.md`) |
 | 22 nov | Fix found by CI | A `$` before a multi-byte character no longer panics the ST lexer |
+| 22–23 nov | Phase D: cell compiler | Device manifests with trust levels; partitioner; per-device builds; link endpoints, latency budgets and a watchdog; tags, zones, electrical and cell `verify:` checks; co-simulation of all devices with link loss; replay for the twin; technical dossier; `neuron cell check`, `build`, `sim` and `dossier` ([docs/cells.md](docs/cells.md)). Numbers are generic until measured; hardware runs pending |
 | 22 nov | Cloud deployment, first step | Neon Postgres project; Core API on Render with a live database check; placeholder web app in `apps/web` on Vercel that reads the API health, verified end to end from the public URL |
 
 ## Status and roadmap
@@ -601,13 +605,13 @@ the points where a phase was complete in software and CI was green.
 device pending · 🚧 in progress · 📋 planned
 
 Phases A (language), B (direct programming of devices) and C (translation between
-languages) are complete in software. Phase D (cell compiler) has an accepted spec and
-is next; Phase E (services) is under way. Every phase,
+languages) are complete in software, and so is Phase D (cell compiler); its numbers are
+generic until the lab sessions measure them. Phase E (services) is under way. Every phase,
 its owner and exactly what has to be done is listed below in
 [Phases in detail](#phases-in-detail). [`docs/roadmap.md`](docs/roadmap.md) is the source
 of truth for status; Martin's working guide is [`docs/martin.md`](docs/martin.md).
 
-### Progress at a glance (2026-11-22)
+### Progress at a glance (2026-11-23)
 
 | Phase | Scope | Owner | Tasks | Done | Status | Dates |
 |---|---|---|---|---|---|---|
@@ -615,7 +619,7 @@ of truth for status; Martin's working guide is [`docs/martin.md`](docs/martin.md
 | A | The Neuron language | Hell | 13 | 13 | ✅ | 14–19 nov |
 | B | Direct programming of devices | Hell | 9 | 9 | ✅ (B4–B9 ✅🔌) | 16–20 nov |
 | C | Translation between languages | Hell | 7 | 7 | ✅ (C2, C3, C6 ✅🔌) | 19–20 nov |
-| D | Cell compiler (multi-device) | Hell | 5 | 0 | 🚧 spec accepted | 23–28 nov |
+| D | Cell compiler (multi-device) | Hell | 5 | 5 | ✅ (hardware pending: D-HW, I1 and I4–I7) | 22–23 nov |
 | E | Services: Core API, relay, Edge Daemon | Hell | 7 | 1 | 🚧 (E1 ✅, E4 contract ✅, E7 started) | 20–29 nov |
 | F | Synapse Engine and digital twin | Martin | 9 | 0 | 📋 | 15–29 nov |
 | G | Client apps: web, desktop, Android | Martin (G7 with Hell) | 8 | 0 | 📋 | 15–30 nov |
@@ -623,7 +627,7 @@ of truth for status; Martin's working guide is [`docs/martin.md`](docs/martin.md
 | I | Hardware lab sessions | Hell + You | 8 | 0 | 📋 | 17 nov–1 dec |
 | J | Integration and polish | Hell + Martin | 5 | 0 | 📋 | 29 nov–1 dec |
 | K | Submission and Kiro evidence | Hell + Martin + You | 8 | K1 ongoing | 🚧 | continuous, 1–3 dec |
-| **Total** | | | **90** | **37** | **41 %** | deadline 4 dec 17:00 COT |
+| **Total** | | | **90** | **42** | **47 %** | deadline 4 dec 17:00 COT |
 
 **Who does what.** **Hell** owns the language, compiler, backends, standard library,
 verification, services, Edge Daemon, hardware and AI. **Martin** owns the engine, the
@@ -671,9 +675,9 @@ accounts, forms, recordings and posts.
 | ISA simulators: AVR (ATmega328P) and ARMv6-M (RP2040) running the real firmware | ✅ (match the interpreter); debugger 📋 |
 | `hdl` dialect to Verilog-2005 with CDC checks and XDC/PCF constraints | ✅🔌 (`neuron emit-verilog`) |
 | `ui` dialect: SSD1306, ILI9341, ST7789, HD44780 displays | ✅🔌 (render strategy from RAM, `NE0604`) |
-| Device manifests, resource solver, topologies | 📋 |
+| Device manifests, resource solver, topologies | ✅🔌 (`devices/`, trust levels; every number is `generic` until lab session I1) |
 | Standard library, base layers (core, units, time, logic, control, test) | ✅ (`lib/`, written in Neuron); HAL, protocols and drivers 📋 |
-| Partitioner, timing analysis, safety verifier, model checking | 📋 |
+| Partitioner, timing analysis, safety verifier, model checking | ✅🔌 Phase D done in software: partitioner, link latency (`NE0701`), watchdog, tags, zones and electrical checks, cell `verify:`, co-simulation, dossier, `neuron cell check\|build\|sim\|dossier` (see [docs/cells.md](docs/cells.md)). The bottling example does not build for every device yet; the cell on real devices is pending (I4 to I7) |
 | IEC 61131-3 emitters: Structured Text, SCL, PLCopen XML (LD, SFC), with fidelity report and source maps | ✅🔌 (checked in the virtual PLC of `neuron-st`; vendor import in session I5) |
 | Robot (SPEL+-style) and Python emitters, importers (ST, SCL, PLCopen, SPEL+, C, Verilog), micro-kernel, `neuron emit` and `neuron import` | ✅🔌 Phase C done (checked in virtual controllers and the interpreter; vendor tools and arms in I5 and I6; no ROS 2 wrapper). See [docs/translation.md](docs/translation.md) |
 | Edge Daemon and hardware-in-the-loop | 📋 |
@@ -860,7 +864,7 @@ Feeds the virtual PLC and robot (F7) and routes B and C.
 | C6 | Micro-Kernel hot reload | Small interpreters for PLC, robot and MCU that accept state tables from the daemon | A sequence changes without the vendor IDE in I5/I6 | C2, E5 | 27–29 nov |
 | C7 | CLI and documentation | `neuron emit` and `neuron import`, `docs/translation.md`, CI smoke steps | Every emitter and importer runs from the command line | C1–C6 | 29 nov |
 
-#### Phase D · Cell compiler · Hell · 23–28 nov · 🚧 (spec accepted 20 nov: `.kiro/specs/neuron-cell/`)
+#### Phase D · Cell compiler · Hell · 23–28 nov · ✅ (D1–D7 done 23 nov; D-HW pending: timing profiles in I1, the cell on real devices in I4–I7; spec `.kiro/specs/neuron-cell/`, guide [docs/cells.md](docs/cells.md))
 
 **Goal:** compile one `cell` into one program per device, synthesize the links between
 them, prove the timing budgets and check safety across the whole cell (zones, workspace,

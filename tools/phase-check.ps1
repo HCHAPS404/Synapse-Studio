@@ -3,7 +3,7 @@
 #   powershell -NoProfile -ExecutionPolicy Bypass -File tools\phase-check.ps1 -MessageFile m.txt  # checks, then ship
 # Steps: build the CLI; `neuron check`, `fmt --check` and `test` on examples, every corpus folder
 # and lib (blocking, as in CI); smoke runs of `build --native`, `emit-verilog` and `targets`,
-# `emit` (st, spel, python, kernel) and `import st` of the emitted ST (informational); then tools\ship.ps1 (fmt, clippy, all tests, commit -s, push).
+# `emit` (st, spel, python, kernel) and `import st` of the emitted ST, `cell check` of the four corpus cells, `cell build`, `cell dossier` and `cell sim` of x02 (informational); then tools\ship.ps1 (fmt, clippy, all tests, commit -s, push).
 # Takes 6-10 minutes with a warm build cache, 20-25 minutes after `cargo clean`.
 # Log: out/phase-check.log.
 param([string]$Message = '', [string]$MessageFile = '')
@@ -52,7 +52,14 @@ $smoke = @(
   @('emit', 'python', 'examples/corpus/host/h01_gateway_counter.neuron', '-o', 'out/python'),
   @('emit', 'kernel', 'examples/corpus/mcu/m06_traffic_light.neuron', '-o', 'out/kernel'),
   @('import', 'st', 'out/st/p06_pump_with_levels.st', '-o', 'out/imported/p06_pump_with_levels.neuron'),
-  @('check', 'out/imported/p06_pump_with_levels.neuron')
+  @('check', 'out/imported/p06_pump_with_levels.neuron'),
+  @('cell', 'check', 'examples/corpus/cell/x01_two_devices.neuron'),
+  @('cell', 'check', 'examples/corpus/cell/x02_robot_zone.neuron'),
+  @('cell', 'check', 'examples/corpus/cell/x03_cycle_sequence.neuron'),
+  @('cell', 'check', 'examples/corpus/cell/x04_event_from_fpga.neuron'),
+  @('cell', 'build', 'examples/corpus/cell/x02_robot_zone.neuron', '-o', 'out/cell/x02'),
+  @('cell', 'dossier', 'examples/corpus/cell/x02_robot_zone.neuron', '-o', 'out/cell/x02', '--for', '200ms'),
+  @('cell', 'sim', 'examples/corpus/cell/x02_robot_zone.neuron', '--for', '200ms', '--cut', 'l0@100ms', '--replay', 'out/cell/x02/replay.json')
 )
 foreach ($s in $smoke) {
   $out = cmd /c "`"$neuron`" $($s -join ' ') 2>&1" | Out-String

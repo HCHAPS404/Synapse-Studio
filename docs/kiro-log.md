@@ -797,3 +797,22 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   devices that did build are not kept when another fails; the dossier says so instead of
   hiding it. The default co-simulation has no stimuli, so the test report needs drives
   to show a delivery.
+
+## 2026-11-23 · Task D7 (cell command line, guide, CI) and close of Phase D
+- **Kiro features:** spec-driven development (D-R10, `.kiro/specs/neuron-cell/`), steering
+  (rust-style, conventions, current-work), strict shell rules for this machine (file tools
+  for every edit, one foreground cargo at a time).
+- **Produced:** `crates/neuron-cli/src/cell.rs` (`neuron cell check|build|sim|dossier`,
+  `neuron check` also runs the cell checks), `crates/neuron-cli/tests/d7_cell.rs` (20 tests),
+  `docs/cells.md`, CI and `tools/phase-check.ps1` smoke steps, roadmap, README and
+  `tasks.md` ("Results of D7" and "Phase D closed").
+- **Results:** every command runs on the corpus cells; `--cut` takes `l0@50ms` or
+  `a.x->b.y@50ms`; one CLI test per diagnostic family (`NE0607`, `NE0701`, `NE0703`,
+  `NE0704`, `NE0705`, `NE0801`, `NE0805`, `NE0901`); a build or dossier twice gives the same
+  bytes; `neuron check examples` stays green. Phase D is closed in software; D-HW (timing
+  profiles in I1, the cell on real devices in I4 to I7) stays open.
+- **Lessons:** moving the `verify:` of a cell out of the analyzer (D4.3) meant `neuron check`
+  had to call the cell checks, and the partitioner's `NE0705` is noise in a package that
+  holds the whole corpus, so `neuron check` leaves unplaced modules out with a note and
+  `neuron cell check` reports them. The stale NIR golden (press_plc reformatted) showed up
+  only when the wider suites were run, so run the golden tests after any change to `examples/`.
