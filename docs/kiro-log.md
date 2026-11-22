@@ -851,3 +851,12 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   (`ASYNC240`), so directory preparation, cleanup and artifact reading moved to
   `asyncio.to_thread`. A fake `unshare` that marks the environment lets the self-test
   logic run without privileges.
+## 2026-11-23 · Task E2.4 (projects, immutable versions and files)
+- **Kiro features:** spec-driven task from `.kiro/specs/core-services/`, workspace rules.
+- **Produced:** migration `0002_projects`, ORM models, `services/projects.py`, `api/projects.py`,
+  `schemas/projects.py`, `tests/conftest.py`, `tests/test_projects.py`, `NE1107` text.
+- **Results:** 12 new tests (hash properties and routes). The route tests ran against SQLite
+  locally and run against Postgres through Alembic in CI; the migration matches the models.
+- **Lessons:** with no Postgres at hand, `JSON`-free portable column types let the same models
+  run on SQLite for a quick check, but that proves the logic only, not the migration on
+  Postgres.

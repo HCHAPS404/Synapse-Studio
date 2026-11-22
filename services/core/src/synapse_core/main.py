@@ -12,6 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from synapse_core import __version__
+from synapse_core.api.projects import router as projects_router
 from synapse_core.compile.sandbox import NetworkSandbox, detect_network_sandbox
 from synapse_core.db.session import dispose_engines
 from synapse_core.errors import install_error_handlers
@@ -102,6 +103,8 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
         expose_headers=[REQUEST_ID_HEADER, "Retry-After"],
     )
+
+    app.include_router(projects_router)
 
     @app.get("/health", response_model=HealthResponse)
     async def health(request: Request, settings: SettingsDep) -> HealthResponse:

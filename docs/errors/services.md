@@ -50,7 +50,8 @@ on every device route. See the permission matrix in `.kiro/specs/core-services/d
 ### NE1107 version conflict
 
 An update carried a `row_version` that is no longer the stored one: someone else changed
-the resource. Read it again and reapply the change.
+the resource. Read it again and reapply the change. The same code is returned when two
+versions of one project are created at the same moment and this one lost the number; retry.
 
 ### NE1108 package signature invalid
 

@@ -8,7 +8,7 @@ tested against simulated peers.
 | E2.1 | Service layout, settings, structured logging with redaction, `ErrorBody` and `NE11xx` handlers, SQLAlchemy async session, Alembic baseline, `docs/errors/services.md`; CI Postgres container | E-R1, E-R19 | no | done |
 | E2.2 | `neuron check`, `build`, `emit --format json` (diagnostics and artifact list) with CLI tests | E-R2 | no | done |
 | E2.3 | Compile runner: temp dir, path checks, limits, timeout and process-group kill, environment stripping, network self-test, `NE1101` `NE1102` | E-R2 | no | done |
-| E2.4 | Projects, immutable versions and files (tables, routes, content hash, `row_version`, `NE1107`) | E-R1 | no | open |
+| E2.4 | Projects, immutable versions and files (tables, routes, content hash, `row_version`, `NE1107`) | E-R1 | no | done |
 | E2.5 | Builds API on the runner: queue and semaphore, stored diagnostics and artifacts with SHA-256, `GET /v1/capabilities` | E-R1, E-R2 | no | open |
 | E2.6 | Device catalog from `devices/` manifests (read-only routes) | E-R1 | no | open |
 | E2.7 | Token bucket limiter, per-client buckets, `Retry-After`, `NE1103`; property test of the rate bound | E-R4 | no | open |
@@ -130,3 +130,26 @@ Docker was not running, so they have not been run yet. Open: the "socket-denying
 test of the design needs the real binary and a Linux sandbox, so it belongs to E2.10 (image);
 the concurrency semaphore and `NE1103` queue are E2.5; `import` is not offered by the runner
 (the CLI has no `--format json` for it); `RLIMIT_AS` of 4 GiB is a guess to tune on Render.
+
+## Results of E2.4
+Migration `0002_projects` (reversible; a test compares the models with it through Alembic's
+`compare_metadata`: no difference) adds `projects` (`row_version`, nullable `owner_id` and
+`sandbox_id` without foreign keys until E3 and E2.8), `project_versions` (unique
+`(project_id, number)`) and `version_files` (primary key `(version_id, path)`), cascading
+deletes. Code: `db/models.py`, `schemas/projects.py`, `services/projects.py` (logic),
+`api/projects.py` (routes only). Routes: `POST|GET /v1/projects`, `GET|PUT
+/v1/projects/{id}`, `POST|GET /v1/projects/{id}/versions`, `GET /v1/versions/{id}`, with
+`limit` (1..100) and `offset`. Choices: a version is the full file set, validated by the
+compile runner's `check_files` (so `NE1101` and the same limits); the content hash is
+SHA-256 over paths sorted by UTF-8 bytes with 8-byte length prefixes, independent of file
+order; the project row is locked (`FOR UPDATE`) while the number is taken and the unique
+constraint turns a lost race into `NE1107`; a rename is one `UPDATE ... WHERE row_version =
+:seen`, so a stale write is `NE1107` and nothing else can win. Versions are immutable by
+construction: no route writes them (PUT, PATCH, DELETE, POST on a version give 405, tested);
+there is no database trigger. Not done: deleting a project, and any ownership or permission
+check: the routes are open until E3.2 and the guest sandbox (E2.8) bind them.
+Tests: 12 (3 Hypothesis properties of the hash, 9 route tests). The route tests need
+`SYNAPSE_TEST_DATABASE_URL`; Docker is not running here, so they were run against SQLite
+(`uv run --with aiosqlite`, schema from `create_all`) only as a local check. They have not
+run against Postgres or through the migration: that happens in CI, where the fixture applies
+the Alembic migrations. `tests/conftest.py` holds the fixtures.
