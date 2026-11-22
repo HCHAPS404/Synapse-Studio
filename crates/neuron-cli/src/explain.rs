@@ -91,6 +91,7 @@ mod tests {
         assert!(explain("ne0201").is_some_and(|t| t.starts_with("NE0201")));
         assert!(explain("NE0701").is_some_and(|t| t.contains("receiver phase")));
         assert!(explain("NE0703").is_some_and(|t| t.contains("one writer")));
+        assert!(explain("NE0805").is_some_and(|t| t.contains("four-phase")));
         assert!(explain("NE0702").is_some_and(|t| t.contains("two_ff")));
         assert!(explain("NE1003").is_some_and(|t| t.contains("--policy")));
         assert!(explain("NE0601").is_some_and(|t| t.contains("timer0")));

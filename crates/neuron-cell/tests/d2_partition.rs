@@ -66,7 +66,15 @@ fn the_bottling_cell_partitions_into_one_program_per_device() {
         modules(p, "ctl"),
         [("thermostat".to_string(), How::Explicit)]
     );
-    assert_eq!(modules(p, "plc"), [("conveyor".to_string(), How::Explicit)]);
+    // `press_plc` (the output of the `mutex press`) is not placed: the PLC is the only
+    // device that runs its dialect.
+    assert_eq!(
+        modules(p, "plc"),
+        [
+            ("conveyor".to_string(), How::Explicit),
+            ("press_plc".to_string(), How::Automatic)
+        ]
+    );
     assert_eq!(p.device("plc").unwrap().sequences, ["Cycle"]);
     // `pick` (robot) and `pwm8` (hdl) are not placed: they go to the only device that
     // runs their dialect. `blink` and `panel` are written for boards outside the cell.

@@ -13,7 +13,7 @@ a Conventional Commit with `-s` and CI checked.
 | D3.2 | Latency formula, `NE0701` with alternatives, link table | D-R4 | no (generic profiles; measured in I1) | done |
 | D3.3 | Cell watchdog and safe state on loss | D-R5 | no | done |
 | D3.4 | Tags across devices, `NE0703`, single writer | D-R6 | no | done |
-| D4.1 | Zones and mutexes, `NE0805`, robot targets in zones | D-R7 | no | open |
+| D4.1 | Zones and mutexes, `NE0805`, robot targets in zones | D-R7 | no | done |
 | D4.2 | Electrical compatibility, `NE0801` | D-R7 | no | done |
 | D4.3 | Cell `verify:` over the composed machines, shortest counterexample | D-R7 | no | open |
 | D6.1 | Co-simulation on the cell clock, link models, `--cut`, partition equivalence | D-R8, MOC-C1, MOC-C2 | no | open |
@@ -213,6 +213,34 @@ check`. `NE0703` moved from `docs/errors/reserved.md` to `docs/errors/cell.md`; 
 `explain` test checks the new section. Tests: 14 in `d3_tags.rs` (corpus and bottling
 tags pass, unit and type mismatch, sizes, prefixes, two writers by address and by symbol,
 three properties), 76 in the crate, 12 doctests, catalogue and explain green.
+## Results of D4.1
+`zones.rs`: `zone_plans(nir, plan, lib)` gives one `ZonePlan` per `mutex` and the
+`NE0805` diagnostics. Geometry: `box(x, y, z)` with constant ranges in mm, cm or m. A
+party is `device` (its robot motions) or `device.output` (an output that moves into the
+zone; checked against the outputs of the modules placed on the device, or noted as
+unchecked when none is placed). Owner of the lock: a `host` that is a party, else the
+first party that can run the arbiter (`plc`, `mcu`, `host`; a robot has no background
+task, `hdl` is not supported). The lock transport of each party is the medium of an
+existing `link` between it and the owner, else the medium both speak with the lowest
+worst-case latency (`LockLink.one_way_ns`, the larger of the two directions; D4.3 turns
+it into the channel delay). Protocol: four-phase request/grant, two signals per party
+(`z_<zone>_req_<dev>`, `z_<zone>_grant_<dev>`); the owner's rungs
+`grant_i = req_i and (grant_i or not (other grants))`, in mutex order, keep at most one
+grant (`arbitrate` is the same equation; property LOCK-1). The arbiter and the party
+signals are generated as Neuron source per dialect (`plc` memory and rungs, `mcu`/`host`
+signals and a task, `robot` vars) and added to the device packages with the D3.1 endpoint
+mechanism; `build` writes them under `links/` and `zones.json` on every party. Entries:
+every `move` target of a placed robot module that is a constant Cartesian point inside
+a zone box (`neuron_emit::spel::motion_targets`, base frame taken as the cell frame,
+flange target, tool offset not applied) and every party output. An entry of a device that
+is not a party of a mutex of that zone is `NE0805`. Not done, said plainly: the user's
+sequences are not rewritten (acquire/release is a contract listed in `zones.json`), joint
+and computed targets cannot be placed in a zone (counted in `unchecked_targets`), the
+lock signals are not yet connected to the register map or the Wire tags of a link, the
+SPEL+ emitter has no wait on a variable so the robot side of the handshake is declared
+but not executed, and the model-checked proof of the mutex is D4.3. `examples/press_plc`
+was added because the bottling cell's `plc.press_cylinder` was declared by no module.
+Tests: 11 in `d4_zones.rs`, 87 in the crate.
 Decisions accepted by Hell on 2026-11-20: endpoints as NIR items (design decision 1),
 co-simulation on the interpreter with the fidelity bounds of Phase C added to the link
 budgets (decision 2), dossier as Markdown plus HTML with the PDF printed from it

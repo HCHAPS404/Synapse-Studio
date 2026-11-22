@@ -12,8 +12,9 @@
 //! register media, `register_map.csv`; the endpoint sources are kept under `links/`.
 //! Cell sequences are added by a later task.
 use crate::{
-    endpoint_sources, link_plans, register_csv, watchdog_plans, Backend, CellDiag, CellPlan,
-    DevicePlan, DeviceWatchdog, EndpointSource, Library, LinkPlan, Manifest,
+    endpoint_sources, link_plans, register_csv, watchdog_plans, zone_plans, zone_sources, Backend,
+    CellDiag, CellPlan, DevicePlan, DeviceWatchdog, EndpointSource, Library, LinkPlan, Manifest,
+    ZonePlan,
 };
 use neuron_nir::{ModuleKind, Nir};
 use neuron_sema::{analyze, SemaOptions, SourceFile};
@@ -36,7 +37,7 @@ pub struct DeviceBuild {
 }
 
 /// The generated files of a whole cell.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct CellBuild {
     /// Cell name.
     pub cell: String,
@@ -46,6 +47,8 @@ pub struct CellBuild {
     pub links: Vec<LinkPlan>,
     /// The cell watchdog and the MOC-C2 bound of every device that consumes a link.
     pub watchdogs: Vec<DeviceWatchdog>,
+    /// The lock of every `mutex` (owner, parties, entries), in source order.
+    pub zones: Vec<ZonePlan>,
 }
 
 impl CellBuild {
@@ -122,7 +125,14 @@ pub fn build(
     lib: &Library,
 ) -> Result<CellBuild, Vec<CellDiag>> {
     let mut links = link_plans(nir, plan, lib)?;
+    let (mut zones, zone_diags) = zone_plans(nir, plan, lib);
+    if !zone_diags.is_empty() {
+        return Err(zone_diags);
+    }
     let mut by_device = endpoint_sources(nir, plan, lib, &links);
+    for (dev, mut srcs) in zone_sources(nir, plan, lib, &zones) {
+        by_device.entry(dev).or_default().append(&mut srcs);
+    }
     let mut devices = Vec::new();
     let mut diags = Vec::new();
     for dev in &plan.devices {
@@ -147,6 +157,15 @@ pub fn build(
                 Err(why) => {
                     // Fidelity note instead of a failed build: the program of the
                     // device still builds without its endpoints.
+                    for z in &mut zones {
+                        if z.devices().contains(&dev.instance.as_str()) {
+                            z.notes.push(format!(
+                                "the lock module of `{}` is not part of its {} program: {why}",
+                                dev.instance,
+                                man.backend.name()
+                            ));
+                        }
+                    }
                     for l in &mut links {
                         if l.tx.device == dev.instance || l.rx.device == dev.instance {
                             l.notes.push(format!(
@@ -211,11 +230,26 @@ pub fn build(
             d.files.insert("register_map.csv".into(), csv);
         }
     }
+    for d in &mut devices {
+        let mine: Vec<&ZonePlan> = zones
+            .iter()
+            .filter(|z| z.devices().contains(&d.instance.as_str()))
+            .collect();
+        if mine.is_empty() {
+            continue;
+        }
+        let doc = serde_json::json!({ "device": d.instance, "zones": mine });
+        if let Ok(mut text) = serde_json::to_string_pretty(&doc) {
+            text.push('\n');
+            d.files.insert("zones.json".into(), text);
+        }
+    }
     Ok(CellBuild {
         cell: plan.cell.clone(),
         devices,
         links,
         watchdogs,
+        zones,
     })
 }
 

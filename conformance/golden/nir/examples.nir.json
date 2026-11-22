@@ -5392,13 +5392,204 @@
     },
     {
       "id": "m5",
+      "name": "press_plc",
+      "file": "press_plc.neuron",
+      "kind": "module",
+      "dialect": "plc",
+      "items": [
+        {
+          "id": "m5.i0",
+          "span": [
+            205,
+            215
+          ],
+          "def": {
+            "item": "scan",
+            "period": {
+              "span": [
+                210,
+                215
+              ],
+              "ty": {
+                "t": "num",
+                "kind": "integer",
+                "unit": {
+                  "text": "ms",
+                  "dim": [
+                    1,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  "scale": "0.001"
+                }
+              },
+              "e": {
+                "e": "quantity",
+                "value": {
+                  "span": [
+                    210,
+                    212
+                  ],
+                  "ty": {
+                    "t": "num",
+                    "kind": "integer"
+                  },
+                  "e": {
+                    "e": "lit",
+                    "lit": {
+                      "lit": "int",
+                      "text": "10",
+                      "v": "10"
+                    }
+                  }
+                },
+                "unit": {
+                  "text": "ms",
+                  "factors": [
+                    {
+                      "name": "ms",
+                      "exp": 1
+                    }
+                  ]
+                },
+                "si": "0.01"
+              }
+            }
+          }
+        },
+        {
+          "id": "m5.i1",
+          "span": [
+            216,
+            255
+          ],
+          "def": {
+            "item": "plc_section",
+            "section": "outputs",
+            "vars": [
+              {
+                "id": "m5.i1.v0",
+                "mutable": true,
+                "name": "press_cylinder",
+                "ty": {
+                  "kind": {
+                    "t": "named",
+                    "path": "bool"
+                  },
+                  "span": [
+                    243,
+                    247
+                  ]
+                },
+                "vty": {
+                  "t": "bool"
+                },
+                "at": {
+                  "span": [
+                    250,
+                    255
+                  ],
+                  "ty": {
+                    "t": "unknown"
+                  },
+                  "e": {
+                    "e": "lit",
+                    "lit": {
+                      "lit": "iec",
+                      "text": "%Q0.1"
+                    }
+                  }
+                },
+                "span": [
+                  227,
+                  255
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "id": "m5.i2",
+          "span": [
+            256,
+            304
+          ],
+          "def": {
+            "item": "safety",
+            "members": [
+              {
+                "span": [
+                  266,
+                  304
+                ],
+                "def": {
+                  "member": "safe_state",
+                  "body": {
+                    "stmts": [
+                      {
+                        "span": [
+                          282,
+                          304
+                        ],
+                        "s": {
+                          "s": "assign",
+                          "place": {
+                            "span": [
+                              282,
+                              296
+                            ],
+                            "ty": {
+                              "t": "bool"
+                            },
+                            "e": {
+                              "e": "ref",
+                              "id": "m5.i1.v0",
+                              "name": "press_cylinder"
+                            }
+                          },
+                          "op": "=",
+                          "value": {
+                            "span": [
+                              299,
+                              304
+                            ],
+                            "ty": {
+                              "t": "bool"
+                            },
+                            "e": {
+                              "e": "lit",
+                              "lit": {
+                                "lit": "bool",
+                                "v": false
+                              }
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "m6",
       "name": "pwm8",
       "file": "pwm_hdl.neuron",
       "kind": "module",
       "dialect": "hdl",
       "items": [
         {
-          "id": "m5.i0",
+          "id": "m6.i0",
           "span": [
             91,
             119
@@ -5507,7 +5698,7 @@
           }
         },
         {
-          "id": "m5.i1",
+          "id": "m6.i1",
           "span": [
             121,
             283
@@ -5518,7 +5709,7 @@
               "name": "pwm",
               "ports": [
                 {
-                  "id": "m5.l0",
+                  "id": "m6.l0",
                   "name": "duty",
                   "dir": "in",
                   "ty": {
@@ -5559,7 +5750,7 @@
                   ]
                 },
                 {
-                  "id": "m5.l1",
+                  "id": "m6.l1",
                   "name": "pwm_out",
                   "dir": "out",
                   "ty": {
@@ -5587,7 +5778,7 @@
                   ],
                   "def": {
                     "member": "reg",
-                    "id": "m5.l2",
+                    "id": "m6.l2",
                     "name": "counter",
                     "ty": {
                       "kind": {
@@ -5671,7 +5862,7 @@
                               },
                               "e": {
                                 "e": "local",
-                                "id": "m5.l2",
+                                "id": "m6.l2",
                                 "name": "counter"
                               }
                             },
@@ -5701,7 +5892,7 @@
                                   },
                                   "e": {
                                     "e": "local",
-                                    "id": "m5.l2",
+                                    "id": "m6.l2",
                                     "name": "counter"
                                   }
                                 },
@@ -5759,7 +5950,7 @@
                               },
                               "e": {
                                 "e": "local",
-                                "id": "m5.l1",
+                                "id": "m6.l1",
                                 "name": "pwm_out"
                               }
                             },
@@ -5787,7 +5978,7 @@
                                   },
                                   "e": {
                                     "e": "local",
-                                    "id": "m5.l2",
+                                    "id": "m6.l2",
                                     "name": "counter"
                                   }
                                 },
@@ -5803,7 +5994,7 @@
                                   },
                                   "e": {
                                     "e": "local",
-                                    "id": "m5.l0",
+                                    "id": "m6.l0",
                                     "name": "duty"
                                   }
                                 }
@@ -5822,7 +6013,7 @@
       ]
     },
     {
-      "id": "m6",
+      "id": "m7",
       "name": "thermostat",
       "file": "thermostat.neuron",
       "kind": "module",
@@ -5830,7 +6021,7 @@
       "target": "nucleo_f446re",
       "items": [
         {
-          "id": "m6.i0",
+          "id": "m7.i0",
           "span": [
             117,
             147
@@ -5848,7 +6039,7 @@
           }
         },
         {
-          "id": "m6.i1",
+          "id": "m7.i1",
           "span": [
             149,
             171
@@ -5916,7 +6107,7 @@
           }
         },
         {
-          "id": "m6.i2",
+          "id": "m7.i2",
           "span": [
             173,
             219
@@ -6029,7 +6220,7 @@
           }
         },
         {
-          "id": "m6.i3",
+          "id": "m7.i3",
           "span": [
             220,
             266
@@ -6164,7 +6355,7 @@
           }
         },
         {
-          "id": "m6.i4",
+          "id": "m7.i4",
           "span": [
             267,
             303
@@ -6214,7 +6405,7 @@
           }
         },
         {
-          "id": "m6.i5",
+          "id": "m7.i5",
           "span": [
             305,
             326
@@ -6264,7 +6455,7 @@
           }
         },
         {
-          "id": "m6.i6",
+          "id": "m7.i6",
           "span": [
             328,
             362
@@ -6272,7 +6463,7 @@
           "def": {
             "item": "var",
             "var": {
-              "id": "m6.i6",
+              "id": "m7.i6",
               "mutable": false,
               "name": "filter",
               "vty": {
@@ -6376,7 +6567,7 @@
           }
         },
         {
-          "id": "m6.i7",
+          "id": "m7.i7",
           "span": [
             363,
             427
@@ -6384,7 +6575,7 @@
           "def": {
             "item": "var",
             "var": {
-              "id": "m6.i7",
+              "id": "m7.i7",
               "mutable": true,
               "name": "ctl",
               "vty": {
@@ -6637,7 +6828,7 @@
           }
         },
         {
-          "id": "m6.i8",
+          "id": "m7.i8",
           "span": [
             429,
             536
@@ -6763,7 +6954,7 @@
                       },
                       "e": {
                         "e": "ref",
-                        "id": "m6.i5",
+                        "id": "m7.i5",
                         "name": "temp"
                       }
                     },
@@ -6820,7 +7011,7 @@
                                       },
                                       "e": {
                                         "e": "ref",
-                                        "id": "m6.i2",
+                                        "id": "m7.i2",
                                         "name": "sensor"
                                       }
                                     },
@@ -7112,7 +7303,7 @@
                                   },
                                   "e": {
                                     "e": "ref",
-                                    "id": "m6.i6",
+                                    "id": "m7.i6",
                                     "name": "filter"
                                   }
                                 },
@@ -7133,7 +7324,7 @@
           }
         },
         {
-          "id": "m6.i9",
+          "id": "m7.i9",
           "span": [
             538,
             629
@@ -7328,7 +7519,7 @@
                           },
                           "e": {
                             "e": "ref",
-                            "id": "m6.i3",
+                            "id": "m7.i3",
                             "name": "heater"
                           }
                         },
@@ -7366,7 +7557,7 @@
                               },
                               "e": {
                                 "e": "ref",
-                                "id": "m6.i7",
+                                "id": "m7.i7",
                                 "name": "ctl"
                               }
                             },
@@ -7429,7 +7620,7 @@
                                   },
                                   "e": {
                                     "e": "ref",
-                                    "id": "m6.i1",
+                                    "id": "m7.i1",
                                     "name": "target"
                                   }
                                 },
@@ -7460,7 +7651,7 @@
                                   },
                                   "e": {
                                     "e": "ref",
-                                    "id": "m6.i5",
+                                    "id": "m7.i5",
                                     "name": "temp"
                                   }
                                 }
@@ -7480,7 +7671,7 @@
           }
         },
         {
-          "id": "m6.i10",
+          "id": "m7.i10",
           "span": [
             631,
             755
@@ -7606,7 +7797,7 @@
                                 },
                                 "e": {
                                   "e": "ref",
-                                  "id": "m6.i3",
+                                  "id": "m7.i3",
                                   "name": "heater"
                                 }
                               },
@@ -7710,7 +7901,7 @@
                                     },
                                     "e": {
                                       "e": "ref",
-                                      "id": "m6.i4",
+                                      "id": "m7.i4",
                                       "name": "alarm"
                                     }
                                   },
@@ -7796,7 +7987,7 @@
                           },
                           "e": {
                             "e": "ref",
-                            "id": "m6.i5",
+                            "id": "m7.i5",
                             "name": "temp"
                           }
                         },

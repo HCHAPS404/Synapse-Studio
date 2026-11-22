@@ -347,7 +347,7 @@ fn registers_of(bytes: u64) -> u16 {
     u16::try_from(bytes.div_ceil(2).max(1)).unwrap_or(u16::MAX)
 }
 
-fn slug(s: &str) -> String {
+pub(crate) fn slug(s: &str) -> String {
     let mut out: String = s
         .chars()
         .map(|c| {
@@ -640,7 +640,7 @@ pub(crate) fn neuron_duration(ns: u64) -> String {
 
 /// The dialect an endpoint module is written in: the first dialect of the manifest that
 /// is not `core` or `ui`.
-fn dialect_of(man: &Manifest) -> &str {
+pub(crate) fn dialect_of(man: &Manifest) -> &str {
     man.dialects
         .iter()
         .map(String::as_str)
@@ -665,7 +665,7 @@ fn hdl_type(t: &str) -> String {
 
 /// The period an endpoint module of `device` runs at: that of the first placed module
 /// with one, else the larger of the manifest's `scan_min` and 10 ms.
-fn endpoint_period(nir: &Nir, plan: &CellPlan, device: &str, man: &Manifest) -> u64 {
+pub(crate) fn endpoint_period(nir: &Nir, plan: &CellPlan, device: &str, man: &Manifest) -> u64 {
     plan.device(device)
         .into_iter()
         .flat_map(|d| d.modules.iter())

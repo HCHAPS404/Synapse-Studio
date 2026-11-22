@@ -1,0 +1,9 @@
+## The press cylinder of the bottling cell: the PLC output that moves into the shared zone.
+## It is driven only while the cell lock of zone `press` is held (see `docs/cells.md`).
+module press_plc for plc
+scan 10 ms
+outputs:
+  press_cylinder: bool @ %Q0.1
+safety:
+  safe_state:
+    press_cylinder = false

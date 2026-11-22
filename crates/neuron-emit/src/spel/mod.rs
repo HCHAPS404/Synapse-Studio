@@ -48,6 +48,44 @@ const CONSTRUCTS: &[&str] = &[
 
 /// The SPEL+-style emitter (`neuron emit spel`).
 pub struct Spel;
+/// One target of a `move` of a robot module, as the emitter's workspace check sees it.
+///
+/// `world_mm` is the position of the flange target in the base frame of the robot (the
+/// frame of the target, the lift of `above` and the origin and rotation of the frame
+/// applied), or `None` when the target is not a constant Cartesian point (a joint target,
+/// or a computed value such as a parameter): the emitter checks those at run time with
+/// `NeuronCheck`.
+#[derive(Debug, Clone, PartialEq)]
+pub struct MotionTarget {
+    /// Module name.
+    pub module: String,
+    /// Byte range of the target expression.
+    pub span: [usize; 2],
+    /// `ptp`, `linear` or `arc`.
+    pub kind: String,
+    /// Constant position in the base frame, in mm.
+    pub world_mm: Option<[f64; 3]>,
+}
+/// Every target of every `move` of robot module number `module` of `nir`, in source
+/// order of the sequences, resolved like the emitter does for `NE0804`.
+///
+/// An index that is not a module gives an empty list. The cell compiler tests this
+/// function through the zones of a cell (`neuron-cell`, `d4_zones`).
+pub fn motion_targets(nir: &Nir, module: usize, robot: &Robot) -> Vec<MotionTarget> {
+    if module >= nir.modules.len() {
+        return Vec::new();
+    }
+    let mut l = Lower::new(nir, module, robot);
+    l.declare();
+    l.collect = Some(Vec::new());
+    for item in &nir.modules[module].items {
+        if let ItemDef::Sequence { items, .. } = &item.def {
+            let mut env = Env::default();
+            l.check_items(items, &mut env);
+        }
+    }
+    l.collect.take().unwrap_or_default()
+}
 
 // ---- numbers and places ------------------------------------------------------------
 
@@ -258,9 +296,23 @@ struct Lower<'a> {
     budget: u32,
     sequences: Vec<String>,
     globals: Vec<(String, Option<String>)>,
+    /// Targets seen by the check pass, when a caller asked for them.
+    collect: Option<Vec<MotionTarget>>,
 }
 
 impl<'a> Lower<'a> {
+    /// Position of a constant Cartesian target in the base frame.
+    fn world_of(&self, t: &Target) -> Option<[f64; 3]> {
+        let Place::C { frame, v } = &t.g else {
+            return None;
+        };
+        let fr = self.frames.get(*frame)?;
+        let dz = match &t.dz {
+            None => 0.0,
+            Some(d) => d.c?,
+        };
+        Some(fr.world([v[0].c?, v[1].c?, v[2].c? + dz]))
+    }
     fn new(nir: &'a Nir, m: usize, robot: &'a Robot) -> Lower<'a> {
         let module = &nir.modules[m];
         let mut defs = HashMap::new();
@@ -292,6 +344,7 @@ impl<'a> Lower<'a> {
             budget: 200_000,
             sequences: Vec::new(),
             globals: Vec::new(),
+            collect: None,
         }
     }
 
@@ -1161,8 +1214,24 @@ impl<'a> Lower<'a> {
                     }
                 }
             }
-            StmtKind::Move { to, via, .. } => {
+            StmtKind::Move { kind, to, via, .. } => {
                 let mut computed = false;
+                if self.collect.is_some() {
+                    for e in std::iter::once(to).chain(via.iter()) {
+                        let world = self.geo(e, env).ok().and_then(|t| self.world_of(&t));
+                        let rec = MotionTarget {
+                            module: self.nir.modules[self.m].name.clone(),
+                            span: e.span,
+                            kind: kind.clone(),
+                            world_mm: world,
+                        };
+                        if let Some(c) = self.collect.as_mut() {
+                            if !c.contains(&rec) {
+                                c.push(rec);
+                            }
+                        }
+                    }
+                }
                 for e in std::iter::once(to).chain(via.iter()) {
                     // A declared point was checked where it is declared.
                     if matches!(e.e, ExprKind::Ref { .. }) {

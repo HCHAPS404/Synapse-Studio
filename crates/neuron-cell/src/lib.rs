@@ -24,6 +24,7 @@ mod units;
 mod watchdog;
 
 pub mod wire;
+mod zones;
 pub use build::{build, device_package, device_package_with, CellBuild, DeviceBuild};
 pub use diag::CellDiag;
 pub use electrical::check_electrical;
@@ -45,4 +46,8 @@ pub use units::{duration_ns, rate_bd};
 pub use watchdog::{
     watchdog_plans, DeviceWatchdog, WatchdogPlan, DEFAULT_WATCHDOG_NS, HEARTBEAT_NS,
     MISSED_HEARTBEATS,
+};
+pub use zones::{
+    arbitrate, lock_signal, zone_plans, zone_sources, EntryKind, LockLink, Party, ZoneBox,
+    ZoneEntry, ZonePlan,
 };

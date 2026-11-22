@@ -202,7 +202,7 @@ pub fn latency_with(
     })
 }
 
-fn speaks(m: &Medium, s: &Manifest, r: &Manifest) -> bool {
+pub(crate) fn speaks(m: &Medium, s: &Manifest, r: &Manifest) -> bool {
     m.speaks.contains(&s.kind)
         && m.speaks.contains(&r.kind)
         && s.timing.contains_key(&m.name)

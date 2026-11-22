@@ -703,3 +703,24 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   the cell check, so `NE0607` stays as a guard. Statement walking through the
   serialized NIR (`"s": "assign"`) is enough for "is this name assigned" and avoids a
   dependency on the analyzer's private fact base.
+## 2026-11-23 · Task D4.1 (zones, mutexes, robot targets in zones, NE0805)
+- **Kiro features:** spec-driven development (D-R7, design D4), the error catalogue tests,
+  property tests for the arbiter, a sub-task split that put the robot target machinery
+  in `neuron-emit` and the cell rules in `neuron-cell`.
+- **Produced:** `neuron_emit::spel::{motion_targets, MotionTarget}` (the constant targets
+  of every `move`, in the robot base frame, resolved as for `NE0804`);
+  `neuron-cell::{zone_plans, zone_sources, arbitrate, lock_signal, ZonePlan, ZoneBox,
+  ZoneEntry, EntryKind, Party, LockLink}`; `CellBuild.zones` and `zones.json` per party
+  device; lock modules under `links/lock_*.neuron`; `NE0805` in `docs/errors/cell.md`
+  (moved from `reserved.md`); the example `examples/press_plc.neuron`.
+- **Results:** x02 plans one lock owned by the PLC with a Modbus TCP lock transport; the
+  lock modules (arbiter rungs on the owner, request/grant `var`s on the arm) build with the
+  device programs; a motion into the zone by a robot that is not a party, a missing party
+  output, a missing zone and an `hdl` party are `NE0805`; 11 new tests in `d4_zones.rs`
+  including the property LOCK-1 (at most one grant, no grant without a request, ties to
+  the first party). The user's sequences are not rewritten: acquire/release around an
+  entry is a contract listed in `zones.json`, not inserted code.
+- **Lessons:** the bottling example named `plc.press_cylinder` but no PLC module declared
+  it, so the new check found a real gap; a module with that output was added. Replacing
+  text in source files through PowerShell string methods silently did nothing twice
+  (no match), so every edit was re-read.
