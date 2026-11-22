@@ -90,7 +90,7 @@ mod tests {
         assert!(explain("NE0001").is_some_and(|t| t.contains("2 spaces")));
         assert!(explain("ne0201").is_some_and(|t| t.starts_with("NE0201")));
         assert!(explain("NE0701").is_some_and(|t| t.contains("receiver phase")));
-        assert!(explain("NE0703").is_some_and(|t| t.contains("reserved")));
+        assert!(explain("NE0703").is_some_and(|t| t.contains("one writer")));
         assert!(explain("NE0702").is_some_and(|t| t.contains("two_ff")));
         assert!(explain("NE1003").is_some_and(|t| t.contains("--policy")));
         assert!(explain("NE0601").is_some_and(|t| t.contains("timer0")));

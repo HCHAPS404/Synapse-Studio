@@ -12,7 +12,7 @@ a Conventional Commit with `-s` and CI checked.
 | D3.1 | Link endpoints as NIR items, register maps, Neuron Wire frames, Latch+ACK, BUSY/DONE/TIMEOUT | D-R3 | no | done |
 | D3.2 | Latency formula, `NE0701` with alternatives, link table | D-R4 | no (generic profiles; measured in I1) | done |
 | D3.3 | Cell watchdog and safe state on loss | D-R5 | no | done |
-| D3.4 | Tags across devices, `NE0703`, single writer | D-R6 | no | open |
+| D3.4 | Tags across devices, `NE0703`, single writer | D-R6 | no | done |
 | D4.1 | Zones and mutexes, `NE0805`, robot targets in zones | D-R7 | no | open |
 | D4.2 | Electrical compatibility, `NE0801` | D-R7 | no | done |
 | D4.3 | Cell `verify:` over the composed machines, shortest counterexample | D-R7 | no | open |
@@ -188,6 +188,31 @@ fault after 50 ms), a configurable watchdog period, a check of the watchdog agai
 link budget. No new diagnostic code. Tests: 7 new in `d3_watchdog.rs` (bounds for the
 corpus cells, bottling plan, two links into one device, determinism, property of the
 bound), 62 in the crate and 10 doctests.
+## Results of D3.4
+`tags.rs`: `check_tags(nir, plan, lib)` checks every location of every `tag` of the cell
+and reports `NE0703` (every problem of a mapping) or `NE0607` (a name that resolves but
+is not a device of the cell; the analyzer's `NE0101` stops unknown names first).
+Address sizes: `%` + area (`I`, `Q`, `M`) + size (`X` or none 1 bit, `B` 8, `W` 16, `D`
+32, `L` 64) + number; a `bool` needs a bit address and any other scalar needs the
+address of its own width (`f32`/`i32`/`u32` at `%MD`, `u16` at `%MW`, `u8` at `%MB`, 64
+bits at `%ML`); other types have no direct address. The address must start with an
+`[io]` prefix of the manifest or share its area with one (`%MD20` fits `%M` and `%MW`, so
+it fits `generic_iec_plc`; it does not fit a controller). A symbol location must agree in
+type and unit with the `signal`, `var`, PLC variable or `io` of that name in a module
+placed on the device, when there is one (units are compared as written, so `m/s` and
+`mm/s` differ). Writer rule: a location is a write location when its device's program
+produces the value: a placed module assigns the symbol (any rung, task, rule, function or
+state machine, found by walking the NIR statements), the address is an output `%Q...`, or
+it is a memory address that a placed PLC variable declares with `@` and the module
+assigns. Write locations on more than one device give one `NE0703` per tag, listing the
+writers in name order, so the result does not depend on location order (property test).
+Not checked yet: `db(n).x`, `hr(n)`, `opcua(..)`, `mqtt(..)`, `ros2(..)` locations, the
+tag fields `range`, `rate`, `safe` of spec 11.2, and generated per-device addresses.
+`check_tags` is standalone, like `check_electrical`; D7 calls it from `neuron cell
+check`. `NE0703` moved from `docs/errors/reserved.md` to `docs/errors/cell.md`; the
+`explain` test checks the new section. Tests: 14 in `d3_tags.rs` (corpus and bottling
+tags pass, unit and type mismatch, sizes, prefixes, two writers by address and by symbol,
+three properties), 76 in the crate, 12 doctests, catalogue and explain green.
 Decisions accepted by Hell on 2026-11-20: endpoints as NIR items (design decision 1),
 co-simulation on the interpreter with the fidelity bounds of Phase C added to the link
 budgets (decision 2), dossier as Markdown plus HTML with the PDF printed from it

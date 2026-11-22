@@ -689,3 +689,17 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   pin for `until`. The bottling cell still does not build, so its watchdog plan is tested
   from the analysis, not from a build. Reading and rewriting a UTF-8 file from PowerShell
   without an encoding mangled it; docs go through the file tools too.
+
+## 2026-11-23 · Task D3.4 (tags across devices, NE0703, single writer)
+- **Kiro features:** spec-driven development (D-R6, spec 11.2), the error catalogue
+  tests, property tests for the address rule and the writer rule.
+- **Produced:** `neuron-cell::{check_tags, parse_direct_address, address_fits,
+  type_bits}`; `NE0703` documented in `docs/errors/cell.md` (moved from `reserved.md`).
+- **Results:** the tags of x01, x04 and the bottling package check; a unit mismatch, a
+  type mismatch, a wrong address width, a missing address family and two writers (by
+  address and by symbol) each give `NE0703`; the writer result is the same for any
+  order of the locations; 14 new tests, 76 in the crate, catalogue and explain green.
+- **Lessons:** an unknown device in a tag is stopped by the analyzer (`NE0101`) before
+  the cell check, so `NE0607` stays as a guard. Statement walking through the
+  serialized NIR (`"s": "assign"`) is enough for "is this name assigned" and avoids a
+  dependency on the analyzer's private fact base.

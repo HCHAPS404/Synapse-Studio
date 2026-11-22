@@ -24,6 +24,24 @@ two device manifests. Network and bus media do not join I/O domains and are not
 checked. Use an isolating or level-shifting option of the medium (`zero_hop(gpio,
 opto_24v)`), which the help spells out, or a network medium. The check is a design aid:
 the real wiring must still be reviewed against the datasheets of the parts.
+## Tags
+### NE0703 tag mapped to incompatible types or units on two devices
+`tag t: T @ d1.addr, d2.name` maps one value onto several devices (spec 11.2). The code
+covers every way the mapping can be wrong. An IEC direct address (`plc.%MD20`) must be
+well formed, start with an address family of the device manifest (`[io]` prefixes; the
+area letter is enough, so `%MD20` fits a family `%M` or `%MW`), and have the width of the
+tag's type: a `bool` needs a bit address (`%MX`, `%IX`, `%QX`, or none as in `%I0.0`),
+`u8`/`i8` `%MB`, `u16`/`i16` `%MW`, `u32`/`i32`/`f32` `%MD`, `u64`/`i64`/`f64` `%ML`. A
+symbol location (`ctl.speed`) must have the same type and unit as the `signal`, `var`,
+PLC variable or `io` binding of that name in a module placed on that device; a symbol no
+placed module declares is not checked. A tag also has one writer: a location is a write
+location when the device's program produces the value (a placed module assigns the
+symbol, the address is an output `%Q...`, or it is a memory address bound by `@` to a PLC
+variable that the module assigns); write locations on two devices are two writers, and
+the message lists them. Keep one write location and make the other devices read it, or fix
+the type, unit or address the message names. Locations that are not an address or a
+plain symbol (`plc.db(1).x0`, `opcua(..)`) are not checked yet. A location on a name that
+is not a device of the cell is `NE0607`.
 ## Placement
 ### NE0704 module or sequence placed on a device that cannot run it
 `place m on d` names a device whose manifest does not run the dialect of `m`, or `m`

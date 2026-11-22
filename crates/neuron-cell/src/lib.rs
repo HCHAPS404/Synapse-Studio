@@ -19,6 +19,7 @@ mod library;
 mod links;
 mod manifest;
 mod partition;
+mod tags;
 mod units;
 mod watchdog;
 
@@ -39,6 +40,7 @@ pub use manifest::{
     Backend, Family, IoFamily, Kind, Manifest, Medium, MediumTiming, Trust, DIALECTS,
 };
 pub use partition::{partition, CellPlan, DevicePlan, How, Placed};
+pub use tags::{address_fits, check_tags, parse_direct_address, type_bits, DirectAddress};
 pub use units::{duration_ns, rate_bd};
 pub use watchdog::{
     watchdog_plans, DeviceWatchdog, WatchdogPlan, DEFAULT_WATCHDOG_NS, HEARTBEAT_NS,
