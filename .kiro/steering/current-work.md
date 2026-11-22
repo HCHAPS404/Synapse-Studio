@@ -182,6 +182,38 @@ that needs a physical device stays pending until its session.
   to OTHER people: never use them. `SYNAPSE_CORS_ORIGINS` lists synapsest and -eight.
 - Open in E7: Neon `dev` branch, spending caps (Hell), judge app (E2 + G6).
 
+## Handoff 2026-11-22 (night): Phase D in progress, Phase E spec committed
+
+Hell asked for Phase D end to end, then Phase E (E2..E7). He accepted the five E
+decisions (Docker image calling `neuron-cli`; own auth with guest mode; telemetry in plain
+Postgres tables; relay inside the Core API; D first). Spec `.kiro/specs/core-services/`
+is committed (`455a4fb`); its six defaults are listed in the session report: isolation
+self-test may report `unverified`; two confirmations may be one person (setting for two);
+cross compilers in the image (fallback check/emit); E2.2 adds `--format json`;
+`neuron cell check --profile` in E6.3; limiter and relay single-instance.
+
+`main` = `b0864f4`; `develop` = `ed064c5` (pushed). Promote after CI is green (ask Hell).
+Render CORS: re-check that `/health` answers `access-control-allow-origin` for
+`https://synapsest.vercel.app`; if not, Blueprint "Manual sync" in Render.
+
+Phase D done (crate `crates/neuron-cell`, 36 tests + 7 doctests, all in `tasks.md`
+"Results of" paragraphs): D1.1 manifests (`867236a`), D1.2 (`39920e4`), D2.1 partitioner
+NE0704/NE0705 (`09de5a5`), D2.2 build per device (`085d9a5`), D3.2 link budgets NE0701
+(`a7b8b76`, done before D3.1 on purpose), D4.2 electrical NE0801 (`ed064c5`).
+Open, in this order: D3.1 endpoints as NIR items (largest: touches every emitter's
+subset; also gives each link its real value type and the receiver's real period, which
+D3.2 approximates with 4 bytes and `scan_min`), D3.3 watchdog, D3.4 tags NE0703, D4.1
+zones NE0805, D4.3 cell verify, D6.1 co-simulation, D6.2 replay schema, D5.1 dossier,
+D7 CLI `neuron cell check|build|sim|dossier` + `docs/cells.md` + CI smoke.
+Known gaps found by D2.2 (kept open, earlier backends): the C backend has no function
+blocks, so `thermostat` (README example) does not build to C; `pick_robot` is six-axis
+while the bottling cell's arm is a SCARA, and the SPEL+ emitter does not translate its
+`dest` parameter. Placeholder robot Modbus timing was lowered to 3+1 ms so the bottling
+link meets 25 ms.
+
+Terminal (22 nov, after the PC restart): plain foreground `cargo test` with
+`Select-String` filtering works; one cargo at a time; do not run a cargo command in the
+same tool batch as a file edit it depends on (the order is not guaranteed).
 ## Human actions still open (Hell)
 
 Add Martin as collaborator and protect `main`/`develop`; Neon, Render (paid) and Vercel
