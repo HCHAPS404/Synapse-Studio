@@ -1,0 +1,22 @@
+# Generic Artix-7 35T class FPGA board (3.3 V banks). Pins and clocks come from
+# `targets/fpga/artix7_35t_board.fpga.toml`. Generic numbers, no vendor data.
+[device]
+name = "generic_artix7_board"
+kind = "fpga"
+dialects = ["hdl"]
+backend = "verilog"
+profile = "generic"
+trust = "generic"
+vendor_class = "artix7"
+board = "artix7_35t_board"
+note = "Generic placeholder numbers; pin timing is measured in lab session I3."
+
+[io]
+pins = { prefix = "IO", volts = 3.3, max_ma = 12 }
+
+[timing]
+scan_min = "10 ns"
+zero_hop = { transport = "20 ns", jitter = "10 ns" }
+
+[safety]
+safe_state_time = "1 us"

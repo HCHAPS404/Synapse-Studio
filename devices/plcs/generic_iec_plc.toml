@@ -1,0 +1,25 @@
+# Generic PLC programmed in IEC 61131-3 Structured Text with the `yaskawa` ST profile of
+# Phase C (global variable list, no CONFIGURATION). A second vendor class next to
+# `generic_s7_1200`. Generic numbers, no vendor data.
+[device]
+name = "generic_iec_plc"
+kind = "plc"
+dialects = ["plc", "core"]
+backend = "st"
+profile = "yaskawa"
+trust = "generic"
+vendor_class = "iec_st"
+note = "Generic placeholder numbers; the profile and the timing are confirmed in lab sessions I1 and I5."
+
+[io]
+digital_in = { prefix = "%IX", volts = 24.0, kind = "sink" }
+digital_out = { prefix = "%QX", volts = 24.0, max_ma = 500 }
+memory = { prefix = "%MW" }
+
+[timing]
+scan_min = "2 ms"
+modbus_tcp = { transport = "3 ms", jitter = "1 ms" }
+zero_hop = { transport = "2 ms", jitter = "1 ms" }
+
+[safety]
+safe_state_time = "20 ms"

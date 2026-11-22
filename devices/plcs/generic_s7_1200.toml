@@ -1,0 +1,26 @@
+# Generic compact PLC of the S7 class (24 V DC I/O, SCL function blocks).
+# Generic numbers, no vendor data.
+[device]
+name = "generic_s7_1200"
+kind = "plc"
+dialects = ["plc", "core"]
+backend = "scl"
+profile = "generic"
+trust = "generic"
+vendor_class = "s7"
+note = "Generic placeholder numbers; scan, input filter and link timing are measured in lab session I1."
+
+[io]
+digital_in = { prefix = "%I", volts = 24.0, kind = "sink" }
+digital_out = { prefix = "%Q", volts = 24.0, max_ma = 500 }
+memory = { prefix = "%M" }
+
+[timing]
+scan_min = "1 ms"
+modbus_tcp = { transport = "2 ms", jitter = "1 ms" }
+s7 = { transport = "1 ms", jitter = "500 us" }
+# A wired input: the input filter dominates.
+zero_hop = { transport = "1 ms", jitter = "1 ms" }
+
+[safety]
+safe_state_time = "10 ms"

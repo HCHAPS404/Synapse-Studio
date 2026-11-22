@@ -6,7 +6,7 @@ a Conventional Commit with `-s` and CI checked.
 | Id | Task | Requirements | Needs hardware | Status |
 |---|---|---|---|---|
 | D1.1 | Manifest schema and loader (`devices/{plcs,controllers,fpgas,robots,hosts,media}`), trust levels, `NE0607` | D-R1, D-R11 | no (generic numbers) | done |
-| D1.2 | Generic manifests for every device of the corpus cells and the bottling example; the same module on two PLC vendors | D-R1 | no | open |
+| D1.2 | Generic manifests for every device of the corpus cells and the bottling example; the same module on two PLC vendors | D-R1 | no | done |
 | D2.1 | Partitioner: explicit `place`, automatic assignment, `NE0704`, `NE0705`, `CellPlan` | D-R2 | no | open |
 | D2.2 | Per-device build through the existing backends and emitters | D-R2 | no | open |
 | D3.1 | Link endpoints as NIR items, register maps, Neuron Wire frames, Latch+ACK, BUSY/DONE/TIMEOUT | D-R3 | no | open |
@@ -36,6 +36,18 @@ boards and media; `resolve_cell` finds every device and medium a cell names) and
 `[io]`, `[timing]` and `[safety]` and keep `[robot]`; the C3 tests of `neuron-emit` still
 pass on them. Tests: 11 (3 proptests: exact durations, parsing never panics and always
 yields `NE0607`, values round trip) and 6 doctests.
+
+## Results of D1.2
+
+Four manifests: `plcs/generic_s7_1200` (SCL, vendor class `s7`), `plcs/generic_iec_plc`
+(ST with the `yaskawa` profile, vendor class `iec_st`), `controllers/nucleo_f446re`
+(C backend, points at the existing board file) and `fpgas/generic_artix7_board` (Verilog,
+points at `artix7_35t_board`). All are `generic` with a note naming the session that
+measures them. The four corpus cells and the bottling example (loaded as the `examples`
+package, because it places modules of other files) resolve every device and medium; the
+cells cover the plc, mcu, fpga and robot classes. `conveyor_plc` builds for both PLC
+manifests through their own backend and profile and gives two different programs.
+Modbus TCP on the NUCLEO board assumes a serial-to-Ethernet gateway (noted in the file).
 
 Decisions accepted by Hell on 2026-11-20: endpoints as NIR items (design decision 1),
 co-simulation on the interpreter with the fidelity bounds of Phase C added to the link

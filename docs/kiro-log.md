@@ -589,3 +589,16 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   failure was a test that added an unknown table on purpose to a case that checked a
   different error. A manifest that refuses unknown fields has to be tested one error
   at a time.
+
+## 2026-11-22 · Task D1.2 (manifests for every cell device)
+- **Kiro features:** spec-driven development (D-R1), steering (no vendor data, generic
+  numbers with the session that measures them).
+- **Produced:** manifests `generic_s7_1200` (SCL), `generic_iec_plc` (ST, `yaskawa`
+  profile), `nucleo_f446re` (C) and `generic_artix7_board` (Verilog), embedded in the
+  built-in library; test `d1_cells.rs`.
+- **Results:** the four corpus cells and the bottling example resolve every device and
+  medium; `conveyor_plc` builds for two PLC vendor classes and gives two programs.
+  neuron-cell: 13 tests and 6 doctests pass; fmt and clippy clean.
+- **Lessons:** the bottling example only analyzes as part of the `examples` package
+  (it places `thermostat` and `conveyor` from other files), so cell tests load packages,
+  not single files.

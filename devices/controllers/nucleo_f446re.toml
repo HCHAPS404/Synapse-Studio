@@ -1,0 +1,23 @@
+# NUCLEO-F446RE controller board (Cortex-M4, 3.3 V I/O). Pins, clocks and memory come
+# from `targets/boards/nucleo_f446re.board.toml`; this file adds what a cell needs.
+[device]
+name = "nucleo_f446re"
+kind = "mcu"
+dialects = ["mcu", "core", "ui"]
+backend = "c"
+profile = "generic"
+trust = "generic"
+vendor_class = "stm32"
+target = "nucleo_f446re"
+note = "Generic placeholder numbers. Modbus TCP goes through a serial-to-Ethernet gateway; its timing is measured in lab session I1."
+
+[io]
+gpio = { prefix = "P", volts = 3.3, max_ma = 20 }
+
+[timing]
+scan_min = "100 us"
+modbus_tcp = { transport = "5 ms", jitter = "2 ms" }
+zero_hop = { transport = "10 us", jitter = "5 us" }
+
+[safety]
+safe_state_time = "1 ms"

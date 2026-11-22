@@ -65,6 +65,22 @@ const BUILTIN: &[(&str, &str)] = &[
         include_str!("../../../devices/media/zero_hop.toml"),
     ),
     (
+        "plcs/generic_s7_1200.toml",
+        include_str!("../../../devices/plcs/generic_s7_1200.toml"),
+    ),
+    (
+        "plcs/generic_iec_plc.toml",
+        include_str!("../../../devices/plcs/generic_iec_plc.toml"),
+    ),
+    (
+        "controllers/nucleo_f446re.toml",
+        include_str!("../../../devices/controllers/nucleo_f446re.toml"),
+    ),
+    (
+        "fpgas/generic_artix7_board.toml",
+        include_str!("../../../devices/fpgas/generic_artix7_board.toml"),
+    ),
+    (
         "robots/generic_6axis.toml",
         include_str!("../../../devices/robots/generic_6axis.toml"),
     ),
