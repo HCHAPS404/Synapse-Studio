@@ -521,3 +521,17 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   an `io` input inside an expression was not read. Each was found by comparing a
   translation with the reference interpreter, not by reading code. What is not proven:
   nothing was run on a real PLC, robot or board (sessions I5 and I6).
+
+## 2026-11-22 - Cloud setup: Neon and Render
+- **Kiro features:** steering (`current-work.md` records the state), the Neon agent skills and
+  MCP server installed by `neon init`, the file tools to read the Core API before advising.
+- **Produced:** Neon project `synapse-studio` (Ohio) linked in `services/core` (`neon.ts`,
+  `.neon`), and the Render blueprint service `synapse-core` (Starter) from `render.yaml`.
+- **Results:** `GET /health` on the Render URL returned `status: ok` with `database: ok`
+  (about 436 ms on the first call, which includes waking Neon). Vercel is not set up yet:
+  `apps/web` does not exist on `main`.
+- **Lessons:** the Blueprint was created from a commit without `region`, so Render runs in
+  Oregon while Neon is in Ohio. Render cannot move a service, so it stays as a TODO in
+  `render.yaml`. `neon init` minted an account-wide API key for the MCP server; revoke it
+  when setup ends. A restricted PowerShell execution policy blocked `npm.ps1`, which also
+  explains the agent shell failures.
