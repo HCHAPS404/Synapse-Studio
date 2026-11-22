@@ -21,6 +21,7 @@ members = [
   "crates/neuron-cli",
   "crates/synapse-protocol",
   "crates/neuron-wasm",
+  "crates/neuron-cell",
 ]
 # The Python module needs a Python interpreter at build time (PyO3) and is built with
 # maturin on its own: see crates/neuron-py/README.md. `cargo test --workspace` skips it.

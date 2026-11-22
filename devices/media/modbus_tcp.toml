@@ -1,0 +1,12 @@
+# Modbus TCP link medium. Generic placeholder numbers (measured in lab session I1).
+[medium]
+name = "modbus_tcp"
+family = "register"
+bitrate = "100 MBd"
+frame_overhead_bytes = 66
+transport_worst = "2 ms"
+isolated = false
+event_driven = false
+speaks = ["plc", "mcu", "robot", "host"]
+trust = "generic"
+note = "Generic placeholder numbers; measured in lab session I1."

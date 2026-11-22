@@ -1,0 +1,23 @@
+[package]
+name = "neuron-cell"
+description = "Cell compiler (Phase D): device manifests, partitioner, links, cell safety, co-simulation, dossier"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+neuron-nir = { path = "../neuron-nir" }
+neuron-sema = { path = "../neuron-sema" }
+neuron-emit = { path = "../neuron-emit" }
+neuron-target = { path = "../neuron-target" }
+neuron-codegen-hdl = { path = "../neuron-codegen-hdl" }
+serde = { workspace = true }
+thiserror = { workspace = true }
+toml = "0.8"
+
+[dev-dependencies]
+proptest = { workspace = true }

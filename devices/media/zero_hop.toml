@@ -1,0 +1,14 @@
+# A wire between two pins (no protocol). `opto_24v` is an optocoupler stage that also
+# shifts a 3.3 V output to a 24 V input. Generic placeholder numbers (lab session I1).
+[medium]
+name = "zero_hop"
+family = "zero_hop"
+frame_overhead_bytes = 0
+transport_worst = "20 us"
+isolated = false
+event_driven = true
+speaks = ["plc", "mcu", "fpga", "robot"]
+options = ["gpio", "opto_24v"]
+isolating = ["opto_24v"]
+trust = "generic"
+note = "Generic placeholder numbers; measured in lab session I1."

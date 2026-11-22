@@ -40,6 +40,12 @@ The board after `on` is not in the registry, or one of its files names a chip,
 architecture or runtime that does not exist, or a target file is malformed. The message
 lists the known names; `neuron targets` prints the table.
 
+The same code covers the device manifests of a cell (`devices/<class>/*.toml`, task D1):
+a `device x: type` whose type has no manifest, a `via` medium that has none (or an option
+that the medium does not list), and a manifest that is malformed, has an unknown field,
+dialect or unit, uses a backend that does not fit its class, points at a missing board,
+or has `generic` trust without a `note`. The message lists the manifest names that exist.
+
 ### NE0608 peripheral option beyond what the chip supports
 An option of a binding asks for more than the peripheral can do, for example
 `adc(bits: 12)` on a chip whose converter has 10 bits. Lower the option or use a

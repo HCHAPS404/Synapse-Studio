@@ -1,4 +1,25 @@
 # Generic four-axis SCARA robot (small payload class). Generic numbers, no vendor data.
+[device]
+name = "generic_scara"
+kind = "robot"
+dialects = ["robot", "core"]
+backend = "spel"
+profile = "generic"
+trust = "generic"
+vendor_class = "spel_style"
+note = "Generic placeholder numbers; timing is measured in lab session I6."
+
+[io]
+digital_in = { prefix = "I", volts = 24.0, kind = "sink" }
+digital_out = { prefix = "O", volts = 24.0, max_ma = 100 }
+
+[timing]
+scan_min = "4 ms"
+modbus_tcp = { transport = "5 ms", jitter = "2 ms" }
+
+[safety]
+safe_state_time = "50 ms"
+
 [robot]
 name = "generic_scara"
 kind = "scara"

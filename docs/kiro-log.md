@@ -575,3 +575,17 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   `SYNAPSE_CORS_ORIGINS` lists both origins; README, roadmap and steering use the new one.
 - **Lessons:** `*.vercel.app` names are shared by every Vercel user: `synapsestudio` was
   taken by a stranger's site. Check a name with a request before choosing it.
+
+## 2026-11-22 · Task D1.1 (device and medium manifests)
+- **Kiro features:** spec-driven development (`.kiro/specs/neuron-cell/`, D-R1 and D-R11),
+  a sub-agent in a clean context for the first draft, steering (Rust style, codegen
+  safety rules: generic manifests, no vendor data).
+- **Produced:** crate `neuron-cell` (manifest schema, loader, unit checks, cell
+  resolution), `devices/media/{modbus_tcp,s7,zero_hop}.toml`, robot manifests extended
+  with device, I/O, timing and safety tables; `NE0607` widened to device manifests.
+- **Results:** 11 tests (3 property tests) and 6 doctests pass; the C3 robot tests of
+  `neuron-emit` still pass on the extended manifests; fmt and clippy clean.
+- **Lessons:** the sub-agent lost its shell halfway; its code compiled, and the only
+  failure was a test that added an unknown table on purpose to a case that checked a
+  different error. A manifest that refuses unknown fields has to be tested one error
+  at a time.

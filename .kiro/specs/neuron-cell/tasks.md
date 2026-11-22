@@ -5,7 +5,7 @@ a Conventional Commit with `-s` and CI checked.
 
 | Id | Task | Requirements | Needs hardware | Status |
 |---|---|---|---|---|
-| D1.1 | Manifest schema and loader (`devices/{plcs,controllers,fpgas,robots,hosts,media}`), trust levels, `NE0607` | D-R1, D-R11 | no (generic numbers) | open |
+| D1.1 | Manifest schema and loader (`devices/{plcs,controllers,fpgas,robots,hosts,media}`), trust levels, `NE0607` | D-R1, D-R11 | no (generic numbers) | done |
 | D1.2 | Generic manifests for every device of the corpus cells and the bottling example; the same module on two PLC vendors | D-R1 | no | open |
 | D2.1 | Partitioner: explicit `place`, automatic assignment, `NE0704`, `NE0705`, `CellPlan` | D-R2 | no | open |
 | D2.2 | Per-device build through the existing backends and emitters | D-R2 | no | open |
@@ -21,6 +21,21 @@ a Conventional Commit with `-s` and CI checked.
 | D5.1 | Dossier: Markdown and HTML with SVG timing diagram, BOM, reports | D-R9 | no | open |
 | D7 | CLI `neuron cell check|build|sim|dossier`, `docs/cells.md`, CI smoke steps, roadmap, README | D-R10 | no | open |
 | D-HW | Confirm timing profiles (I1), run the bottling cell on real devices (I4 to I7) | D-R1, D-R4 | **yes** | pending (sessions) |
+
+## Results of D1.1
+
+New crate `neuron-cell` with `manifest.rs` (device and medium schema: kind, dialects,
+backend, profile, trust `generic < measured < confirmed`, I/O families with voltage
+domain, timing per medium, safe-state time; unknown fields refused; units checked with
+the analyzer's table), `library.rs` (`Library::builtin` embeds the files at build time,
+`from_dir` and `overlay_dir` load a `devices/` tree; `check` resolves targets, FPGA
+boards and media; `resolve_cell` finds every device and medium a cell names) and
+`units.rs`. Every failure is `NE0607`, whose meaning now covers device manifests
+(chapter 10 and `docs/errors/targets.md`); no new code. Media: `modbus_tcp`, `s7`,
+`zero_hop` with generic numbers. The two Phase C robot manifests gained `[device]`,
+`[io]`, `[timing]` and `[safety]` and keep `[robot]`; the C3 tests of `neuron-emit` still
+pass on them. Tests: 11 (3 proptests: exact durations, parsing never panics and always
+yields `NE0607`, values round trip) and 6 doctests.
 
 Decisions accepted by Hell on 2026-11-20: endpoints as NIR items (design decision 1),
 co-simulation on the interpreter with the fidelity bounds of Phase C added to the link
