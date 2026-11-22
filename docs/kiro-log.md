@@ -417,6 +417,18 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   reals and edge reads stay outside it and are `NE0610`. The SPEL+ kernel is checked on
   boolean ports only, because the controller's numbers are floating point.
 
+## 2026-11-22 · Fix: ST lexer panic found by CI, and the promotion of `main`
+- **Kiro features:** property-based testing (the E1 proptest found it on GitHub CI with a
+  seed the local run never drew), steering (`current-work.md` now requires reading the CI
+  result after every push), a release script.
+- **Produced:** the ST lexer keeps a whole multi-byte character after `$` instead of
+  stepping into it; a regression test with the exact input from CI.
+  `tools/release-main.ps1` verifies, commits, pushes, waits for a green CI on `develop`,
+  fast-forwards `main` and tags it.
+- **Lessons:** two commits were reported green from local runs while GitHub CI was red;
+  `main` is promoted only after the CI of the `develop` tip passes. Two test runs at the
+  same time collide on `out/c6/driver.exe`; run one at a time.
+
 ## 2026-11-21 · Task E1 (compiler bindings: WebAssembly and Python)
 - **Kiro features:** a sub-agent in a clean context, property-based testing of every entry
   point with random and mutated input.

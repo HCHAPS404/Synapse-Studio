@@ -195,12 +195,20 @@ fn lex(src: &str) -> Result<Vec<(Tok, usize)>, ParseError> {
                     break;
                 }
                 if b[i] == b'$' && i + 1 < b.len() {
-                    s.push(match b[i + 1] {
-                        b'N' | b'n' | b'L' | b'l' => '\n',
-                        b'T' | b't' => '\t',
-                        other => other as char,
-                    });
-                    i += 2;
+                    if b[i + 1].is_ascii() {
+                        s.push(match b[i + 1] {
+                            b'N' | b'n' | b'L' | b'l' => '\n',
+                            b'T' | b't' => '\t',
+                            other => other as char,
+                        });
+                        i += 2;
+                    } else {
+                        // `$` before a multi-byte character: keep the whole character, so the
+                        // index never lands inside it.
+                        let ch = src[i + 1..].chars().next().unwrap_or(' ');
+                        s.push(ch);
+                        i += 1 + ch.len_utf8();
+                    }
                     continue;
                 }
                 let ch = src[i..].chars().next().unwrap_or(' ');
@@ -958,5 +966,21 @@ fn describe(t: &Tok) -> String {
         Tok::Addr(a) => format!("`{a}`"),
         Tok::Sym(s) => format!("`{s}`"),
         Tok::Eof => "the end of the file".into(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{lex, Tok};
+
+    #[test]
+    fn a_dollar_before_a_multibyte_character_keeps_the_character() {
+        // Found by the property test of neuron-wasm on CI: the index landed inside `ð`.
+        let toks = lex("'a$ð b'").unwrap_or_default();
+        assert!(matches!(toks.first(), Some((Tok::Str(s), 0)) if s == "að b"));
+        // Never a panic, whatever follows the `$`.
+        for text in ["'$", "'$ð", "'$€'", "'x$\u{1F600}y'"] {
+            let _ = lex(text);
+        }
     }
 }

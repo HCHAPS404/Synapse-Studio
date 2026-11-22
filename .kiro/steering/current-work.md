@@ -54,6 +54,11 @@ when a task finishes; delete sections that become obsolete.
   and page file (os error 1455, "memory allocation failed") and froze the editor.
   `tools/job.ps1` now sets `CARGO_BUILD_JOBS=2` unless it is already set. Changing a
   feature of a shared dependency (e.g. `serde_json`) rebuilds the whole workspace.
+- **Always read the GitHub CI result** (`gh run list --branch develop --limit 3 --json
+  conclusion,headSha`) after a push; a green local run is not enough. On 2026-11-21 the CI
+  of `c6fbae6` and `69cf5bf` failed: a proptest of `neuron-wasm` hit, with another random
+  seed, a panic in the ST lexer (`$` before a multi-byte character). Never promote `main`
+  without a green CI on the `develop` tip.
 - Sub-agent rule that worked (C5.3 to C7): edit files only with the file tools, never from
   the shell; poll jobs only with the file reader.
 - `tools/phase-check.ps1 [-MessageFile f]`: everything CI runs (CLI checks on examples,
