@@ -8,6 +8,7 @@ services:
     name: synapse-core
     runtime: python
     plan: starter
+    region: ohio # same region as the Neon project (AWS US East 2)
     rootDir: services/core
     buildCommand: pip install uv && uv sync --locked --no-dev
     startCommand: uv run --no-dev uvicorn synapse_core.main:app --host 0.0.0.0 --port $PORT

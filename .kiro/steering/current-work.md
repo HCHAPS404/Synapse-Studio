@@ -112,10 +112,14 @@ D3-D7). Decisions:
 New codes planned: `NE0704` (placed on a device that cannot run the dialect), `NE0705`
 (no device fits). Implemented today: none of NE0701, NE0703, NE0801, NE0805.
 
+Done on 2026-11-21: E4 contract (`23d31d3`), E1 bindings (`c6fbae6`), ltm-power memory
+(`69cf5bf`; recall with `python ltm/bin/ltm.py files --limit 10` and `checkpoints --days 3`).
+
 Next steps, in order:
-1. (done) E4 relay protocol contract and E1 compiler bindings.
-2. D1.1, D1.2, D2.1, D2.2.
-3. D3.1 to D7, one task per commit. Ask Hell before promoting `develop` to `main`.
+1. D1.1, D1.2 (device manifests), then D2.1, D2.2 (partitioner) with E2 (Core API) alongside.
+2. D3.1 to D7, one task per commit, then E3, the E4 relay server, E5, E6.
+3. E7 when Hell has put the Neon and Render secrets in GitHub Actions secrets.
+Ask Hell before promoting `develop` to `main`. Save an ltm checkpoint after each task.
 
 ## Phase C design decisions (keep them)
 
