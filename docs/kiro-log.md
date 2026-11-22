@@ -535,3 +535,17 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   `render.yaml`. `neon init` minted an account-wide API key for the MCP server; revoke it
   when setup ends. A restricted PowerShell execution policy blocked `npm.ps1`, which also
   explains the agent shell failures.
+
+## 2026-11-22 - Web skeleton (`apps/web`) that reads the Core API health
+- **Kiro features:** spec-driven development (`.kiro/specs/web-skeleton/`, W1 to W4),
+  steering (TypeScript style, `current-work.md`), agent permissions (they denied writing
+  `.env.example`, so the variable is documented in the README instead).
+- **Produced:** a self-contained Next.js 16 app: `src/lib/config.ts` (validated
+  `NEXT_PUBLIC_API_URL`, required in production), `src/lib/health.ts` (server-side fetch,
+  no cache, 8 s timeout, never throws, runtime shape check), `src/app/page.tsx`.
+- **Results:** `pnpm lint`, `pnpm typecheck` and `pnpm build` pass. A production server
+  built against the Render URL rendered "Connected - status ok", database ok (474 ms).
+- **Lessons:** the newest majors were not usable together: typescript-eslint rejects
+  TypeScript 7 and the React ESLint plugins stop at ESLint 9, so both are pinned one major
+  lower. Next.js inlines `NEXT_PUBLIC_*` at build time, so Vercel needs a redeploy after
+  the variable changes.

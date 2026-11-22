@@ -114,7 +114,7 @@ Dates are targets. "Accept" is what must be true to mark the row ✅.
 ### Phase G · client apps (17–30 nov)
 | ID | Do | Accept |
 |---|---|---|
-| G2 | IDE shell in `apps/web`: dockview panels, explorer, command palette, problems panel, offline PWA (Serwist) | Works offline after the first load |
+| G2 | IDE shell in `apps/web`: dockview panels, explorer, command palette, problems panel, offline PWA (Serwist). `apps/web` holds a placeholder Next.js page that reads the Core API `/health` (spec `.kiro/specs/web-skeleton/`): replace it freely, but keep `NEXT_PUBLIC_API_URL` as the API setting (Vercel uses it) | Works offline after the first load |
 | G3 | Monaco with the Neuron grammar (reuse `editors/vscode/syntaxes`), diagnostics from the WASM compiler (E1), format on save | Typing an error shows the same `NE####` as `neuron check` |
 | G4 | Graphical views: blocks, FSM/GRAFCET, Ladder (bidirectional with text), chip/pin view (from `targets/`), clock tree | Property VIEW-1: text → view → text gives the same NIR |
 | G5 | Inspectors: generated code with the running line highlighted (source maps), bus monitor, scope, timing diagram, virtual display (`neuron-ui::emu`) | Stepping the virtual UNO highlights the matching `.neuron` line |

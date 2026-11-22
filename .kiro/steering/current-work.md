@@ -173,7 +173,12 @@ that needs a physical device stays pending until its session.
   comment at the top of the service in `render.yaml`. Hell chose to leave it for now.
 - Neon MCP API key id 3566976 sits in `~/.kiro/settings/mcp.json`; revoke it with
   `neon api-keys revoke 3566976` when setup is finished.
-- Next: Vercel (`apps/web`), then set `SYNAPSE_CORS_ORIGINS` in `render.yaml` to the real URL.
+- Web: `apps/web` is a placeholder Next.js 16 page that reads `/health` (spec
+  `.kiro/specs/web-skeleton/`, self-contained, own `pnpm-lock.yaml`; TypeScript 6 and
+  ESLint 9 are pinned on purpose). Verified locally end to end against Render.
+- Next: promote `develop` to `main` (ask Hell), then Hell creates the Vercel project
+  (Root Directory `apps/web`, `NEXT_PUBLIC_API_URL`), then set `SYNAPSE_CORS_ORIGINS` in
+  `render.yaml` to the real Vercel URL.
 
 ## Human actions still open (Hell)
 
