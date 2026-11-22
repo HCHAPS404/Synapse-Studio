@@ -1,4 +1,4 @@
 header plc name=press_plc target=-
    4 scan 10 ms
    5 plc-section Outputs vars=1
-   7 safety - members=1
+   8 safety - members=1

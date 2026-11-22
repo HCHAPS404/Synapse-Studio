@@ -4,6 +4,7 @@ module press_plc for plc
 scan 10 ms
 outputs:
   press_cylinder: bool @ %Q0.1
+
 safety:
   safe_state:
     press_cylinder = false
