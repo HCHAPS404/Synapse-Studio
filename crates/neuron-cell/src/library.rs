@@ -77,6 +77,14 @@ const BUILTIN: &[(&str, &str)] = &[
         include_str!("../../../devices/controllers/nucleo_f446re.toml"),
     ),
     (
+        "controllers/arduino_uno_r3.toml",
+        include_str!("../../../devices/controllers/arduino_uno_r3.toml"),
+    ),
+    (
+        "hosts/raspberry_pi_5.toml",
+        include_str!("../../../devices/hosts/raspberry_pi_5.toml"),
+    ),
+    (
         "fpgas/generic_artix7_board.toml",
         include_str!("../../../devices/fpgas/generic_artix7_board.toml"),
     ),

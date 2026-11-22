@@ -617,3 +617,16 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   candidates. Without a rule, every module of a package would be pushed into the cell
   (the examples package also holds an UNO blink and an ESP32 panel); the board named
   after `on` is what keeps them out.
+
+## 2026-11-22 · Task D2.2 (build per device)
+- **Kiro features:** spec-driven development (D-R2), steering (deterministic output,
+  generic manifests).
+- **Produced:** `neuron-cell::build` (`CellBuild`, `DeviceBuild`, `device_package`)
+  over the C, Verilog and Phase C backends; manifests `arduino_uno_r3` and
+  `raspberry_pi_5`.
+- **Results:** a cell with one device of each class builds to SCL, C, SPEL+, Verilog
+  with XDC and Python, deterministically; neuron-cell: 25 tests and 7 doctests pass.
+- **Lessons:** building the bottling example found two limits of earlier backends that
+  no test had hit: the C backend has no function blocks, so the PID thermostat of the
+  README does not compile to C, and the example's pick program is six-axis while the
+  cell's arm is a SCARA. They are reported per device and kept as open items.

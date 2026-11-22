@@ -1,0 +1,22 @@
+# Arduino UNO R3 class board (ATmega328P, 5 V I/O). Pins, clocks and memory come from
+# `targets/boards/arduino_uno_r3.board.toml`; this file adds what a cell needs.
+[device]
+name = "arduino_uno_r3"
+kind = "mcu"
+dialects = ["mcu", "core", "ui"]
+backend = "c"
+profile = "generic"
+trust = "generic"
+vendor_class = "avr"
+target = "arduino_uno_r3"
+note = "Generic placeholder numbers; measured on the board in gate G2 and lab session I1."
+
+[io]
+gpio = { prefix = "D", volts = 5.0, max_ma = 20 }
+
+[timing]
+scan_min = "1 ms"
+zero_hop = { transport = "10 us", jitter = "5 us" }
+
+[safety]
+safe_state_time = "1 ms"

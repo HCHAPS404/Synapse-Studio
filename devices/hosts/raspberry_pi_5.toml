@@ -1,0 +1,22 @@
+# Raspberry Pi 5 class single-board computer running a Python `host` node (3.3 V GPIO).
+# Generic numbers, no vendor data.
+[device]
+name = "raspberry_pi_5"
+kind = "host"
+dialects = ["host", "core"]
+backend = "python"
+profile = "generic"
+trust = "generic"
+vendor_class = "linux_sbc"
+note = "Generic placeholder numbers; the Python node is checked on the board in lab session I4."
+
+[io]
+gpio = { prefix = "GPIO", volts = 3.3, max_ma = 16 }
+
+[timing]
+scan_min = "10 ms"
+modbus_tcp = { transport = "2 ms", jitter = "2 ms" }
+s7 = { transport = "2 ms", jitter = "2 ms" }
+
+[safety]
+safe_state_time = "50 ms"

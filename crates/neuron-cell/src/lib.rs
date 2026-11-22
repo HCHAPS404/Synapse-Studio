@@ -11,12 +11,14 @@
 //! assert_eq!(scara.kind, neuron_cell::Kind::Robot);
 //! ```
 #![forbid(unsafe_code)]
+mod build;
 mod diag;
 mod library;
 mod manifest;
 mod partition;
 mod units;
 
+pub use build::{build, device_package, CellBuild, DeviceBuild};
 pub use diag::CellDiag;
 pub use library::{CellManifests, Library, ManifestError, ResolvedDevice, ResolvedMedium};
 pub use manifest::{

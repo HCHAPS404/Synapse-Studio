@@ -8,7 +8,7 @@ a Conventional Commit with `-s` and CI checked.
 | D1.1 | Manifest schema and loader (`devices/{plcs,controllers,fpgas,robots,hosts,media}`), trust levels, `NE0607` | D-R1, D-R11 | no (generic numbers) | done |
 | D1.2 | Generic manifests for every device of the corpus cells and the bottling example; the same module on two PLC vendors | D-R1 | no | done |
 | D2.1 | Partitioner: explicit `place`, automatic assignment, `NE0704`, `NE0705`, `CellPlan` | D-R2 | no | done |
-| D2.2 | Per-device build through the existing backends and emitters | D-R2 | no | open |
+| D2.2 | Per-device build through the existing backends and emitters | D-R2 | no | done |
 | D3.1 | Link endpoints as NIR items, register maps, Neuron Wire frames, Latch+ACK, BUSY/DONE/TIMEOUT | D-R3 | no | open |
 | D3.2 | Latency formula, `NE0701` with alternatives, link table | D-R4 | no (generic profiles; measured in I1) | open |
 | D3.3 | Cell watchdog and safe state on loss | D-R5 | no | open |
@@ -68,6 +68,25 @@ and `NE0705` (fits no device, with what each device lacks), in chapter 10,
 plan does not depend on the order of the source files. Address-level capability checks
 (pins and register addresses) are left to D3 and D4, where the link endpoints and
 voltage domains are known.
+
+## Results of D2.2
+
+`build.rs` builds every `DevicePlan` with the backend of its manifest and returns a
+`CellBuild` (files per device). Each device gets its own NIR package: its placed modules
+in plan order plus the `core` modules of the package; a controller module without a
+board takes the board of the manifest. Backends: the C path of `neuron build` (hardware
+checks, MIR, C and the ui runtime), Verilog plus XDC or PCF, and the Phase C emitters for
+ST, SCL, PLCopen, SPEL+ (with the robot manifest of the device) and Python, whose
+`fidelity.json`, `wiring.md` and source maps are kept. Two manifests added:
+`controllers/arduino_uno_r3` and `hosts/raspberry_pi_5`. A cell of corpus programs with
+one device of each class (S7-class PLC, UNO, six-axis arm, Artix-7 board, Raspberry Pi 5)
+builds to SCL, C, a SPEL+-style program, Verilog with XDC, and Python; the build is
+deterministic. The bottling example does not build yet, and the reasons come out per
+device: `thermostat` uses function blocks (`pid`, `lowpass`) that the C backend does not
+support (B2 subset, `NE0610`), and `pick` is a six-axis program that the cell places on a
+SCARA (`NE0804`, plus a `dest` parameter that the SPEL+ emitter does not translate). Both
+are limits of earlier backends, kept as open items; the native backend is not used by any
+manifest and is refused with a message. Tests: 4.
 
 Decisions accepted by Hell on 2026-11-20: endpoints as NIR items (design decision 1),
 co-simulation on the interpreter with the fidelity bounds of Phase C added to the link
