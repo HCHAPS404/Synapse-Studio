@@ -1,0 +1,263 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Replay",
+  "description": "The replay document.",
+  "type": "object",
+  "properties": {
+    "cell": {
+      "description": "Cell name.",
+      "type": "string"
+    },
+    "devices": {
+      "description": "Devices in plan order.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/ReplayDevice"
+      }
+    },
+    "end_ns": {
+      "description": "End of the run (or the instant of the violation) in nanoseconds.",
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 0
+    },
+    "events": {
+      "description": "Events ordered by time (stable: equal instants keep their order).",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/ReplayEvent"
+      }
+    },
+    "kind": {
+      "description": "Where it came from.",
+      "$ref": "#/$defs/ReplayKind"
+    },
+    "links": {
+      "description": "Links in source order.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/ReplayLink"
+      }
+    },
+    "replay_version": {
+      "description": "Format version, `\"1\"`.",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "replay_version",
+    "kind",
+    "cell",
+    "end_ns",
+    "devices",
+    "links",
+    "events"
+  ],
+  "$defs": {
+    "ReplayDevice": {
+      "description": "A device of the cell.",
+      "type": "object",
+      "properties": {
+        "manifest": {
+          "description": "Manifest name (empty when the replay does not know it).",
+          "type": "string"
+        },
+        "modules": {
+          "description": "Modules placed on it.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "name": {
+          "description": "Instance name; the `device` of the events.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "manifest",
+        "modules"
+      ]
+    },
+    "ReplayEvent": {
+      "description": "One event of the replay.",
+      "type": "object",
+      "properties": {
+        "device": {
+          "description": "Device instance, or [`CELL_DEVICE`].",
+          "type": "string"
+        },
+        "kind": {
+          "description": "Kind.",
+          "$ref": "#/$defs/ReplayEventKind"
+        },
+        "link": {
+          "description": "Link number for `send`, `deliver`, `cut` and `drop`.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0
+        },
+        "name": {
+          "description": "Name of the signal, output, fault, event or machine; `from -> to` for link events;\nthe property for a violation.",
+          "type": "string"
+        },
+        "t_ns": {
+          "description": "Instant in nanoseconds since the start.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "value": {
+          "description": "Value as text (empty when there is none).",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "t_ns",
+        "device",
+        "kind",
+        "name",
+        "value"
+      ]
+    },
+    "ReplayEventKind": {
+      "description": "What a replay event is.",
+      "oneOf": [
+        {
+          "description": "A signal became visible or an input changed (`name`, `value`).",
+          "type": "string",
+          "const": "signal"
+        },
+        {
+          "description": "An output changed.",
+          "type": "string",
+          "const": "output"
+        },
+        {
+          "description": "A fault was raised (`name` is the fault).",
+          "type": "string",
+          "const": "fault"
+        },
+        {
+          "description": "A fault was reset.",
+          "type": "string",
+          "const": "reset"
+        },
+        {
+          "description": "An event was raised.",
+          "type": "string",
+          "const": "event"
+        },
+        {
+          "description": "A state machine or sequence is in state `value` (`name` is the machine).",
+          "type": "string",
+          "const": "state"
+        },
+        {
+          "description": "Text printed by a program.",
+          "type": "string",
+          "const": "log"
+        },
+        {
+          "description": "A robot motion started.",
+          "type": "string",
+          "const": "motion"
+        },
+        {
+          "description": "A value entered a link at its sender.",
+          "type": "string",
+          "const": "send"
+        },
+        {
+          "description": "A value reached the receiver of a link.",
+          "type": "string",
+          "const": "deliver"
+        },
+        {
+          "description": "A link was cut.",
+          "type": "string",
+          "const": "cut"
+        },
+        {
+          "description": "A value was discarded because its link is cut.",
+          "type": "string",
+          "const": "drop"
+        },
+        {
+          "description": "The property in `name` is violated at this instant (counterexamples).",
+          "type": "string",
+          "const": "violation"
+        }
+      ]
+    },
+    "ReplayKind": {
+      "description": "Where a replay came from.",
+      "oneOf": [
+        {
+          "description": "A co-simulation run of the device programs.",
+          "type": "string",
+          "const": "cosimulation"
+        },
+        {
+          "description": "The shortest counterexample of a cell property, as a trace of the model.",
+          "type": "string",
+          "const": "counterexample"
+        }
+      ]
+    },
+    "ReplayLink": {
+      "description": "A link of the cell.",
+      "type": "object",
+      "properties": {
+        "from": {
+          "description": "Source as written (`plc.part_ready`).",
+          "type": "string"
+        },
+        "index": {
+          "description": "Position among the `link` items; the `link` of the events.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "latency_ns": {
+          "description": "Delay of a value on this link, in nanoseconds.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "medium": {
+          "description": "Medium (empty when the replay does not know it).",
+          "type": "string"
+        },
+        "to": {
+          "description": "Destination as written.",
+          "type": "string"
+        },
+        "within_ns": {
+          "description": "Latency budget, when the link has one.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "index",
+        "from",
+        "to",
+        "medium",
+        "latency_ns"
+      ]
+    }
+  }
+}

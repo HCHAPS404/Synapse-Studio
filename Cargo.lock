@@ -207,6 +207,7 @@ dependencies = [
  "neuron-target",
  "neuron-ui",
  "proptest",
+ "schemars",
  "serde",
  "serde_json",
  "thiserror",

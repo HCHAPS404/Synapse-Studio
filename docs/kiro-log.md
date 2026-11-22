@@ -762,3 +762,19 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   the value that crosses is the endpoint's own signal; connecting user symbols is done
   by the co-simulation and not by rewriting generated modules. A robot receiver has no
   watchdog logic, and the run reports that instead of passing.
+
+## 2026-11-23 · Task D6.2 (replay format and JSON Schema for the twin)
+
+- **Kiro features:** spec-driven development (D-R8), schema generation from Rust types
+  (schemars, as for NIR), property-based tests with proptest, steering (rust-style).
+- **Produced:** `neuron-cell::{Replay, ReplayEvent, ReplayEventKind, ReplayDevice,
+  ReplayLink, replay_schema_json}` in `replay.rs`; `spec/schemas/replay.schema.json`;
+  `tests/d6_replay.rs` with a checker for the schema subset schemars writes.
+- **Results:** a co-simulation run and a D4.3 counterexample both become replays that
+  validate, round trip byte for byte and are deterministic; folding the replay's state
+  events at the violation instant gives the states of the last counterexample step; the
+  committed schema equals the generated one.
+- **Lessons:** with no validator crate in the workspace, a 60-line checker over the
+  schema subset was enough to reject an unknown field, kind, missing field and wrong type,
+  which makes "validates" a real test. A counterexample is a model trace, so its replay
+  proves the violation in the model and not in the device programs.

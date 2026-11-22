@@ -20,6 +20,7 @@ mod library;
 mod links;
 mod manifest;
 mod partition;
+mod replay;
 mod tags;
 mod units;
 mod verify;
@@ -48,6 +49,10 @@ pub use manifest::{
     Backend, Family, IoFamily, Kind, Manifest, Medium, MediumTiming, Trust, DIALECTS,
 };
 pub use partition::{partition, CellPlan, DevicePlan, How, Placed};
+pub use replay::{
+    replay_schema_json, Replay, ReplayDevice, ReplayEvent, ReplayEventKind, ReplayKind, ReplayLink,
+    CELL_DEVICE, REPLAY_VERSION,
+};
 pub use tags::{address_fits, check_tags, parse_direct_address, type_bits, DirectAddress};
 pub use units::{duration_ns, rate_bd};
 pub use verify::{

@@ -21,6 +21,7 @@ neuron-interp = { path = "../neuron-interp" }
 neuron-ui = { path = "../neuron-ui" }
 serde = { workspace = true }
 serde_json = { workspace = true }
+schemars = { workspace = true }
 thiserror = { workspace = true }
 toml = "0.8"
 
