@@ -5,11 +5,11 @@
 use crate::units::{duration_ns, rate_bd};
 use crate::ManifestError;
 use neuron_emit::robot::Robot;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
 /// Device class; each has its own folder under `devices/`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Kind {
     /// Programmable logic controller (`devices/plcs`).
@@ -45,7 +45,7 @@ impl Kind {
 }
 
 /// The emitter or backend that builds the program of a device.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Backend {
     /// IEC 61131-3 Structured Text.

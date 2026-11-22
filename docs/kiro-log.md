@@ -602,3 +602,18 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
 - **Lessons:** the bottling example only analyzes as part of the `examples` package
   (it places `thermostat` and `conveyor` from other files), so cell tests load packages,
   not single files.
+
+## 2026-11-22 · Task D2.1 (partitioner)
+- **Kiro features:** spec-driven development (D-R2; the rules the design left open are
+  recorded in "Results of D2.1"), steering (deterministic output, typed `NE####` codes).
+- **Produced:** `neuron-cell::partition` with `CellPlan`, `DevicePlan`, `Placed`;
+  `CellDiag`; codes `NE0704` and `NE0705` in chapter 10, `docs/errors/cell.md` and
+  `neuron explain`.
+- **Results:** the bottling cell partitions into four programs (two explicit, two
+  automatic placements, the `Cycle` sequence on the PLC); 8 tests including a property
+  test that the plan does not depend on the order of the source files; the diagnostics
+  catalogue test still passes.
+- **Lessons:** the spec said "automatic assignment" but not which modules are
+  candidates. Without a rule, every module of a package would be pushed into the cell
+  (the examples package also holds an UNO blink and an ESP32 panel); the board named
+  after `on` is what keeps them out.

@@ -136,7 +136,7 @@ on this phase.
 | ID | Task | Deliverable | Acceptance | Depends | Dates | Status |
 |---|---|---|---|---|---|---|
 | D1 | Device manifests and capabilities | Manifest schema, trust levels, capability palette, topologies (same class other vendor, replicas, heterogeneous) | Same module placed on two PLC types | B1 | 23 nov | ✅ 22 nov: crate `neuron-cell` (schema, loader, trust levels, media, `NE0607`); manifests for every device of the corpus cells and the bottling example; `conveyor_plc` builds for the `s7` (SCL) and `iec_st` (ST) PLC classes |
-| D2 | Partitioner | `place` and automatic assignment; paradigm lowering per target | Bottling cell partitions into 4 programs | D1, C1 | 23–24 nov | ⬜ |
+| D2 | Partitioner | `place` and automatic assignment; paradigm lowering per target | Bottling cell partitions into 4 programs | D1, C1 | 23–24 nov | 🟡 22 nov D2.1: partitioner, `NE0704`, `NE0705`; the bottling cell partitions into 4 programs. D2.2 (build per device) open |
 | D3 | Links and timing | Standard Time Model: link synthesis (both ends), worst-case latency (NE0701), Latch+ACK, BUSY/DONE/TIMEOUT, timestamps, cell watchdog; uses measured timing profiles | 200 µs on Modbus rejected with alternative proposed | D2, I1 | 24–26 nov | ⬜ |
 | D4 | Safety across the cell | Mutex zones, workspace bounds, electrical compatibility (NE0801), cell `verify` | Counterexample replayed in the twin | D3, A8 | 26–27 nov | ⬜ |
 | D5 | Technical dossier | Wiring, I/O list, pin tables, timing diagrams, BOM, test report (PDF) | Generated for the demo cell | D4 | 27–28 nov | ⬜ |

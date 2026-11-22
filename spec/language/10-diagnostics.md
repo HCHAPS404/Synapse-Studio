@@ -104,6 +104,8 @@ error[NE0201]: cannot add a length to a duration
 | NE0701 | link latency budget cannot be met |
 | NE0702 | clock domain crossing without synchronizer |
 | NE0703 | tag mapped to incompatible types or units on two devices |
+| NE0704 | module or sequence placed on a device that cannot run it |
+| NE0705 | module or sequence fits no device of the cell |
 | NE0801 | incompatible voltage levels without isolation or level shifting |
 | NE0802 | output without a safe state |
 | NE0803 | `on fault` drives an output |

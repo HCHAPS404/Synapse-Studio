@@ -7,7 +7,7 @@ a Conventional Commit with `-s` and CI checked.
 |---|---|---|---|---|
 | D1.1 | Manifest schema and loader (`devices/{plcs,controllers,fpgas,robots,hosts,media}`), trust levels, `NE0607` | D-R1, D-R11 | no (generic numbers) | done |
 | D1.2 | Generic manifests for every device of the corpus cells and the bottling example; the same module on two PLC vendors | D-R1 | no | done |
-| D2.1 | Partitioner: explicit `place`, automatic assignment, `NE0704`, `NE0705`, `CellPlan` | D-R2 | no | open |
+| D2.1 | Partitioner: explicit `place`, automatic assignment, `NE0704`, `NE0705`, `CellPlan` | D-R2 | no | done |
 | D2.2 | Per-device build through the existing backends and emitters | D-R2 | no | open |
 | D3.1 | Link endpoints as NIR items, register maps, Neuron Wire frames, Latch+ACK, BUSY/DONE/TIMEOUT | D-R3 | no | open |
 | D3.2 | Latency formula, `NE0701` with alternatives, link table | D-R4 | no (generic profiles; measured in I1) | open |
@@ -48,6 +48,26 @@ package, because it places modules of other files) resolve every device and medi
 cells cover the plc, mcu, fpga and robot classes. `conveyor_plc` builds for both PLC
 manifests through their own backend and profile and gives two different programs.
 Modbus TCP on the NUCLEO board assumes a serial-to-Ethernet gateway (noted in the file).
+
+## Results of D2.1
+
+`partition.rs` turns every cell of a package into a `CellPlan` (one `DevicePlan` per
+`device`: manifest, class, backend, profile, modules with how they were placed, cell
+sequences). Rules decided here, since the design left them open: a module is a candidate
+for automatic placement when no cell places it, it is not `core` (library code), and its
+board, if it names one, is the board of a device of the cell; it goes to the device that
+runs its dialect and shares the most signal and `io` names with the modules already
+there, ties to the device declared first; candidates are taken in name order. A cell
+`sequence` without `on` runs on the first PLC, else the first host. The bottling cell
+gives four programs: `thermostat` on `ctl` and `conveyor` on `plc` (explicit), `pick` on
+`arm` and `pwm8` on `fpga` (automatic), and the `Cycle` sequence on `plc`; `blink` and
+`panel` are written for boards outside the cell. New codes `NE0704` (impossible
+placement, including an unknown device, a module placed twice, a sequence on an FPGA)
+and `NE0705` (fits no device, with what each device lacks), in chapter 10,
+`docs/errors/cell.md` and `neuron explain`. Tests: 8, with a property test that the
+plan does not depend on the order of the source files. Address-level capability checks
+(pins and register addresses) are left to D3 and D4, where the link endpoints and
+voltage domains are known.
 
 Decisions accepted by Hell on 2026-11-20: endpoints as NIR items (design decision 1),
 co-simulation on the interpreter with the fidelity bounds of Phase C added to the link

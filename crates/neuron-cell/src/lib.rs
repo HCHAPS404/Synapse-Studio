@@ -1,5 +1,5 @@
-//! The cell compiler (Phase D). This part (task D1) loads and validates the manifests of
-//! the devices and link media that a `cell` file names.
+//! The cell compiler (Phase D): device manifests (D1), the partitioner (D2), and the
+//! later stages that synthesize links, check the cell and simulate it.
 //!
 //! Manifests live in `devices/<class>/*.toml` (`plcs`, `controllers`, `fpgas`, `robots`,
 //! `hosts`) and `devices/media/*.toml`. Numbers are generic placeholders until the lab
@@ -11,12 +11,16 @@
 //! assert_eq!(scara.kind, neuron_cell::Kind::Robot);
 //! ```
 #![forbid(unsafe_code)]
+mod diag;
 mod library;
 mod manifest;
+mod partition;
 mod units;
 
+pub use diag::CellDiag;
 pub use library::{CellManifests, Library, ManifestError, ResolvedDevice, ResolvedMedium};
 pub use manifest::{
     Backend, Family, IoFamily, Kind, Manifest, Medium, MediumTiming, Trust, DIALECTS,
 };
+pub use partition::{partition, CellPlan, DevicePlan, How, Placed};
 pub use units::{duration_ns, rate_bd};
