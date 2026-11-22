@@ -35,6 +35,7 @@ packages = ["src/synapse_core"]
 testpaths = ["tests"]
 pythonpath = ["src"]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 
 [tool.ruff]
 line-length = 100
@@ -43,3 +44,7 @@ target-version = "py312"
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "S", "ASYNC"]
 ignore = ["S101"]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests write fixtures to temp paths and run fake tools.
+"tests/*" = ["S103", "S108", "S603", "S607", "S105", "S106"]

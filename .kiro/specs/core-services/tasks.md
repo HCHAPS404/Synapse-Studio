@@ -7,7 +7,7 @@ tested against simulated peers.
 |---|---|---|---|---|
 | E2.1 | Service layout, settings, structured logging with redaction, `ErrorBody` and `NE11xx` handlers, SQLAlchemy async session, Alembic baseline, `docs/errors/services.md`; CI Postgres container | E-R1, E-R19 | no | done |
 | E2.2 | `neuron check`, `build`, `emit --format json` (diagnostics and artifact list) with CLI tests | E-R2 | no | done |
-| E2.3 | Compile runner: temp dir, path checks, limits, timeout and process-group kill, environment stripping, network self-test, `NE1101` `NE1102` | E-R2 | no | open |
+| E2.3 | Compile runner: temp dir, path checks, limits, timeout and process-group kill, environment stripping, network self-test, `NE1101` `NE1102` | E-R2 | no | done |
 | E2.4 | Projects, immutable versions and files (tables, routes, content hash, `row_version`, `NE1107`) | E-R1 | no | open |
 | E2.5 | Builds API on the runner: queue and semaphore, stored diagnostics and artifacts with SHA-256, `GET /v1/capabilities` | E-R1, E-R2 | no | open |
 | E2.6 | Device catalog from `devices/` manifests (read-only routes) | E-R1 | no | open |
@@ -96,3 +96,37 @@ check, build and emit only). Tests: 13 integration tests in `tests/e2_json.rs` (
 errors with position, hardware error, native build artifacts, emit artifacts, policy
 refusal, usage errors, human default unchanged, human/JSON agreement, determinism) and 5
 unit tests of the parser; all other `neuron-cli` suites still pass; clippy `-D warnings` clean.
+
+## Results of E2.3
+Package `services/core/src/synapse_core/compile/`: `models.py` (`CompileJob` with typed
+options, `CliDocument`, `CompileResult`, `CompileOutcome` with the artifact bytes),
+`paths.py` (path and size checks, `NE1101`), `sandbox.py` (environment, rlimits, process
+group kill, network self-test), `runner.py` (`CompileRunner`, `RunnerConfig`,
+`runner_config(settings, network)`). Behaviour: files are validated (relative POSIX paths in
+normal form, no `..`, no leading dot, no backslash, no case clashes, limits 200 files, 200
+KiB each, 2 MiB total) and written into a fresh `mkdtemp` directory (0700, `O_EXCL`, mode
+0600) with `src/` and `tmp/`; the argument list is built from typed fields (names must match
+`[A-Za-z0-9_][A-Za-z0-9_.-]*`, so no option injection), always with `--format json`, run by
+`create_subprocess_exec` (no shell) with `cwd` in `src/`; the environment holds only `PATH`,
+the Windows system variables, a private `HOME`/`TMPDIR`, `LANG` and `NO_COLOR` (nothing
+`SYNAPSE_*`); POSIX `RLIMIT_CPU/AS/FSIZE/NOFILE/CORE` and a new session per job; a wall-clock
+timeout (30 s), an output cap (1 MiB) and a CPU/signal check end in `NE1102` after a
+process-group kill (`taskkill /T` on Windows); output files are read without following
+links, size-capped and hashed (`NE1101` over the caps); the directory is removed in
+`finally`; the job directory name is replaced by `<job>` in all text. A program with errors,
+a crash or non-JSON output is a result (`ok: false`), not an exception. A missing compiler
+is a 503. Network self-test: `detect_network_sandbox` tries `unshare --net` (then with
+`--map-root-user`), runs a probe inside and outside, and reports `isolated` only if the
+namespace differs and only `lo` exists; otherwise `unverified` and no prefix. `/health`
+gains `sandbox.network` (additive; the web app ignores it). New settings:
+`SYNAPSE_NEURON_BIN`, `SYNAPSE_COMPILE_TIMEOUT_S`, `SYNAPSE_COMPILE_WORK_DIR`.
+Tests: 55 new Python tests (fake `neuron` and fake `unshare` scripts; a Hypothesis property
+that accepted paths never leave the directory); `docs/errors/services.md` text for
+`NE1101` and `NE1102` updated to the real causes.
+Verified and not verified: all tests pass on Windows (78 pass, 6 skip). The POSIX-only tests
+(grandchild kill, CPU limit, link skipping) and the real-binary test (`NEURON_BIN`) are
+skipped here and run only on Linux CI (the first three) or where `NEURON_BIN` is set;
+Docker was not running, so they have not been run yet. Open: the "socket-denying wrapper"
+test of the design needs the real binary and a Linux sandbox, so it belongs to E2.10 (image);
+the concurrency semaphore and `NE1103` queue are E2.5; `import` is not offered by the runner
+(the CLI has no `--format json` for it); `RLIMIT_AS` of 4 GiB is a guess to tune on Render.

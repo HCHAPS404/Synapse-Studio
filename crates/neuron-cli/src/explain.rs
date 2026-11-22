@@ -99,7 +99,7 @@ mod tests {
         assert!(explain("NE0601").is_some_and(|t| t.contains("timer0")));
         assert!(explain("ne0610").is_some_and(|t| t.starts_with("NE0610")));
         assert!(explain("NE0704").is_some_and(|t| t.contains("place m on d")));
-        assert!(explain("NE1101").is_some_and(|t| t.contains("Nothing was executed")));
+        assert!(explain("NE1101").is_some_and(|t| t.contains("nothing was executed")));
         assert!(explain("ne1112").is_some_and(|t| t.starts_with("NE1112")));
         assert_eq!(explain("NE9999"), None);
     }

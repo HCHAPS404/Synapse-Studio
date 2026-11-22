@@ -838,3 +838,16 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
 - **Lessons:** shadowing the print macros in the binary gave structured output without
   touching about sixty print sites. The price is that the JSON diagnostics come from parsing
   the rendered text, which a test pins against the human mode.
+
+## 2026-11-23 · Task E2.3 (compile runner)
+- **Kiro features:** spec-driven task from `.kiro/specs/core-services/`, workspace rules.
+- **Produced:** `services/core/src/synapse_core/compile/` (models, paths, sandbox, runner),
+  `/health` field `sandbox.network`, settings for the compiler, fake `neuron` and `unshare`
+  test tools, 55 tests, updated `NE1101` and `NE1102` documentation.
+- **Results:** 78 Python tests pass and 6 skip on Windows; ruff clean. The tests that need
+  POSIX (group kill of a grandchild, CPU limit, links) and the real binary run only on
+  Linux CI or with `NEURON_BIN`; Docker was not running here, so they are not yet run.
+- **Lessons:** a newer ruff flags blocking file operations inside `async` functions
+  (`ASYNC240`), so directory preparation, cleanup and artifact reading moved to
+  `asyncio.to_thread`. A fake `unshare` that marks the environment lets the self-test
+  logic run without privileges.

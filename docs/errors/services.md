@@ -8,18 +8,22 @@ matching section. Messages never contain tokens, passwords or connection strings
 
 ### NE1101 job rejected (size or limit)
 
-A compile job was refused before it ran. Causes: a file path that is absolute, contains
-`..`, or is a link; more files or more bytes than the limits (defaults: 200 files, 200 KiB
-per file, 2 MiB in total); a command that is not `check`, `build`, `emit` or `import`; or a
-job whose artifacts exceed the output cap. Nothing was executed. Reduce the project or
-rename the path, then retry.
+A compile job was refused. Most often this happens before it runs. Causes: a file path that
+is absolute, contains `..` or a backslash, starts with a dot, or is not in normal form;
+more files or more bytes than the limits (defaults: 200 files, 200 KiB per file, 2 MiB in
+total); two paths that differ only in letter case; an option that does not fit the command
+(for example `board` on `check`) or a name that is not a plain name; or a command other than
+`check`, `build` or `emit`. In these cases nothing was executed. The same code is used when
+the job ran but its output files exceed the caps (200 files, 20 MiB each, 64 MiB in total);
+the result is then discarded. Reduce the project or rename the path, then retry.
 
 ### NE1102 job timed out or killed
 
-A compile job ran past its wall-clock limit, or exceeded a CPU, memory or file-size limit,
-and the runner killed the whole process group. The job directory is deleted. The same
-input on the same `neuron` binary behaves the same way, so shrink the project or split the
-build instead of retrying.
+A compile job ran past its wall-clock limit (default 30 s), printed more than 1 MiB on
+standard output or error, or was ended by a CPU, memory or file-size limit. The runner kills
+the whole process group, so no helper process survives, and deletes the job directory. The
+same input on the same `neuron` binary behaves the same way, so shrink the project or split
+the build instead of retrying.
 
 ### NE1103 rate limit
 

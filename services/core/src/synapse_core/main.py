@@ -1,22 +1,26 @@
 """FastAPI application entry point."""
 
 import asyncio
+import logging
 import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Annotated, Literal
 
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from synapse_core import __version__
+from synapse_core.compile.sandbox import NetworkSandbox, detect_network_sandbox
 from synapse_core.db.session import dispose_engines
 from synapse_core.errors import install_error_handlers
 from synapse_core.logging_config import configure_logging
 from synapse_core.middleware import HEADER as REQUEST_ID_HEADER
 from synapse_core.middleware import RequestIdMiddleware
 from synapse_core.settings import Settings, get_settings
+
+log = logging.getLogger(__name__)
 
 SettingsDep = Annotated[Settings, Depends(get_settings)]
 
@@ -29,6 +33,12 @@ class ComponentStatus(BaseModel):
     detail: str | None = None
 
 
+class SandboxStatus(BaseModel):
+    """Result of the compile sandbox self-test."""
+
+    network: Literal["isolated", "unverified"]
+
+
 class HealthResponse(BaseModel):
     """Response of GET /health."""
 
@@ -36,6 +46,7 @@ class HealthResponse(BaseModel):
     version: str
     environment: str
     database: ComponentStatus
+    sandbox: SandboxStatus
 
 
 def _check_database_sync(url: str, timeout_s: float) -> ComponentStatus:
@@ -63,7 +74,16 @@ async def check_database(settings: Settings) -> ComponentStatus:
 
 
 @asynccontextmanager
-async def _lifespan(_: FastAPI) -> AsyncIterator[None]:
+async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
+    # Self-test of the compile sandbox; the result is reported by /health.
+    app.state.network_sandbox = await detect_network_sandbox()
+    log.info(
+        "compile sandbox",
+        extra={
+            "network": app.state.network_sandbox.status,
+            "detail": app.state.network_sandbox.detail,
+        },
+    )
     yield
     await dispose_engines()
 
@@ -84,14 +104,16 @@ def create_app() -> FastAPI:
     )
 
     @app.get("/health", response_model=HealthResponse)
-    async def health(settings: SettingsDep) -> HealthResponse:
+    async def health(request: Request, settings: SettingsDep) -> HealthResponse:
         database = await check_database(settings)
         status: Literal["ok", "degraded"] = "degraded" if database.status == "error" else "ok"
+        probed: NetworkSandbox | None = getattr(request.app.state, "network_sandbox", None)
         return HealthResponse(
             status=status,
             version=__version__,
             environment=settings.environment,
             database=database,
+            sandbox=SandboxStatus(network=probed.status if probed else "unverified"),
         )
 
     return app

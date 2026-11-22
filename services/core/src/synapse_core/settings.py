@@ -21,6 +21,11 @@ class Settings(BaseSettings):
     db_pool_size: int = Field(default=5, ge=1, le=50)
     db_pool_recycle_s: int = Field(default=300, ge=30)
     cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:3000"])
+    neuron_bin: str = Field(default="neuron", description="Path of the `neuron` executable")
+    compile_timeout_s: float = Field(default=30.0, gt=0, le=600)
+    compile_work_dir: str | None = Field(
+        default=None, description="Parent of the per-job directories (default: system temp)"
+    )
     log_level: str = Field(default="INFO", description="DEBUG | INFO | WARNING | ERROR")
     log_json: bool = Field(default=True, description="Structured JSON logs")
 
