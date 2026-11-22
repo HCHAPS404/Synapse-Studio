@@ -51,6 +51,9 @@ def diag(severity: str, code: str | None, message: str, file: str | None = None)
 
 def main() -> int:
     args = sys.argv[1:]
+    if args == ["--version"]:
+        print("neuron 9.9.9-fake")
+        return 0
     command = args[0]
     src = Path(args[-1])
     out_text = option(args, "--out", "-o")

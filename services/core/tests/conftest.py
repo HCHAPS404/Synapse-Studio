@@ -8,13 +8,19 @@ from pathlib import Path
 import pytest
 from alembic import command
 from alembic.config import Config
+from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 from pydantic import SecretStr
 from sqlalchemy import create_engine, delete
 
 from synapse_core.db.base import Base
-from synapse_core.db.models import Project as ProjectRow
-from synapse_core.db.models import ProjectVersion, VersionFile
+from synapse_core.db.models import (
+    Build,
+    BuildArtifact,
+    Project,
+    ProjectVersion,
+    VersionFile,
+)
 from synapse_core.db.session import dispose_engines, sqlalchemy_url
 from synapse_core.main import create_app
 from synapse_core.settings import Settings, get_settings
@@ -44,18 +50,27 @@ def schema() -> Iterator[None]:
 
 
 @pytest.fixture
-async def client(schema: None) -> AsyncIterator[AsyncClient]:
-    """An HTTP client on the app with the test database; tables are emptied afterwards."""
+async def app(schema: None) -> AsyncIterator[FastAPI]:
+    """The application on the test database; tables are emptied afterwards."""
     assert TEST_URL is not None
     settings = Settings(database_url=SecretStr(TEST_URL))
-    app = create_app()
-    app.dependency_overrides[get_settings] = lambda: settings
-    transport = ASGITransport(app=app, raise_app_exceptions=False)
-    async with AsyncClient(transport=transport, base_url="http://test") as http:
-        yield http
+    application = create_app()
+    application.dependency_overrides[get_settings] = lambda: settings
+    yield application
+    manager = getattr(application.state, "build_manager", None)
+    if manager is not None:
+        await manager.shutdown()
     await dispose_engines()
     engine = create_engine(sqlalchemy_url(TEST_URL).replace("+aiosqlite", ""))
     with engine.begin() as conn:
-        for model in (VersionFile, ProjectVersion, ProjectRow):
+        for model in (BuildArtifact, Build, VersionFile, ProjectVersion, Project):
             conn.execute(delete(model))
     engine.dispose()
+
+
+@pytest.fixture
+async def client(app: FastAPI) -> AsyncIterator[AsyncClient]:
+    """An HTTP client on `app`."""
+    transport = ASGITransport(app=app, raise_app_exceptions=False)
+    async with AsyncClient(transport=transport, base_url="http://test") as http:
+        yield http

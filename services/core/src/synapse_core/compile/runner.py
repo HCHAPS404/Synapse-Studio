@@ -40,6 +40,7 @@ from synapse_core.settings import Settings
 log = logging.getLogger(__name__)
 
 _EMIT_LANGUAGES = frozenset({"st", "scl", "plcopen", "spel", "python", "kernel", "c"})
+EMIT_LANGUAGES = _EMIT_LANGUAGES
 _LOG_TAIL_BYTES = 4096
 # Signals that mean a resource limit or the kernel ended the job (SIGXCPU, SIGKILL, SIGXFSZ).
 _LIMIT_SIGNALS = frozenset({9, 24, 25})
@@ -252,6 +253,11 @@ class CompileRunner:
 
     def __init__(self, config: RunnerConfig) -> None:
         self.config = config
+
+    def validate(self, job: CompileJob) -> None:
+        """Raises `NE1101` for a job `run` would reject before starting; touches no disk."""
+        check_files(job.files, self.config.inputs)
+        _argv(job, Path("src"), Path("out"))
 
     async def run(self, job: CompileJob) -> CompileOutcome:
         """Runs one job.

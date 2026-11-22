@@ -10,15 +10,18 @@ from typing import Annotated, Literal
 from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from synapse_core import __version__
+from synapse_core.api.builds import router as builds_router
 from synapse_core.api.projects import router as projects_router
 from synapse_core.compile.sandbox import NetworkSandbox, detect_network_sandbox
-from synapse_core.db.session import dispose_engines
+from synapse_core.db.session import dispose_engines, get_engine
 from synapse_core.errors import install_error_handlers
 from synapse_core.logging_config import configure_logging
 from synapse_core.middleware import HEADER as REQUEST_ID_HEADER
 from synapse_core.middleware import RequestIdMiddleware
+from synapse_core.services.builds import interrupt_unfinished
 from synapse_core.settings import Settings, get_settings
 
 log = logging.getLogger(__name__)
@@ -74,6 +77,20 @@ async def check_database(settings: Settings) -> ComponentStatus:
     )
 
 
+async def _interrupt_unfinished_builds() -> None:
+    """Builds a stopped process left queued or running cannot finish: mark them `error`."""
+    engine = get_engine(get_settings())
+    if engine is None:
+        return
+    try:
+        async with async_sessionmaker(engine)() as session:
+            count = await interrupt_unfinished(session)
+        if count:
+            log.warning("marked unfinished builds as error", extra={"count": count})
+    except Exception as exc:  # noqa: BLE001 - e.g. migrations not applied yet; never block start-up
+        log.warning("cannot check unfinished builds", extra={"error": type(exc).__name__})
+
+
 @asynccontextmanager
 async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     # Self-test of the compile sandbox; the result is reported by /health.
@@ -85,7 +102,11 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
             "detail": app.state.network_sandbox.detail,
         },
     )
+    await _interrupt_unfinished_builds()
     yield
+    manager = getattr(app.state, "build_manager", None)
+    if manager is not None:
+        await manager.shutdown()
     await dispose_engines()
 
 
@@ -105,6 +126,7 @@ def create_app() -> FastAPI:
     )
 
     app.include_router(projects_router)
+    app.include_router(builds_router)
 
     @app.get("/health", response_model=HealthResponse)
     async def health(request: Request, settings: SettingsDep) -> HealthResponse:

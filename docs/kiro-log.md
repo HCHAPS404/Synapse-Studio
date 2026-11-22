@@ -860,3 +860,13 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
 - **Lessons:** with no Postgres at hand, `JSON`-free portable column types let the same models
   run on SQLite for a quick check, but that proves the logic only, not the migration on
   Postgres.
+## 2026-11-23 · Task E2.5 (builds API on the runner)
+- **Kiro features:** spec-driven task from `.kiro/specs/core-services/`, workspace rules.
+- **Produced:** migration `0003_builds`, `services/builds.py` (`BuildManager`),
+  `services/capabilities.py`, `api/builds.py`, `api/deps.py`, `schemas/builds.py`,
+  `GET /v1/capabilities`, `runner.validate`, `tests/test_builds.py`.
+- **Results:** 13 new tests (21 in the two suites) pass; model matches the migration;
+  offline SQL confirms JSONB and BYTEA on Postgres. SQLite locally, Postgres in CI.
+- **Lessons:** a gated fake runner (an injected subclass holding a `peak` counter) proves
+  the semaphore bound without timing. Storing artifact bytes in a table keeps one Render
+  instance simple; the input and output caps already bound the size.

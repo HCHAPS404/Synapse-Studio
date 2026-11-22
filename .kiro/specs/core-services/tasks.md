@@ -9,7 +9,7 @@ tested against simulated peers.
 | E2.2 | `neuron check`, `build`, `emit --format json` (diagnostics and artifact list) with CLI tests | E-R2 | no | done |
 | E2.3 | Compile runner: temp dir, path checks, limits, timeout and process-group kill, environment stripping, network self-test, `NE1101` `NE1102` | E-R2 | no | done |
 | E2.4 | Projects, immutable versions and files (tables, routes, content hash, `row_version`, `NE1107`) | E-R1 | no | done |
-| E2.5 | Builds API on the runner: queue and semaphore, stored diagnostics and artifacts with SHA-256, `GET /v1/capabilities` | E-R1, E-R2 | no | open |
+| E2.5 | Builds API on the runner: queue and semaphore, stored diagnostics and artifacts with SHA-256, `GET /v1/capabilities` | E-R1, E-R2 | no | done |
 | E2.6 | Device catalog from `devices/` manifests (read-only routes) | E-R1 | no | open |
 | E2.7 | Token bucket limiter, per-client buckets, `Retry-After`, `NE1103`; property test of the rate bound | E-R4 | no | open |
 | E2.8 | Guest mode: sandboxes, guest token, quotas, expiry cleanup, `NE1104`; a guest builds a corpus example | E-R3 | no | open |
@@ -153,3 +153,35 @@ Tests: 12 (3 Hypothesis properties of the hash, 9 route tests). The route tests 
 (`uv run --with aiosqlite`, schema from `create_all`) only as a local check. They have not
 run against Postgres or through the migration: that happens in CI, where the fixture applies
 the Alembic migrations. `tests/conftest.py` holds the fixtures.
+
+## Results of E2.5
+Migration `0003_builds` (reversible; the model/migration diff is empty on SQLite and the
+offline SQL emits `JSONB` and `BYTEA` on Postgres) adds `builds` (status, args, diagnostics,
+messages, artifacts as JSON -> JSONB, `log_tail`, `binary_version`, `exit_code`,
+`error_code`, timestamps) and `build_artifacts` (`(build_id, name)` primary key, SHA-256,
+size, bytes). Code: `services/builds.py` (`BuildManager`), `services/capabilities.py`,
+`api/builds.py`, `api/deps.py`, `schemas/builds.py`, a `runner.validate` method and an
+exported `EMIT_LANGUAGES`, two new settings (`compile_concurrency` 2, `compile_queue_max`
+8). Routes: `POST /v1/versions/{id}/builds` (202), `GET /v1/versions/{id}/builds`,
+`GET /v1/builds/{id}`, `GET /v1/builds/{id}/artifacts/{name}` (octet-stream, `X-Content-SHA256`,
+`ETag`, `nosniff`), `GET /v1/capabilities`.
+Behaviour: a build is validated with the runner (`NE1101` for bad options or files; nothing
+is stored), persisted `queued`, then run in a background task. A single `BuildManager` per
+process holds an `asyncio.Semaphore(concurrency)`; it admits `concurrency + queue_max`
+in-flight builds and rejects the rest with `NE1103` and `Retry-After`. The result is stored
+with the binary version so it is reproducible: `succeeded`/`failed` from the program,
+`error` with `NE1101`/`NE1102` from the runner. The manager and the limiter are in memory
+(one instance, per the design); on start-up the lifespan marks builds a stopped process
+left `queued`/`running` as `error` (`interrupt_unfinished`). `/v1/capabilities` probes
+`neuron --version` and `PATH` for `gcc`, `avr-gcc`, `arm-none-eabi-gcc`, and reports the
+sandbox network status and the limits; it needs no database and is cached per process.
+Choices: artifact bytes live in a table (simple, one Render instance, caps already bound
+them) rather than object storage; downloads set no caching beyond the ETag. Open: no rate
+limiter on the API verbs yet (E2.7), no guest quota on builds (E2.8), no auth (E3); artifact
+storage may move off Postgres if sizes grow.
+Tests: 13 in `tests/test_builds.py` (capabilities without a compiler/database, a 503 when
+unconfigured, success with stored and downloadable artifacts, a program-error `failed`
+build, an `NE1102` timeout, option rejection before storage, bounded concurrency with an
+`NE1103` full queue and a drained-queue retry, restart marking). A gated fake runner proves
+the peak concurrency. Like E2.4 they ran on SQLite locally; Postgres through Alembic runs
+in CI.

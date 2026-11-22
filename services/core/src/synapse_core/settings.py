@@ -26,6 +26,12 @@ class Settings(BaseSettings):
     compile_work_dir: str | None = Field(
         default=None, description="Parent of the per-job directories (default: system temp)"
     )
+    compile_concurrency: int = Field(
+        default=2, ge=1, le=16, description="Compile jobs that run at the same time"
+    )
+    compile_queue_max: int = Field(
+        default=8, ge=0, le=1000, description="Jobs that may wait; more is NE1103"
+    )
     log_level: str = Field(default="INFO", description="DEBUG | INFO | WARNING | ERROR")
     log_json: bool = Field(default=True, description="Structured JSON logs")
 
