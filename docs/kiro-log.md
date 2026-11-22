@@ -549,3 +549,13 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   TypeScript 7 and the React ESLint plugins stop at ESLint 9, so both are pinned one major
   lower. Next.js inlines `NEXT_PUBLIC_*` at build time, so Vercel needs a redeploy after
   the variable changes.
+
+## 2026-11-22 - README brought up to date
+- **Kiro features:** steering (`current-work.md` and the roadmap as the sources of status).
+- **Produced:** status changed from "early development" to "alpha" (badge and notice, with
+  what works and what does not); a "Milestones and changes" section per phase and tag;
+  progress table as of 22 nov (Phase C 7/7, total 37 of 90 tasks, 41 %); deployed Core
+  API, web app commands, Render region TODO and Vercel as the open account step; Phase D
+  and E headers, E7 row (also in `docs/roadmap.md`), risks and Gantt updated.
+- **Lessons:** the progress table had stayed at 17 nov and Phase C was listed with six
+  tasks instead of seven; status now has to be updated with every finished task.

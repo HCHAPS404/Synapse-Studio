@@ -6,7 +6,7 @@
   <a href="https://github.com/HCHAPS404/Synapse-Studio/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/HCHAPS404/Synapse-Studio/actions/workflows/ci.yml/badge.svg"></a>
   <a href="LICENSE"><img alt="License: Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-blue"></a>
   <img alt="Kiroween 2026" src="https://img.shields.io/badge/Kiroween%202026-Frankenstein-8a5cff">
-  <img alt="Status" src="https://img.shields.io/badge/status-early%20development-orange">
+  <img alt="Status" src="https://img.shields.io/badge/status-alpha-yellow">
   <img alt="Rust" src="https://img.shields.io/badge/core-Rust-dea584">
   <img alt="Python" src="https://img.shields.io/badge/services-Python%203.12-3776ab">
 </p>
@@ -17,11 +17,17 @@
 
 ---
 
-> **Project status: early development.** SYNAPSE Studio is being built in public
-> during the Kiroween 2026 submission period (30 October to 4 December 2026). This
-> README describes the full design. The [Status and roadmap](#status-and-roadmap)
-> section states exactly what works today and what is planned. Nothing below marked
-> *Planned* should be read as an existing feature.
+> **Project status: alpha (2026-11-22).** The Neuron language and its compiler work
+> today from the command line: parse, check, run in simulated time, build firmware for
+> microcontrollers, emit Verilog, translate to and from PLC and robot languages, and run
+> in the browser as WebAssembly. Phases 0, A, B and C are complete, with more than 520
+> automated tests. The Core API runs on Render and is connected to Neon. The digital
+> twin, the web IDE and the virtual lab are not built yet, and no step has been checked
+> on a physical device so far. SYNAPSE Studio is being built in public during the
+> Kiroween 2026 submission period (30 October to 4 December 2026). This README
+> describes the full design. The [Status and roadmap](#status-and-roadmap) section
+> states exactly what works today. Nothing below marked *Planned* should be read as an
+> existing feature.
 
 ## Table of contents
 
@@ -42,6 +48,7 @@
 - [Repository layout](#repository-layout)
 - [Getting started](#getting-started)
 - [How we build with Kiro](#how-we-build-with-kiro)
+- [Milestones and changes](#milestones-and-changes)
 - [Status and roadmap](#status-and-roadmap)
 - [Contributing](#contributing)
 - [Safety notice](#safety-notice)
@@ -515,7 +522,11 @@ Folders that do not exist yet are created by their plan tasks.
 ## Getting started
 
 **Prerequisites:** Git, Rust (stable), Python 3.12+, [uv](https://docs.astral.sh/uv/),
-Node.js 24+ and pnpm (for the web app, later), and Docker (optional).
+Node.js 24+ and pnpm 9 (web app), and Docker (optional).
+
+**Deployed today:** the Core API runs at
+<https://synapse-core-jqqk.onrender.com/health> (Render, always on, database on Neon
+Postgres). The web app is not public yet.
 
 ```bash
 git clone https://github.com/HCHAPS404/Synapse-Studio.git
@@ -540,6 +551,13 @@ uv sync
 uv run pytest
 uv run uvicorn synapse_core.main:app --reload
 # then open http://127.0.0.1:8000/health and http://127.0.0.1:8000/docs
+# optional: set SYNAPSE_DATABASE_URL (a Neon connection string) to check the database
+
+# Web app (placeholder page that shows the Core API health)
+cd ../../apps/web
+pnpm install
+pnpm dev            # http://localhost:3000; reads NEXT_PUBLIC_API_URL, default http://localhost:8000
+pnpm lint && pnpm typecheck && pnpm build
 ```
 
 On Windows, `tools/verify-local.ps1` runs every check (Kiro guard, `cargo fmt`,
@@ -552,41 +570,59 @@ SYNAPSE Studio is built spec-first with [Kiro](https://kiro.dev). Everything is 
 
 | Kiro feature | How we use it |
 |---|---|
-| **Specs** | Requirements → design → tasks for every component, with **correctness properties** (units, formatter idempotence, IR round-trip, SRP race freedom) that become property-based tests. Specs so far: [`.kiro/specs/`](.kiro/specs/) holds one folder per component, from `neuron-language`, `neuron-sema`, `neuron-nir` and `neuron-interp` to `neuron-targets`, `neuron-codegen-c`, `neuron-ports`, `neuron-isa-simulators`, `neuron-hdl`, `neuron-native` and `neuron-ui`. |
+| **Specs** | Requirements → design → tasks for every component, with **correctness properties** (units, formatter idempotence, IR round-trip, SRP race freedom) that become property-based tests. Specs so far: [`.kiro/specs/`](.kiro/specs/) holds one folder per component, from `neuron-language`, `neuron-sema`, `neuron-nir` and `neuron-interp` to `neuron-targets`, `neuron-codegen-c`, `neuron-ports`, `neuron-isa-simulators`, `neuron-hdl`, `neuron-native`, `neuron-ui`, `neuron-translate` (Phase C), `neuron-cell` (Phase D) and `web-skeleton`. Each `tasks.md` ends with a "Results of" paragraph per task. |
 | **Steering** | Always-on: product, tech, structure and conventions. Loaded by file pattern: Rust, Python and TypeScript style, plus **code-generation safety rules** (synchronous HDL with no latches, non-blocking C, robot workspace checks, IEC conventions). |
 | **Agent hooks** | `cargo check` on save, a guard that fails if `.kiro` is ever gitignored, and evidence logging after each spec task. Secret scanning runs in CI (gitleaks). |
-| **MCP** | *Planned:* a datasheet and register-map server for the AI Driver Builder, plus GitHub, Playwright and Neon integrations. |
+| **MCP** | The Neon MCP server and the Neon agent skills are configured (22 nov) for the database setup. *Planned:* a datasheet and register-map server for the AI Driver Builder, plus GitHub and Playwright integrations. |
 | **Custom agents** | *Planned:* `spec-reviewer`, `safety-auditor`, `emitter-author`, `manifest-builder`. |
 | **Property-based testing** | proptest (Rust) and Hypothesis (Python) from the first commit. |
 | **Kiro Crew** | *Planned:* parallel workers and a separate Crew app. |
+
+## Milestones and changes
+
+The full evidence for each step is in [`docs/kiro-log.md`](docs/kiro-log.md). Tags mark
+the points where a phase was complete in software and CI was green.
+
+| Date | Milestone | What changed |
+|---|---|---|
+| 13–14 nov | Phase 0: foundation | Public repository (Apache-2.0), Kiro steering and hooks, CI with compliance checks (`.kiro` guard, license, gitleaks), Core API skeleton with `/health` |
+| 14–19 nov | Phase A: the Neuron language · tag `spec-v1.0-rc1` | 17-chapter specification and grammar; lexer, parser with error recovery, names, types with physical units, dialect rules; SRP, response-time and memory analysis; model checking of `fsm` and `sequence`; NIR with JSON Schema; reference interpreter; `neuron fmt`, `explain`, `lsp` and a VS Code extension; standard library in Neuron; 50-program corpus in eight dialects |
+| 16–20 nov | Phase B: direct programming of devices · tag `phase-b-software` | Target model (architectures, chips, boards, pin and clock solvers); C backend and `neuron-rt` runtime for AVR, RP2040, RP2350, STM32F4 and ESP-IDF; native AVR backend with its own assembler; AVR and ARMv6-M simulators running the real firmware; `hdl` dialect to Verilog with CDC checks; `ui` dialect for four display controllers; `neuron build` and `neuron flash` |
+| 19–20 nov | Phase C: translation between languages · tag `phase-c-software` | Emitters for Structured Text (generic and Yaskawa profiles), SCL, PLCopen XML (LD and SFC), SPEL+-style robot programs, Python with a ROS 2 wrapper, C99 and micro-kernel state tables; importers for ST, SCL, PLCopen, SPEL+, a C subset and a Verilog subset; fidelity reports; a virtual PLC and a virtual robot controller that check every translation against the interpreter |
+| 20 nov | Phase D spec accepted | Cell compiler design (`.kiro/specs/neuron-cell/`): link endpoints as NIR items, co-simulation on the interpreter, dossier as Markdown and HTML |
+| 21 nov | E1 and the E4 contract | The compiler in the browser (`crates/neuron-wasm`) and in Python (`crates/neuron-py`); the relay and twin WebSocket protocol for the web and mobile apps (`spec/protocols/relay.md`) |
+| 22 nov | Fix found by CI | A `$` before a multi-byte character no longer panics the ST lexer |
+| 22 nov | Cloud deployment, first step | Neon Postgres project; Core API on Render with a live database check; placeholder web app in `apps/web` that reads the API health, verified end to end |
 
 ## Status and roadmap
 
 **Legend:** ✅ done · ✅🔌 done and verified without hardware, acceptance on the real
 device pending · 🚧 in progress · 📋 planned
 
-Phases A (language) and B (direct programming of devices) are complete. Every phase,
+Phases A (language), B (direct programming of devices) and C (translation between
+languages) are complete in software. Phase D (cell compiler) has an accepted spec and
+is next; Phase E (services) is under way. Every phase,
 its owner and exactly what has to be done is listed below in
 [Phases in detail](#phases-in-detail). [`docs/roadmap.md`](docs/roadmap.md) is the source
 of truth for status; Martin's working guide is [`docs/martin.md`](docs/martin.md).
 
-### Progress at a glance (2026-11-17)
+### Progress at a glance (2026-11-22)
 
 | Phase | Scope | Owner | Tasks | Done | Status | Dates |
 |---|---|---|---|---|---|---|
 | 0 | Foundation: repo, CI, Kiro setup | Hell | 7 | 7 | ✅ | 13–14 nov |
 | A | The Neuron language | Hell | 13 | 13 | ✅ | 14–19 nov |
-| B | Direct programming of devices | Hell | 9 | 9 | ✅ (B4–B9 ✅🔌) | 16–30 nov |
-| C | Translation between languages | Hell | 6 | 2 | 🚧 (C1 ✅, C2 ✅🔌) | 19–29 nov |
-| D | Cell compiler (multi-device) | Hell | 5 | 0 | 📋 | 23–28 nov |
-| E | Services: Core API, relay, Edge Daemon | Hell | 7 | 1 | 🚧 (E1 ✅) | 20–29 nov |
+| B | Direct programming of devices | Hell | 9 | 9 | ✅ (B4–B9 ✅🔌) | 16–20 nov |
+| C | Translation between languages | Hell | 7 | 7 | ✅ (C2, C3, C6 ✅🔌) | 19–20 nov |
+| D | Cell compiler (multi-device) | Hell | 5 | 0 | 🚧 spec accepted | 23–28 nov |
+| E | Services: Core API, relay, Edge Daemon | Hell | 7 | 1 | 🚧 (E1 ✅, E4 contract ✅, E7 started) | 20–29 nov |
 | F | Synapse Engine and digital twin | Martin | 9 | 0 | 📋 | 15–29 nov |
 | G | Client apps: web, desktop, Android | Martin (G7 with Hell) | 8 | 0 | 📋 | 15–30 nov |
 | H | AI, optional | Hell | 4 | 0 | 📋 | 25–30 nov |
 | I | Hardware lab sessions | Hell + You | 8 | 0 | 📋 | 17 nov–1 dec |
 | J | Integration and polish | Hell + Martin | 5 | 0 | 📋 | 29 nov–1 dec |
 | K | Submission and Kiro evidence | Hell + Martin + You | 8 | K1 ongoing | 🚧 | continuous, 1–3 dec |
-| **Total** | | | **89** | **31** | **35 %** | deadline 4 dec 17:00 COT |
+| **Total** | | | **90** | **37** | **41 %** | deadline 4 dec 17:00 COT |
 
 **Who does what.** **Hell** owns the language, compiler, backends, standard library,
 verification, services, Edge Daemon, hardware and AI. **Martin** owns the engine, the
@@ -605,7 +641,8 @@ accounts, forms, recordings and posts.
 | B9 dashboard | You (Hell) | Install ESP-IDF 5.x, wire an ST7789/ILI9341 TFT to the ESP32-S3 and flash the ui example | `neuron flash <ui package> --board esp32_s3_devkit --port COMx` |
 | Language review | You | Independent review of `spec/language/` to tag `spec-v1.0` | `spec/language/` |
 | VS Code extension | You | Install `editors/vscode` and confirm diagnostics, hover and go to definition | `docs/editor-support.md` |
-| Accounts | You | Neon project, Render service (paid), Vercel project, before 21 nov | `docs/roadmap.md`, Human actions |
+| Accounts | You | Neon project ✅ and Render service ✅ (22 nov). Still open: the Vercel project (Root Directory `apps/web`, variable `NEXT_PUBLIC_API_URL`) | `apps/web/README.md` |
+| Render region | Hell | The service runs in Oregon and Neon in Ohio (about 50–70 ms per database round trip). Move it when convenient | TODO in `render.yaml` |
 | Session I1 | You | Device inventory and measurements (PLC scan and input filter, robot latency, valve times) | `docs/roadmap.md`, Phase I |
 | Sessions I4 to I7 | You (Hell) | I4: Raspberry Pi 5 `host` node with `neuron emit python`. I5: PLCs with `neuron emit st\|scl\|plcopen` and the Micro-Kernel. I6: robot arms with `neuron emit spel`. I7: complex cells. Tonight the boards and the Pi 5, next week the rest | `docs/translation.md` (open items), `docs/roadmap.md`, Phase I |
 | Session I9 | You (Hell) | Inventory of the hexacopter with a Pixhawk 4 (firmware, version, radio, GPS); bench only, propellers off. No MAVLink support exists yet | `docs/roadmap.md`, Phase I |
@@ -614,7 +651,9 @@ accounts, forms, recordings and posts.
 |---|---|
 | Repository, license, governance, CI (compliance, Rust, Python) | ✅ |
 | Kiro steering and hooks | ✅ |
-| Core API skeleton with `/health` | ✅ |
+| Core API skeleton with `/health`, deployed on Render with a live check of the Neon database | ✅ (projects, builds and guest mode are E2 📋) |
+| Compiler as WebAssembly and as a Python module | ✅ (`crates/neuron-wasm`, `crates/neuron-py`, [`packages/wasm-glue`](packages/wasm-glue/README.md)) |
+| Relay and twin WebSocket protocol | ✅ contract (`spec/protocols/relay.md`, `crates/synapse-protocol`); relay server 📋 |
 | Neuron language specification (edition 2026) | ✅ v1.0-rc1 (17 chapters); the final v1.0 waits for an independent review |
 | Lexer, parser | ✅ |
 | Formatter, `neuron explain`, language server, VS Code and Kiro extension | ✅ (`neuron fmt`, `neuron explain`, `neuron lsp`, `editors/vscode`) |
@@ -638,7 +677,7 @@ accounts, forms, recordings and posts.
 | Robot (SPEL+-style) and Python emitters, importers (ST, SCL, PLCopen, SPEL+, C, Verilog), micro-kernel, `neuron emit` and `neuron import` | ✅🔌 Phase C done (checked in virtual controllers and the interpreter; vendor tools and arms in I5 and I6; no ROS 2 wrapper). See [docs/translation.md](docs/translation.md) |
 | Edge Daemon and hardware-in-the-loop | 📋 |
 | Synapse Engine and virtual devices | 📋 |
-| Web IDE and virtual lab | 📋 |
+| Web IDE and virtual lab | 📋 (`apps/web` holds a placeholder page that shows the Core API health) |
 | AI assistant and AI Driver Builder | 📋 |
 | Desktop and mobile apps | 📋 |
 
@@ -737,9 +776,9 @@ person in the daily sync. **Bold** rows unblock the other person.
 | Risk | Impact | Mitigation | Owner |
 |---|---|---|---|
 | Phases F and G have not started, and the engine API is overdue | The virtual lab (G6) is what judges see first | Martin does F1/F2 first, then G2/G3; Hell keeps the simulators and the UI emulators ready to plug in | Martin |
-| E1 (compiler in WASM) is late | G3 has no diagnostics | E1 is Hell's next task (17–18 nov) | Hell |
+| Martin has not pushed work yet (`feat/engine-kernel` has no commits of its own) | F and G start late; the judge path is at risk | E1 and the relay contract are ready for him; a placeholder `apps/web` already deploys; agree a reduced F/G scope at the next sync | Martin + Hell |
 | Lab hardware or time is not available | G2/G3 gates and the video | Everything is verified in simulators; hardware sessions add evidence but do not block the virtual lab | You |
-| Drive E: corruption (happened three times) | Lost or damaged files | `tools/verify-worktree.ps1`, push often, `tools/ship.ps1` refuses deletions and NUL bytes | Hell |
+| Disk damage on the old USB drive (happened five times) | Lost or damaged files | Work moved to an internal drive (`C:\dev\Synapse-Studio`); `tools/verify-worktree.ps1`, push often, `tools/ship.ps1` refuses deletions and NUL bytes | Hell |
 | Windows App Control blocks test executables | Local test failures that are not bugs | `tools/test-retry.ps1`; CI on Linux is the reference | Hell |
 | Scope is larger than the time left | Unfinished routes | Feature freeze on 29 nov; Phase L takes whatever does not fit | Both |
 | Hosting cost during judging (until 2027-01-29) | Virtual lab offline | Static site on a CDN plus an offline package; budget cap on Render and AI | Hell |
@@ -820,7 +859,7 @@ Feeds the virtual PLC and robot (F7) and routes B and C.
 | C6 | Micro-Kernel hot reload | Small interpreters for PLC, robot and MCU that accept state tables from the daemon | A sequence changes without the vendor IDE in I5/I6 | C2, E5 | 27–29 nov |
 | C7 | CLI and documentation | `neuron emit` and `neuron import`, `docs/translation.md`, CI smoke steps | Every emitter and importer runs from the command line | C1–C6 | 29 nov |
 
-#### Phase D · Cell compiler · Hell · 23–28 nov · 📋
+#### Phase D · Cell compiler · Hell · 23–28 nov · 🚧 (spec accepted 20 nov: `.kiro/specs/neuron-cell/`)
 
 **Goal:** compile one `cell` into one program per device, synthesize the links between
 them, prove the timing budgets and check safety across the whole cell (zones, workspace,
@@ -834,7 +873,7 @@ voltages). This is what makes route A, the bottling cell, work.
 | D4 | Safety across the cell | Mutex zones, workspace bounds, electrical compatibility (NE0801), cell `verify` | A counterexample replays in the twin | D3, A8 | 26–27 nov |
 | D5 | Technical dossier | Wiring, I/O list, pin tables, timing diagrams, BOM, test report (PDF) | Generated for the demo cell | D4 | 27–28 nov |
 
-#### Phase E · Services · Hell · 20–29 nov · 📋
+#### Phase E · Services · Hell · 20–29 nov · 🚧 (E1 done, E4 contract done, E7 started)
 
 **Goal:** put the compiler in the browser (WASM) and behind an API, connect the apps to
 real devices through the Edge Daemon, and deploy a public, login-free environment for
@@ -848,7 +887,7 @@ the judges.
 | E4 | Relay and twin gateway | WebSocket protocol (contract for Martin done: `spec/protocols/relay.md`; relay server pending), daemon pairing, telemetry in TimescaleDB | Web and mobile receive live telemetry | E2 | 24–26 nov |
 | E5 | Edge Daemon | Serial, Modbus TCP/RTU, S7, TCP, MQTT, CAN drivers; flashing tools; signed packages; heartbeat and local E-STOP; serves the PWA on the LAN | Flashes the UNO and talks to a PLC in the lab | B4 | 21–29 nov |
 | E6 | Black box and calibration | Records around faults; timing profiles fed back to D3 and the twin | A measured profile changes a D3 result | E5, I1 | 26–29 nov |
-| E7 | Deployment | Render (judging), Neon branches, Vercel; budget until 2027-01-29 | Public URL works with no login | E2 | 25–28 nov |
+| E7 | Deployment | Render (judging), Neon branches, Vercel; budget until 2027-01-29 | Public URL works with no login | E2 | 25–28 nov 🚧 22 nov: Neon project, Render service with `/health` and database ok; Vercel pending |
 
 #### Phase F · Synapse Engine and digital twin · Martin · 15–29 nov · 📋
 
@@ -962,7 +1001,7 @@ sensor networks · community manifest library.
 | Date | Gate | Exit criteria |
 |---|---|---|
 | 2026-11-19 | G1 — language | Phase A complete ✅ |
-| 2026-11-21 | G2 — first device | Blink, UART and an interrupt on the UNO R3 (software ready ✅, board session pending) |
+| 2026-11-21 | G2 — first device | Blink, UART and an interrupt on the UNO R3 (software ready ✅; the board session is overdue) |
 | 2026-11-24 | G3 — multi-target | Same program on UNO, Mega, Pico and ESP32-S3; Verilog on an FPGA; desktop decision DG-1 |
 | 2026-11-29 | G4 — feature freeze | Routes A–D in the virtual lab and on hardware; web usable end to end |
 | 2026-12-02 | G5 — release freeze | `release/kiroween-1.0` cut |
@@ -980,8 +1019,9 @@ gantt
   section Language and compiler
   Front end and IR                :done,   f2, 2026-11-14, 4d
   Backends and runtime            :done,   f4, 2026-11-16, 2d
-  Cell compiler and verification  :        f6, 2026-11-19, 7d
-  Emitters and importers          :        f7, 2026-11-20, 10d
+  Emitters and importers          :done,   f7, 2026-11-19, 2d
+  Compiler bindings (WASM, Python):done,   f8, 2026-11-21, 1d
+  Cell compiler and verification  :active, f6, 2026-11-23, 6d
   section Twin and apps
   Synapse Engine and virtual devices :     f11, 2026-11-18, 12d
   Web IDE and virtual lab         :        f12, 2026-11-16, 15d

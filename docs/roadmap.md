@@ -153,7 +153,7 @@ on this phase.
 | E4 | Relay and twin gateway | WebSocket protocol, daemon pairing, telemetry (TimescaleDB) | E2 | 24–26 nov | 🟡 contract done (`spec/protocols/relay.md`, crate `synapse-protocol`, schemas in `spec/schemas/relay/`); relay server not done |
 | E5 | Edge Daemon | Drivers: serial, Modbus TCP/RTU, S7, TCP sockets, MQTT, CAN; flashing tools; signed packages; heartbeat and local E-STOP; serves the PWA on the LAN | B4 | 21–29 nov | ⬜ |
 | E6 | Black box and calibration | Records around faults; timing profiles fed back to D3 and the twin | E5, I1 | 26–29 nov | ⬜ |
-| E7 | Deployment | Render (judging environment), Neon branches, Vercel; budget until 2027-01-29 | E2 | 25–28 nov | ⬜ |
+| E7 | Deployment | Render (judging environment), Neon branches, Vercel; budget until 2027-01-29 | E2 | 25–28 nov | 🟡 22 nov: Neon project (Ohio), Render service `synapse-core` (Starter, Oregon; region TODO in `render.yaml`) with `/health` and database ok; placeholder `apps/web` verified against it; Vercel project pending (You) |
 
 ---
 
