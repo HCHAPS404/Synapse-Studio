@@ -16,7 +16,7 @@ a Conventional Commit with `-s` and CI checked.
 | D4.1 | Zones and mutexes, `NE0805`, robot targets in zones | D-R7 | no | done |
 | D4.2 | Electrical compatibility, `NE0801` | D-R7 | no | done |
 | D4.3 | Cell `verify:` over the composed machines, shortest counterexample | D-R7 | no | done |
-| D6.1 | Co-simulation on the cell clock, link models, `--cut`, partition equivalence | D-R8, MOC-C1, MOC-C2 | no | open |
+| D6.1 | Co-simulation on the cell clock, link models, `--cut`, partition equivalence | D-R8, MOC-C1, MOC-C2 | no | done |
 | D6.2 | Replay format and JSON Schema for the twin | D-R8 | no | open |
 | D5.1 | Dossier: Markdown and HTML with SVG timing diagram, BOM, reports | D-R9 | no | open |
 | D7 | CLI `neuron cell check|build|sim|dossier`, `docs/cells.md`, CI smoke steps, roadmap, README | D-R10 | no | open |
@@ -271,6 +271,49 @@ format of the counterexample is D6.2. Tests: 6 in `neuron-sema/tests/d4_cell_ver
 (shortest trace, delay bound, lossless pulse, property CEX-1), 8 in
 `neuron-cell/tests/d4_verify.rs` (mutex proofs, two-phase counterexample, a cell with two
 sequences and a link, property MUTEX-1), 1 doctest.
+## Results of D6.1
+`cosim.rs`: `cosimulate(plan, nir, sources, lib, &SimOptions)` runs one reference
+interpreter per device, loaded with the device package of `build` (placed modules, link
+endpoints, watchdog and lock modules; a device with an empty package does not run), on one
+cell clock in nanoseconds. The clock jumps to the next instant at which any device has
+something scheduled, a value is due, a drive or a cut happens, so each device runs at its
+own period; at each instant rounds repeat until nothing more is due (zero latency settles
+in the same instant, capped at 1000 rounds with a note). `neuron-interp` gained three
+backward-compatible hooks in `hooks.rs`: `next_event_ns`, `read_named`, `write_named`
+(a signal is committed, an `io` or PLC input is applied like a scenario `set`, a variable
+is assigned; the value is coerced to the kind it replaces) and `advance_clock` (so that a
+write is stamped with the cell instant). How values cross: a link watches two sources on
+its sender, the user symbol named in the `link` (`a.ready` gives `ready`, when a placed
+module declares a signal, variable, PLC variable or `io` of that name) and the endpoint
+`l<i>_value`; when either changes the value is queued and delivered `latency` later (the
+worst case of the link table, or 0 with `LinkModel::Ideal`) to the same two places on the
+receiver. Queues are FIFO. This also does what D3.1 left open, connecting endpoints to
+user signals, but in the co-simulation only: the generated modules are unchanged. Loss:
+`Cut { link, at_ns }` drops every value sent at or after `at_ns` and every delivery due at
+or after it (`DROP` events) and sets the receiver's `l<i>_alive` to false, which starts
+the D3.3 watchdog (`alive` is true from the start: the adapter's heartbeats are not
+modeled). `LossReport` compares the time of the receiver's `LinkLost` fault with the
+plan's bound (watchdog + safe-state time). The trace (`SimRun.events`) is the union of the
+device traces tagged with the device, plus `SEND`, `DELIV`, `CUT` and `DROP` link events,
+ordered by time, then by plan order of the devices, then by the order inside the device;
+`Delivery` records sent and delivered instants. `cosimulate_single` runs all modules in
+one interpreter with ideal wires between the link symbols. Results: all four corpus cells
+and the five-class `Lab` cell run; every delivery takes exactly the link latency, inside
+`within` (property over random `every` and stimuli); cutting x01 and x04 faults the PLC
+within the bound; a host receiver with an `io` output ends in its safe value within the
+bound (property over random cut instants); two runs give byte-identical text and JSON
+(property over random stimuli and cuts); partition equivalence holds for a two-module
+host cell over random periods. Limits, said plainly: (1) equivalence is shown for cells
+whose links join user symbols of host modules and compares the behaviour (kind, name,
+value, instant) after removing link plumbing, sorted within an instant, so the order of
+independent events at one instant is not compared; it is not proved for every cell and
+dialect. (2) A robot receiver has no watchdog logic yet (D3.3, session I6), so a cut of
+a robot link gives a `LossReport` with no fault and `within_bound = false`, and the test
+checks that the report says so. (3) The handshake registers, heartbeat frames, loss
+other than a cut, cell `sequence` items and FPGA circuits (the interpreter does not run
+`circuit`) are not simulated. (4) The Phase C fidelity bounds are not yet added to the
+link latency. (5) `neuron cell sim` and `--cut` on the command line are D7. Tests: 15 in
+`d6_cosim.rs` (4 properties), 2 hooks tests and a doctest in `neuron-interp`.
 Decisions accepted by Hell on 2026-11-20: endpoints as NIR items (design decision 1),
 co-simulation on the interpreter with the fidelity bounds of Phase C added to the link
 budgets (decision 2), dossier as Markdown plus HTML with the PDF printed from it

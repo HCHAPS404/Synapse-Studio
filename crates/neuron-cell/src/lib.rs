@@ -12,6 +12,7 @@
 //! ```
 #![forbid(unsafe_code)]
 mod build;
+mod cosim;
 mod diag;
 mod electrical;
 mod endpoints;
@@ -27,6 +28,11 @@ mod watchdog;
 pub mod wire;
 mod zones;
 pub use build::{build, device_package, device_package_with, CellBuild, DeviceBuild};
+pub use cosim::{
+    behaviour_by_device, cosimulate, cosimulate_single, is_plumbing, CellEvent, CellEventKind, Cut,
+    Delivery, Drive, DriveValue, LinkModel, LossReport, SimDevice, SimError, SimLink, SimOptions,
+    SimRun,
+};
 pub use diag::CellDiag;
 pub use electrical::check_electrical;
 pub use endpoints::{

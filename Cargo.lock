@@ -200,6 +200,7 @@ dependencies = [
  "neuron-codegen-c",
  "neuron-codegen-hdl",
  "neuron-emit",
+ "neuron-interp",
  "neuron-mir",
  "neuron-nir",
  "neuron-sema",

@@ -17,6 +17,7 @@ neuron-target = { path = "../neuron-target" }
 neuron-codegen-hdl = { path = "../neuron-codegen-hdl" }
 neuron-codegen-c = { path = "../neuron-codegen-c" }
 neuron-mir = { path = "../neuron-mir" }
+neuron-interp = { path = "../neuron-interp" }
 neuron-ui = { path = "../neuron-ui" }
 serde = { workspace = true }
 serde_json = { workspace = true }

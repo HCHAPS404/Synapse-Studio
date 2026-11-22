@@ -743,3 +743,22 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   delay into the greatest common divisor of the durations made the tick 400 ns and the
   search explode, so delays are now rounded up to a tick chosen from the scan periods.
   Properties of a cell cannot be checked by `analyze` alone, so it now defers them.
+
+## 2026-11-23 · Task D6.1 (co-simulation on the cell clock, link models, cuts, partition equivalence)
+
+- **Kiro features:** spec-driven development (D-R8, MOC-C1, MOC-C2, partition
+  equivalence, design decision 2), property-based tests with proptest, steering
+  (rust-style, conventions), agent hooks for the interpreter, long-term memory notes.
+- **Produced:** `neuron-cell::{cosimulate, cosimulate_single, SimOptions, SimRun, Cut,
+  Drive, LinkModel, CellEvent, Delivery, LossReport}` in `cosim.rs`; in `neuron-interp`
+  the hooks `next_event_ns`, `read_named`, `write_named`, `advance_clock`
+  (`hooks.rs`); `tests/d6_cosim.rs`.
+- **Results:** four corpus cells and the five-class cell run; deliveries take exactly the
+  link latency, inside `within`; a cut faults a PLC or host receiver within watchdog plus
+  safe-state time; traces are byte-identical across runs; two host modules joined by an
+  ideal link behave like one interpreter over random periods.
+- **Lessons:** a write between steps needs the clock moved first or its trace entry gets
+  the previous instant, hence `advance_clock`. The corpus cells place no modules, so
+  the value that crosses is the endpoint's own signal; connecting user symbols is done
+  by the co-simulation and not by rewriting generated modules. A robot receiver has no
+  watchdog logic, and the run reports that instead of passing.

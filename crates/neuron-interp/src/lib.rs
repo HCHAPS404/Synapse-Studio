@@ -20,6 +20,7 @@
 mod builtin;
 mod calls;
 mod eval;
+mod hooks;
 mod sched;
 mod testing;
 

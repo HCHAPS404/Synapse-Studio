@@ -254,13 +254,14 @@ pub fn build(
 }
 
 /// Analyzes the cell's sources together with the endpoint modules of one device and
-/// builds the device package with them. The error is a one-line reason.
-fn build_with_endpoints(
+/// returns the device package (placed modules, endpoints, libraries) and the full source
+/// list. The error is a one-line reason.
+pub(crate) fn package_with_endpoints(
     dev: &DevicePlan,
     man: &Manifest,
     sources: &[SourceFile],
     eps: &[EndpointSource],
-) -> Result<BTreeMap<String, String>, String> {
+) -> Result<(Nir, Vec<SourceFile>), String> {
     let mut all: Vec<SourceFile> = sources.to_vec();
     all.extend(eps.iter().map(|e| SourceFile {
         path: e.file.clone(),
@@ -277,7 +278,17 @@ fn build_with_endpoints(
         return Err("the generated endpoint source gave no NIR".to_string());
     };
     let names: Vec<String> = eps.iter().map(|e| e.module.clone()).collect();
-    let pkg = device_package_with(nir2, dev, man, &names);
+    Ok((device_package_with(nir2, dev, man, &names), all))
+}
+
+/// Builds a device package with its endpoint modules. The error is a one-line reason.
+fn build_with_endpoints(
+    dev: &DevicePlan,
+    man: &Manifest,
+    sources: &[SourceFile],
+    eps: &[EndpointSource],
+) -> Result<BTreeMap<String, String>, String> {
+    let (pkg, all) = package_with_endpoints(dev, man, sources, eps)?;
     build_device(&pkg, man, &all).map_err(|ds| {
         ds.first().map_or_else(
             || "the backend refused the program".to_string(),
