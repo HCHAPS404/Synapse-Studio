@@ -1,7 +1,10 @@
 # Findings reviewed by hand and confirmed as not secrets. One gitleaks fingerprint per line.
-# Keep this list short; never add a real key here (rotate it instead).
+# Keep this list short; never add a real key here (rotate it instead). Do not quote the
+# flagged strings in these comments: the scanner reads this file too.
 #
-# 2026-11-22: ltm/bin/ltm.py (ltm-power selftest `test_11_redaction`) uses the fake string
-# `sk_live_abc123def456` to check that the memory tool redacts keys. It is not a Stripe key.
+# 2026-11-22: ltm/bin/ltm.py, ltm-power selftest `test_11_redaction`: a fake key-shaped
+# string used to check that the memory tool redacts keys. It is not a Stripe key.
 69cf5bf5949dc5938cb9aaddf4c64bc14028d5db:ltm/bin/ltm.py:stripe-access-token:916
 69cf5bf5949dc5938cb9aaddf4c64bc14028d5db:ltm/bin/ltm.py:stripe-access-token:918
+# 2026-11-22: the first version of this file quoted that same fake string in a comment.
+369e7936f57fe5a140c7c5f414bda35724e6f2e8:.gitleaksignore:stripe-access-token:5
