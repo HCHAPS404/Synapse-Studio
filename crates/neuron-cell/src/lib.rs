@@ -14,17 +14,26 @@
 mod build;
 mod diag;
 mod electrical;
+mod endpoints;
 mod library;
 mod links;
 mod manifest;
 mod partition;
 mod units;
 
-pub use build::{build, device_package, CellBuild, DeviceBuild};
+pub mod wire;
+pub use build::{build, device_package, device_package_with, CellBuild, DeviceBuild};
 pub use diag::CellDiag;
 pub use electrical::check_electrical;
+pub use endpoints::{
+    endpoint_sources, link_plans, register_csv, register_map, Crossing, Endpoint, EndpointSource,
+    LinkPlan, Location, Pattern, RegisterRow, ACTION_TIMEOUT_NS, DEFAULT_ENDPOINT_PERIOD_NS,
+    REGISTER_BASE,
+};
 pub use library::{CellManifests, Library, ManifestError, ResolvedDevice, ResolvedMedium};
-pub use links::{fmt_ns, latency, link_table, Alternative, Latency, LinkReport};
+pub use links::{
+    fmt_ns, latency, latency_with, link_table, Alternative, Latency, LinkReport, Shape,
+};
 pub use manifest::{
     Backend, Family, IoFamily, Kind, Manifest, Medium, MediumTiming, Trust, DIALECTS,
 };

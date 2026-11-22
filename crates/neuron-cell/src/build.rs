@@ -4,12 +4,19 @@
 //!
 //! Each device gets its own NIR package: the modules placed on it plus every `core`
 //! module of the package (library code they may use). A controller module that names no
-//! board gets the board of the device manifest. The link endpoints and the cell sequences
-//! are added to these packages by task D3; a device with nothing placed yet builds to an
-//! empty file set.
-use crate::{Backend, CellDiag, CellPlan, DevicePlan, Library, Manifest};
+//! board gets the board of the device manifest. The link endpoints (task D3.1) are Neuron
+//! source generated per device and link side, analyzed together with the cell's sources
+//! and added to the package; when a backend cannot take them the device builds without
+//! them and the link plan says so in its notes. A device with nothing placed and no link
+//! builds to an empty file set. Each device with links also gets `links.json` and, for
+//! register media, `register_map.csv`; the endpoint sources are kept under `links/`.
+//! Cell sequences are added by a later task.
+use crate::{
+    endpoint_sources, link_plans, register_csv, Backend, CellDiag, CellPlan, DevicePlan,
+    EndpointSource, Library, LinkPlan, Manifest,
+};
 use neuron_nir::{ModuleKind, Nir};
-use neuron_sema::SourceFile;
+use neuron_sema::{analyze, SemaOptions, SourceFile};
 use serde::Serialize;
 use std::collections::BTreeMap;
 
@@ -35,6 +42,8 @@ pub struct CellBuild {
     pub cell: String,
     /// One entry per device, in plan order.
     pub devices: Vec<DeviceBuild>,
+    /// The plan of every link (endpoints, register map, crossing), in link order.
+    pub links: Vec<LinkPlan>,
 }
 
 impl CellBuild {
@@ -44,15 +53,27 @@ impl CellBuild {
     }
 }
 
-/// The NIR package of one device.
+/// The NIR package of one device, without link endpoints.
 pub fn device_package(nir: &Nir, dev: &DevicePlan, man: &Manifest) -> Nir {
-    let placed: Vec<&str> = dev.modules.iter().map(|p| p.module.as_str()).collect();
+    device_package_with(nir, dev, man, &[])
+}
+
+/// The NIR package of one device: its placed modules, then the named endpoint modules
+/// (which `nir` must contain), then the `core` libraries.
+pub fn device_package_with(
+    nir: &Nir,
+    dev: &DevicePlan,
+    man: &Manifest,
+    endpoints: &[String],
+) -> Nir {
+    let mut placed: Vec<&str> = dev.modules.iter().map(|p| p.module.as_str()).collect();
+    placed.extend(endpoints.iter().map(String::as_str));
     let mut out = nir.clone();
     out.modules.retain(|m| {
         m.kind == ModuleKind::Module && (placed.contains(&m.name.as_str()) || m.dialect == "core")
     });
     if !placed.is_empty() {
-        // Placed modules first, in plan order, then the libraries.
+        // Placed modules first, in plan order, then the endpoints, then the libraries.
         out.modules.sort_by_key(|m| {
             placed
                 .iter()
@@ -98,6 +119,8 @@ pub fn build(
     sources: &[SourceFile],
     lib: &Library,
 ) -> Result<CellBuild, Vec<CellDiag>> {
+    let mut links = link_plans(nir, plan, lib)?;
+    let mut by_device = endpoint_sources(nir, plan, lib, &links);
     let mut devices = Vec::new();
     let mut diags = Vec::new();
     for dev in &plan.devices {
@@ -110,34 +133,118 @@ pub fn build(
             ));
             continue;
         };
-        let pkg = device_package(nir, dev, man);
-        let files = if pkg.modules.is_empty() {
-            Ok(BTreeMap::new())
-        } else {
-            build_device(&pkg, man, sources)
-        };
+        let eps = by_device.remove(&dev.instance).unwrap_or_default();
+        let mut built_endpoints = false;
+        let mut files = None;
+        if !eps.is_empty() {
+            match build_with_endpoints(dev, man, sources, &eps) {
+                Ok(f) => {
+                    built_endpoints = true;
+                    files = Some(Ok(f));
+                }
+                Err(why) => {
+                    // Fidelity note instead of a failed build: the program of the
+                    // device still builds without its endpoints.
+                    for l in &mut links {
+                        if l.tx.device == dev.instance || l.rx.device == dev.instance {
+                            l.notes.push(format!(
+                                "the endpoint module of `{}` is not part of its {} program: {why}",
+                                dev.instance,
+                                man.backend.name()
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+        let files = files.unwrap_or_else(|| {
+            let pkg = device_package(nir, dev, man);
+            if pkg.modules.is_empty() {
+                Ok(BTreeMap::new())
+            } else {
+                build_device(&pkg, man, sources)
+            }
+        });
         match files {
-            Ok(files) => devices.push(DeviceBuild {
-                instance: dev.instance.clone(),
-                manifest: dev.manifest.clone(),
-                backend: dev.backend,
-                modules: dev.modules.iter().map(|p| p.module.clone()).collect(),
-                files,
-            }),
+            Ok(mut files) => {
+                if built_endpoints {
+                    for e in &eps {
+                        files.insert(format!("links/{}", e.file), e.text.clone());
+                    }
+                }
+                devices.push(DeviceBuild {
+                    instance: dev.instance.clone(),
+                    manifest: dev.manifest.clone(),
+                    backend: dev.backend,
+                    modules: dev.modules.iter().map(|p| p.module.clone()).collect(),
+                    files,
+                });
+            }
             Err(ds) => diags.extend(ds.into_iter().map(|mut d| {
                 d.message = format!("device `{}`: {}", dev.instance, d.message);
                 d
             })),
         }
     }
-    if diags.is_empty() {
-        Ok(CellBuild {
-            cell: plan.cell.clone(),
-            devices,
-        })
-    } else {
-        Err(diags)
+    if !diags.is_empty() {
+        return Err(diags);
     }
+    // Per-device link data, after every note is known.
+    for d in &mut devices {
+        let mine: Vec<&LinkPlan> = links
+            .iter()
+            .filter(|l| l.tx.device == d.instance || l.rx.device == d.instance)
+            .collect();
+        if mine.is_empty() {
+            continue;
+        }
+        let doc = serde_json::json!({ "device": d.instance, "links": mine });
+        if let Ok(mut text) = serde_json::to_string_pretty(&doc) {
+            text.push('\n');
+            d.files.insert("links.json".into(), text);
+        }
+        if let Some(csv) = register_csv(&links, &d.instance) {
+            d.files.insert("register_map.csv".into(), csv);
+        }
+    }
+    Ok(CellBuild {
+        cell: plan.cell.clone(),
+        devices,
+        links,
+    })
+}
+
+/// Analyzes the cell's sources together with the endpoint modules of one device and
+/// builds the device package with them. The error is a one-line reason.
+fn build_with_endpoints(
+    dev: &DevicePlan,
+    man: &Manifest,
+    sources: &[SourceFile],
+    eps: &[EndpointSource],
+) -> Result<BTreeMap<String, String>, String> {
+    let mut all: Vec<SourceFile> = sources.to_vec();
+    all.extend(eps.iter().map(|e| SourceFile {
+        path: e.file.clone(),
+        text: e.text.clone(),
+    }));
+    let a = analyze(all.clone(), None, &SemaOptions::default());
+    if let Some(e) = a.errors().next() {
+        return Err(format!(
+            "the generated endpoint source was rejected: {} {}",
+            e.diag.code, e.diag.message
+        ));
+    }
+    let Some(nir2) = a.nir.as_ref() else {
+        return Err("the generated endpoint source gave no NIR".to_string());
+    };
+    let names: Vec<String> = eps.iter().map(|e| e.module.clone()).collect();
+    let pkg = device_package_with(nir2, dev, man, &names);
+    build_device(&pkg, man, &all).map_err(|ds| {
+        ds.first().map_or_else(
+            || "the backend refused the program".to_string(),
+            |d| format!("{} {}", d.code, d.message),
+        )
+    })
 }
 
 fn build_device(

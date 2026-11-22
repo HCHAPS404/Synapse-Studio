@@ -653,3 +653,21 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   bottling links pass; 5 tests.
 - **Lessons:** a test that asked for a 1 ms link into an UNO got an honest `NE0701`
   first: the budgets of D3.2 now catch mistakes in the tests of later tasks.
+
+## 2026-11-23 · Task D3.1 (link endpoints, register maps, Neuron Wire)
+- **Kiro features:** spec-driven development (D-R3, design decision 1), steering
+  (codegen safety rules: latch + ACK across clock domains, no unbounded waits), property
+  tests for the Wire properties of spec 11.3.
+- **Produced:** `neuron-cell::{link_plans, endpoint_sources, register_map}` and the
+  `wire` module (frame codec, CRC-16/CCITT-FALSE, COBS, TCP prefix, `DedupFilter`);
+  `build` adds one generated Neuron endpoint module per device and link side to each
+  device package and writes `links.json` and `register_map.csv`; the link table uses the
+  real value size and the receiver's program period.
+- **Results:** the endpoints of x01, x02, x04 and of a five-class cell with four links
+  (S7-class PLC, UNO, six-axis arm, FPGA, Pi 5) reach the SCL, C, SPEL+-style, Verilog
+  and Python programs of both ends, with no fallback note; WIRE-1, WIRE-2 and WIRE-3 hold
+  under proptest; 19 new tests, 55 in the crate, 9 doctests. No new diagnostic code.
+- **Lessons:** the SPEL+ emitter refuses `signal` but takes `var`, so the endpoint
+  generator picks the construct per dialect and a refusal becomes a note, not a failed
+  build. A PowerShell session keeps its variables between calls: a stale `$t` was
+  written over a new file once, so file edits stay with the file tools.

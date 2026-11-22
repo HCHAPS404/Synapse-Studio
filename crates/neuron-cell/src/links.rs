@@ -2,7 +2,7 @@
 //!
 //! Spec 14.8: `latency = serialize + transport + receiver phase + polling`, where
 //! - `serialize` is `bytes · 8 / bitrate` for media with a bit rate (the frame overhead
-//!   of the medium plus a 4-byte value);
+//!   of the medium plus the value; 4 bytes when the type is not known);
 //! - `transport` adds the sender's output time, the medium's worst transport and the
 //!   receiver's input time, each with its jitter (`[timing]` of both manifests and
 //!   `transport_worst` of the medium): a deliberate worst case;
@@ -17,8 +17,28 @@ use crate::{duration_ns, CellDiag, CellPlan, Library, Manifest, Medium, Trust};
 use neuron_nir::{Expr, ExprKind, ItemDef, Lit, ModuleKind, Nir};
 use serde::Serialize;
 
-/// Bytes of a value on the wire, until task D3.1 gives each link its real type.
-const VALUE_BYTES: u64 = 4;
+/// Bytes of a value on the wire when the caller does not know the link's type
+/// (`latency`); `link_table` uses the real size of each link (task D3.1).
+const DEFAULT_VALUE_BYTES: u64 = 4;
+
+/// What the planner knows about the value of a link and its receiver.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Shape {
+    /// Bytes of the value on the wire.
+    pub value_bytes: u64,
+    /// Period of the receiver's own program (scan or task), when it is known; the
+    /// receiver phase is the longer of this and the manifest's `scan_min`.
+    pub receiver_period_ns: Option<u64>,
+}
+
+impl Default for Shape {
+    fn default() -> Shape {
+        Shape {
+            value_bytes: DEFAULT_VALUE_BYTES,
+            receiver_period_ns: None,
+        }
+    }
+}
 
 /// The terms of one latency, in nanoseconds.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -141,18 +161,33 @@ fn medium_parts(via: &Expr) -> Option<(String, Vec<String>)> {
     }
 }
 
-/// The latency of a link from `s` to `r` over `m`.
+/// The latency of a link from `s` to `r` over `m`, for a 4-byte value and a receiver
+/// that runs at its shortest period. See [`latency_with`].
 pub fn latency(s: &Manifest, r: &Manifest, m: &Medium, every_ns: Option<u64>) -> Option<Latency> {
+    latency_with(s, r, m, every_ns, Shape::default())
+}
+
+/// The latency of a link with the real value size and receiver period of `shape`.
+pub fn latency_with(
+    s: &Manifest,
+    r: &Manifest,
+    m: &Medium,
+    every_ns: Option<u64>,
+    shape: Shape,
+) -> Option<Latency> {
     let st = s.timing.get(&m.name)?;
     let rt = r.timing.get(&m.name)?;
-    let bytes = u64::from(m.frame_overhead_bytes) + VALUE_BYTES;
+    let bytes = u64::from(m.frame_overhead_bytes) + shape.value_bytes;
     let serialize_ns = m
         .bitrate_bd
         .filter(|b| *b > 0)
         .map_or(0, |b| (bytes * 8 * 1_000_000_000).div_ceil(b));
     let transport_ns =
         st.transport_ns + st.jitter_ns + m.transport_worst_ns + rt.transport_ns + rt.jitter_ns;
-    let receiver_phase_ns = r.scan_min_ns.unwrap_or(0);
+    let receiver_phase_ns = r
+        .scan_min_ns
+        .unwrap_or(0)
+        .max(shape.receiver_period_ns.unwrap_or(0));
     let polling_ns = match every_ns {
         Some(p) => p,
         None if m.event_driven => 0,
@@ -176,13 +211,12 @@ fn speaks(m: &Medium, s: &Manifest, r: &Manifest) -> bool {
 
 fn alternatives(
     lib: &Library,
-    s: &Manifest,
-    r: &Manifest,
-    current: &Medium,
-    every_ns: Option<u64>,
+    p: &ParsedLink<'_>,
     within: u64,
     now: &Latency,
+    shape: Shape,
 ) -> Vec<Alternative> {
+    let (s, r, current, every_ns) = (p.s, p.r, p.m, p.every_ns);
     let mut out = Vec::new();
     // A shorter period on the same medium.
     if now.polling_ns > 0 {
@@ -211,7 +245,7 @@ fn alternatives(
             ));
         }
         for (change, every) in variants {
-            if let Some(l) = latency(s, r, m, every) {
+            if let Some(l) = latency_with(s, r, m, every, shape) {
                 if l.total_ns <= within {
                     out.push(Alternative {
                         change,
@@ -229,27 +263,52 @@ fn alternatives(
     out
 }
 
-/// The link table of the cell of `plan`.
-///
-/// # Errors
-/// `NE0607` for an endpoint that is not a device of the cell, an unknown medium or a
-/// medium that one end does not speak; `NE0701` for every link over its budget, with
-/// the alternatives that would meet it.
-pub fn link_table(
+/// One `link` of a cell, resolved against the manifests.
+pub(crate) struct ParsedLink<'a> {
+    /// Position among the `link` items of the cell (0-based).
+    pub index: usize,
+    /// Source as written (`plc.cap_done`).
+    pub from: String,
+    /// Destination as written.
+    pub to: String,
+    /// Sender device instance.
+    pub sender: String,
+    /// Receiver device instance.
+    pub receiver: String,
+    /// Sender manifest.
+    pub s: &'a Manifest,
+    /// Receiver manifest.
+    pub r: &'a Manifest,
+    /// Medium.
+    pub m: &'a Medium,
+    /// Medium options.
+    pub options: Vec<String>,
+    /// Period after `every`.
+    pub every_ns: Option<u64>,
+    /// Budget after `within`.
+    pub within_ns: Option<u64>,
+    /// Byte range of the `link` item.
+    pub span: [usize; 2],
+}
+
+/// Resolves every `link` of the cell of `plan`: both ends are devices of the cell, the
+/// medium exists and both ends speak it. `NE0607` for each one that is not.
+pub(crate) fn parse_links<'a>(
     nir: &Nir,
     plan: &CellPlan,
-    lib: &Library,
-) -> Result<Vec<LinkReport>, Vec<CellDiag>> {
+    lib: &'a Library,
+) -> (Vec<ParsedLink<'a>>, Vec<CellDiag>) {
     let Some(cell) = nir
         .modules
         .iter()
         .find(|m| m.kind == ModuleKind::Cell && m.name == plan.cell && m.file == plan.file)
     else {
-        return Ok(Vec::new());
+        return (Vec::new(), Vec::new());
     };
     let file = cell.file.as_str();
     let mut rows = Vec::new();
     let mut diags = Vec::new();
+    let mut index = 0usize;
     for item in &cell.items {
         let ItemDef::Link {
             from,
@@ -261,6 +320,8 @@ pub fn link_table(
         else {
             continue;
         };
+        let this = index;
+        index += 1;
         let span = Some(item.span);
         let name = |e: &Expr| dotted(e).map(|d| d.join(".")).unwrap_or_else(|| "?".into());
         let (from_s, to_s) = (name(from), name(to));
@@ -339,29 +400,66 @@ pub fn link_table(
             diags.push(d);
             continue;
         }
-        let every_ns = every.as_ref().and_then(duration_of);
-        let within_ns = within.as_ref().and_then(duration_of);
-        let Some(lat) = latency(s, r, m, every_ns) else {
+        rows.push(ParsedLink {
+            index: this,
+            from: from_s,
+            to: to_s,
+            sender,
+            receiver,
+            s,
+            r,
+            m,
+            options,
+            every_ns: every.as_ref().and_then(duration_of),
+            within_ns: within.as_ref().and_then(duration_of),
+            span: item.span,
+        });
+    }
+    (rows, diags)
+}
+
+/// The link table of the cell of `plan`. Each link is costed with the real size of its
+/// value and the period of the receiver's program (see `endpoints::link_plans`).
+///
+/// # Errors
+/// `NE0607` for an endpoint that is not a device of the cell, an unknown medium or a
+/// medium that one end does not speak; `NE0701` for every link over its budget, with
+/// the alternatives that would meet it.
+pub fn link_table(
+    nir: &Nir,
+    plan: &CellPlan,
+    lib: &Library,
+) -> Result<Vec<LinkReport>, Vec<CellDiag>> {
+    let (parsed, mut diags) = parse_links(nir, plan, lib);
+    let file = plan.file.as_str();
+    let mut rows = Vec::new();
+    for p in parsed {
+        let (s, r, m) = (p.s, p.r, p.m);
+        let (from_s, to_s, medium_name) = (&p.from, &p.to, &p.m.name);
+        let span = Some(p.span);
+        let (every_ns, within_ns) = (p.every_ns, p.within_ns);
+        let shape = crate::endpoints::shape_of(nir, plan, &p);
+        let Some(lat) = latency_with(s, r, m, every_ns, shape) else {
             continue;
         };
         let trust = s.trust.min(r.trust).min(m.trust);
         let mut row = LinkReport {
             from: from_s.clone(),
             to: to_s.clone(),
-            sender,
-            receiver,
+            sender: p.sender.clone(),
+            receiver: p.receiver.clone(),
             medium: medium_name.clone(),
-            options,
+            options: p.options.clone(),
             every_ns,
             within_ns,
             latency: lat,
             trust,
             alternatives: Vec::new(),
-            span: item.span,
+            span: p.span,
         };
         if let Some(w) = within_ns {
             if lat.total_ns > w {
-                row.alternatives = alternatives(lib, s, r, m, every_ns, w, &lat);
+                row.alternatives = alternatives(lib, &p, w, &lat, shape);
                 let mut d = CellDiag::new(
                     "NE0701",
                     file,

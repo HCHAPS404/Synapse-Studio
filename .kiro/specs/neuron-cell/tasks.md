@@ -9,7 +9,7 @@ a Conventional Commit with `-s` and CI checked.
 | D1.2 | Generic manifests for every device of the corpus cells and the bottling example; the same module on two PLC vendors | D-R1 | no | done |
 | D2.1 | Partitioner: explicit `place`, automatic assignment, `NE0704`, `NE0705`, `CellPlan` | D-R2 | no | done |
 | D2.2 | Per-device build through the existing backends and emitters | D-R2 | no | done |
-| D3.1 | Link endpoints as NIR items, register maps, Neuron Wire frames, Latch+ACK, BUSY/DONE/TIMEOUT | D-R3 | no | open |
+| D3.1 | Link endpoints as NIR items, register maps, Neuron Wire frames, Latch+ACK, BUSY/DONE/TIMEOUT | D-R3 | no | done |
 | D3.2 | Latency formula, `NE0701` with alternatives, link table | D-R4 | no (generic profiles; measured in I1) | done |
 | D3.3 | Cell watchdog and safe state on loss | D-R5 | no | open |
 | D3.4 | Tags across devices, `NE0703`, single writer | D-R6 | no | open |
@@ -121,6 +121,45 @@ isolating options; the help spells the fixed `via` (`zero_hop(gpio, opto_24v)`).
 corpus and bottling links, which use `opto_24v`, pass. `LinkReport` now keeps the span
 of its `link`. Tests: 5. `NE0801` moved to `docs/errors/cell.md`.
 
+## Results of D3.1
+`endpoints.rs` gives one `LinkPlan` per `link` (pattern from the medium family, value
+type, crossing, location of each end, fidelity notes); `build` returns them in
+`CellBuild.links` and writes `links.json` (and `register_map.csv` for register media)
+per device. Choices: the value type is that of the sender's signal when a placed module
+declares one (`signal`, PLC `inputs`/`outputs`/`memory`, `io` as `bool`), else the
+receiver's, else the default `bool` (recorded in the plan and in a note). Crossing: each
+end's period is the longer of its manifest `scan_min` and the `scan` or shortest task
+period of the module that declares the signal; a faster sender gets Latch+ACK, a slower
+one sample + stale flag, equal periods are direct; a robot receiver over a medium that is
+not a bare wire gets BUSY/DONE/TIMEOUT (timeout 1 s, `ACTION_TIMEOUT_NS`). Registers
+live on the receiver, from holding register 100, one per 16 bits, in link order per
+receiver: `value`, then `seq` and `ack` (Latch+ACK) or `seq`, `busy`, `done` (action),
+one register each. Frame media get Wire tag id `index + 1` on both ends, pub/sub the
+topic `neuron/<cell>/l<index>`, zero-hop a logical pin `l<i>_out`/`l<i>_in` plus an
+`l<i>_ack` wire for Latch+ACK. Decision 1 is done as Neuron source: one generated module
+per device and link side (`link_<cell>_<i>_tx|rx`, in the dialect of the device), analyzed
+with the cell's sources and added to the device package, so the five backends take it
+unchanged: `scl` and `st` memory variables with `%MW` addresses plus `rung`s (hold until
+acknowledged, echo the sequence number, a `ton` for the action timeout), C and Python
+`signal`s plus a `task`, robot `var`s, and a Verilog circuit with the real latch
+(`pending = (pending or strobe) and not ack`). The sources are kept under `links/` in
+each device. If a backend refuses its endpoint module the device still builds without it
+and every link of that device says so in `notes` (no case in the corpus or the five-class
+cell). The Neuron Wire codec is `wire.rs`: frame encode/decode (all header fields
+little-endian, CRC over everything before it, 8-byte `mac` carried when the flag is set,
+no HMAC), CRC-16/CCITT-FALSE, COBS with the `0x00` delimiter, the TCP length prefix, and
+`DedupFilter` (64-frame window per session, wrapping sequence arithmetic; older than the
+window is `Stale`). `links.rs` now costs each link with its real value size and the
+period of the receiver's program (`Shape`, `latency_with`; `latency` keeps the 4-byte
+default); the budgets of the corpus and bottling links stay inside `within`, no expected
+number changed. Not done: connecting an endpoint to the signal of a user module and
+moving values (D3.4 tags and the D6.1 co-simulation, where "the value is delivered" is
+shown), the run-time Modbus/Wire/MQTT transport code, the cell watchdog (D3.3), physical
+pin assignment, and a real sequence counter on zero-hop links (their `seq` is only the
+echo variable). No new diagnostic code. Tests: 19 new (8 in
+`d3_endpoints.rs`, 11 in `d3_wire.rs`, among them the properties WIRE-1, WIRE-2, WIRE-3,
+COBS round trip, decoder never panics, register blocks never overlap), 55 in the crate
+and 9 doctests.
 Decisions accepted by Hell on 2026-11-20: endpoints as NIR items (design decision 1),
 co-simulation on the interpreter with the fidelity bounds of Phase C added to the link
 budgets (decision 2), dossier as Markdown plus HTML with the PDF printed from it
