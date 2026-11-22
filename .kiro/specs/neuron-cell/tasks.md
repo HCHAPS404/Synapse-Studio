@@ -14,7 +14,7 @@ a Conventional Commit with `-s` and CI checked.
 | D3.3 | Cell watchdog and safe state on loss | D-R5 | no | open |
 | D3.4 | Tags across devices, `NE0703`, single writer | D-R6 | no | open |
 | D4.1 | Zones and mutexes, `NE0805`, robot targets in zones | D-R7 | no | open |
-| D4.2 | Electrical compatibility, `NE0801` | D-R7 | no | open |
+| D4.2 | Electrical compatibility, `NE0801` | D-R7 | no | done |
 | D4.3 | Cell `verify:` over the composed machines, shortest counterexample | D-R7 | no | open |
 | D6.1 | Co-simulation on the cell clock, link models, `--cut`, partition equivalence | D-R8, MOC-C1, MOC-C2 | no | open |
 | D6.2 | Replay format and JSON Schema for the twin | D-R8 | no | open |
@@ -108,6 +108,18 @@ controllers over Modbus TCP is `NE0701` and proposes `via zero_hop` (150 us). Te
 with a property test that the latency is the sum of its terms, grows one for one with
 the period, and that `NE0701` fires exactly when it exceeds the budget. `NE0701` moved
 from `docs/errors/reserved.md` to `docs/errors/cell.md`.
+
+## Results of D4.2
+
+`electrical.rs` checks the wired links of a link table. Only `zero_hop` media join two
+I/O domains; Modbus TCP and S7 are skipped. The sender's output domain is its I/O family
+with a current limit, the receiver's input domain its family with a `sink`/`source`
+kind (else the first family with a voltage); domains within 0.1 V are the same. A
+mismatch is `NE0801` unless the medium is isolated or the link names one of its
+isolating options; the help spells the fixed `via` (`zero_hop(gpio, opto_24v)`). A
+3.3 V FPGA pin on a 24 V PLC input and a 3.3 V board on a 5 V board are `NE0801`; the
+corpus and bottling links, which use `opto_24v`, pass. `LinkReport` now keeps the span
+of its `link`. Tests: 5. `NE0801` moved to `docs/errors/cell.md`.
 
 Decisions accepted by Hell on 2026-11-20: endpoints as NIR items (design decision 1),
 co-simulation on the interpreter with the fidelity bounds of Phase C added to the link

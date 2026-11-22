@@ -13,6 +13,7 @@
 #![forbid(unsafe_code)]
 mod build;
 mod diag;
+mod electrical;
 mod library;
 mod links;
 mod manifest;
@@ -21,6 +22,7 @@ mod units;
 
 pub use build::{build, device_package, CellBuild, DeviceBuild};
 pub use diag::CellDiag;
+pub use electrical::check_electrical;
 pub use library::{CellManifests, Library, ManifestError, ResolvedDevice, ResolvedMedium};
 pub use links::{fmt_ns, latency, link_table, Alternative, Latency, LinkReport};
 pub use manifest::{

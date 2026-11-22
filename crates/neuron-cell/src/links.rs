@@ -69,6 +69,9 @@ pub struct LinkReport {
     pub trust: Trust,
     /// Changes that meet the budget, fastest first (only when the budget is not met).
     pub alternatives: Vec<Alternative>,
+    /// Byte range of the `link` item in the cell file.
+    #[serde(skip)]
+    pub span: [usize; 2],
 }
 
 impl LinkReport {
@@ -354,6 +357,7 @@ pub fn link_table(
             latency: lat,
             trust,
             alternatives: Vec::new(),
+            span: item.span,
         };
         if let Some(w) = within_ns {
             if lat.total_ns > w {

@@ -642,3 +642,14 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
 - **Lessons:** with the first placeholder numbers the README's own bottling cell broke
   its 25 ms budget by 1 ms. Placeholder numbers decide whether an example compiles, so
   they are labeled `generic` in every message until session I1 measures them.
+
+## 2026-11-22 · Task D4.2 (electrical compatibility, NE0801)
+- **Kiro features:** spec-driven development (D-R7), steering (codegen safety rules:
+  never wire 3.3 V logic to 24 V I/O; the tool is a design aid).
+- **Produced:** `neuron-cell::check_electrical`; `NE0801` implemented
+  (`docs/errors/cell.md`); spans kept in the link table.
+- **Results:** a 3.3 V FPGA pin on a 24 V PLC input and a 3.3 V board on a 5 V board
+  are `NE0801` with the fixed `via`; `opto_24v` makes them legal; the corpus and
+  bottling links pass; 5 tests.
+- **Lessons:** a test that asked for a 1 ms link into an UNO got an honest `NE0701`
+  first: the budgets of D3.2 now catch mistakes in the tests of later tasks.

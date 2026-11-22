@@ -15,6 +15,15 @@ the numbers: `generic` numbers are placeholders until lab session I1 measures th
 help lists the changes that meet `L`, fastest first: a shorter `every`, another medium
 both devices speak, or the event-driven form of a medium. When none does, raise `L` or
 put both ends of the logic on one device.
+## Electrical
+### NE0801 incompatible voltage levels without isolation or level shifting
+A wired link (a medium of the `zero_hop` family) joins the output domain of the sender
+to a different input domain of the receiver, for example a 3.3 V FPGA pin to a 24 V PLC
+input, or a 3.3 V board to a 5 V board. The domains come from the `[io]` tables of the
+two device manifests. Network and bus media do not join I/O domains and are not
+checked. Use an isolating or level-shifting option of the medium (`zero_hop(gpio,
+opto_24v)`), which the help spells out, or a network medium. The check is a design aid:
+the real wiring must still be reviewed against the datasheets of the parts.
 ## Placement
 ### NE0704 module or sequence placed on a device that cannot run it
 `place m on d` names a device whose manifest does not run the dialect of `m`, or `m`
