@@ -23,4 +23,5 @@ services:
       - key: SYNAPSE_DATABASE_URL
         sync: false
       - key: SYNAPSE_CORS_ORIGINS
-        value: '["https://synapse-studio.vercel.app"]'
+        # Production web on Vercel. Note: synapse-studio.vercel.app belongs to another project.
+        value: '["https://synapse-studio-eight.vercel.app"]'

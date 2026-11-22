@@ -526,7 +526,8 @@ Node.js 24+ and pnpm 9 (web app), and Docker (optional).
 
 **Deployed today:** the Core API runs at
 <https://synapse-core-jqqk.onrender.com/health> (Render, always on, database on Neon
-Postgres). The web app is not public yet.
+Postgres). The web app runs at <https://synapse-studio-eight.vercel.app> (Vercel); today
+it is a placeholder page that shows the API health, not the IDE.
 
 ```bash
 git clone https://github.com/HCHAPS404/Synapse-Studio.git
@@ -592,7 +593,7 @@ the points where a phase was complete in software and CI was green.
 | 20 nov | Phase D spec accepted | Cell compiler design (`.kiro/specs/neuron-cell/`): link endpoints as NIR items, co-simulation on the interpreter, dossier as Markdown and HTML |
 | 21 nov | E1 and the E4 contract | The compiler in the browser (`crates/neuron-wasm`) and in Python (`crates/neuron-py`); the relay and twin WebSocket protocol for the web and mobile apps (`spec/protocols/relay.md`) |
 | 22 nov | Fix found by CI | A `$` before a multi-byte character no longer panics the ST lexer |
-| 22 nov | Cloud deployment, first step | Neon Postgres project; Core API on Render with a live database check; placeholder web app in `apps/web` that reads the API health, verified end to end |
+| 22 nov | Cloud deployment, first step | Neon Postgres project; Core API on Render with a live database check; placeholder web app in `apps/web` on Vercel that reads the API health, verified end to end from the public URL |
 
 ## Status and roadmap
 
@@ -641,7 +642,7 @@ accounts, forms, recordings and posts.
 | B9 dashboard | You (Hell) | Install ESP-IDF 5.x, wire an ST7789/ILI9341 TFT to the ESP32-S3 and flash the ui example | `neuron flash <ui package> --board esp32_s3_devkit --port COMx` |
 | Language review | You | Independent review of `spec/language/` to tag `spec-v1.0` | `spec/language/` |
 | VS Code extension | You | Install `editors/vscode` and confirm diagnostics, hover and go to definition | `docs/editor-support.md` |
-| Accounts | You | Neon project ✅ and Render service ✅ (22 nov). Still open: the Vercel project (Root Directory `apps/web`, variable `NEXT_PUBLIC_API_URL`) | `apps/web/README.md` |
+| Accounts | You | ✅ 22 nov: Neon project, Render service, Vercel project (<https://synapse-core-jqqk.onrender.com>, <https://synapse-studio-eight.vercel.app>). Still open: spending caps and alerts on the three | provider dashboards |
 | Render region | Hell | The service runs in Oregon and Neon in Ohio (about 50–70 ms per database round trip). Move it when convenient | TODO in `render.yaml` |
 | Session I1 | You | Device inventory and measurements (PLC scan and input filter, robot latency, valve times) | `docs/roadmap.md`, Phase I |
 | Sessions I4 to I7 | You (Hell) | I4: Raspberry Pi 5 `host` node with `neuron emit python`. I5: PLCs with `neuron emit st\|scl\|plcopen` and the Micro-Kernel. I6: robot arms with `neuron emit spel`. I7: complex cells. Tonight the boards and the Pi 5, next week the rest | `docs/translation.md` (open items), `docs/roadmap.md`, Phase I |
@@ -887,7 +888,7 @@ the judges.
 | E4 | Relay and twin gateway | WebSocket protocol (contract for Martin done: `spec/protocols/relay.md`; relay server pending), daemon pairing, telemetry in TimescaleDB | Web and mobile receive live telemetry | E2 | 24–26 nov |
 | E5 | Edge Daemon | Serial, Modbus TCP/RTU, S7, TCP, MQTT, CAN drivers; flashing tools; signed packages; heartbeat and local E-STOP; serves the PWA on the LAN | Flashes the UNO and talks to a PLC in the lab | B4 | 21–29 nov |
 | E6 | Black box and calibration | Records around faults; timing profiles fed back to D3 and the twin | A measured profile changes a D3 result | E5, I1 | 26–29 nov |
-| E7 | Deployment | Render (judging), Neon branches, Vercel; budget until 2027-01-29 | Public URL works with no login | E2 | 25–28 nov 🚧 22 nov: Neon project, Render service with `/health` and database ok; Vercel pending |
+| E7 | Deployment | Render (judging), Neon branches, Vercel; budget until 2027-01-29 | Public URL works with no login | E2 | 25–28 nov 🚧 22 nov: Neon, Render and Vercel live end to end (web → API → database ok); open: Neon `dev` branch, spending caps, the judge-facing app (E2, G6) |
 
 #### Phase F · Synapse Engine and digital twin · Martin · 15–29 nov · 📋
 

@@ -6,7 +6,7 @@
   against the live Core API and check the page shows `ok`.
 - [x] **W3.** Note in `docs/martin.md` that `apps/web` holds a placeholder to replace in G2;
   entry in `docs/kiro-log.md`; commit and push to `develop`.
-- [ ] **W4 (Hell).** Create the Vercel project with Root Directory `apps/web` and
+- [x] **W4 (Hell).** Done 22 nov: https://synapse-studio-eight.vercel.app. Create the Vercel project with Root Directory `apps/web` and
   `NEXT_PUBLIC_API_URL` after the skeleton is on `main`; then update
   `SYNAPSE_CORS_ORIGINS` in `render.yaml` with the real Vercel URL.
 

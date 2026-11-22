@@ -559,3 +559,12 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   and E headers, E7 row (also in `docs/roadmap.md`), risks and Gantt updated.
 - **Lessons:** the progress table had stayed at 17 nov and Phase C was listed with six
   tasks instead of seven; status now has to be updated with every finished task.
+
+## 2026-11-22 - Vercel live and CORS fixed
+- **Kiro features:** steering (`current-work.md`), spec `web-skeleton` (W4 closed).
+- **Produced:** the web app on Vercel at https://synapse-studio-eight.vercel.app, checked
+  from outside: "Connected - status ok", database ok (431 ms). `SYNAPSE_CORS_ORIGINS` in
+  `render.yaml` now names that origin.
+- **Lessons:** the origin first written in `render.yaml` (`synapse-studio.vercel.app`) is
+  a different, unrelated project, so the API allowed browser calls from a third party.
+  Only `/health` existed, so nothing was exposed. Check who owns a URL before trusting it.
