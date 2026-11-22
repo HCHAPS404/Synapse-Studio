@@ -526,7 +526,7 @@ Node.js 24+ and pnpm 9 (web app), and Docker (optional).
 
 **Deployed today:** the Core API runs at
 <https://synapse-core-jqqk.onrender.com/health> (Render, always on, database on Neon
-Postgres). The web app runs at <https://synapse-studio-eight.vercel.app> (Vercel); today
+Postgres). The web app runs at <https://synapsest.vercel.app> (Vercel); today
 it is a placeholder page that shows the API health, not the IDE.
 
 ```bash
@@ -642,7 +642,7 @@ accounts, forms, recordings and posts.
 | B9 dashboard | You (Hell) | Install ESP-IDF 5.x, wire an ST7789/ILI9341 TFT to the ESP32-S3 and flash the ui example | `neuron flash <ui package> --board esp32_s3_devkit --port COMx` |
 | Language review | You | Independent review of `spec/language/` to tag `spec-v1.0` | `spec/language/` |
 | VS Code extension | You | Install `editors/vscode` and confirm diagnostics, hover and go to definition | `docs/editor-support.md` |
-| Accounts | You | ✅ 22 nov: Neon project, Render service, Vercel project (<https://synapse-core-jqqk.onrender.com>, <https://synapse-studio-eight.vercel.app>). Still open: spending caps and alerts on the three | provider dashboards |
+| Accounts | You | ✅ 22 nov: Neon project, Render service, Vercel project (<https://synapse-core-jqqk.onrender.com>, <https://synapsest.vercel.app>). Still open: spending caps and alerts on the three | provider dashboards |
 | Render region | Hell | The service runs in Oregon and Neon in Ohio (about 50–70 ms per database round trip). Move it when convenient | TODO in `render.yaml` |
 | Session I1 | You | Device inventory and measurements (PLC scan and input filter, robot latency, valve times) | `docs/roadmap.md`, Phase I |
 | Sessions I4 to I7 | You (Hell) | I4: Raspberry Pi 5 `host` node with `neuron emit python`. I5: PLCs with `neuron emit st\|scl\|plcopen` and the Micro-Kernel. I6: robot arms with `neuron emit spel`. I7: complex cells. Tonight the boards and the Pi 5, next week the rest | `docs/translation.md` (open items), `docs/roadmap.md`, Phase I |

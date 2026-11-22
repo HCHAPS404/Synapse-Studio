@@ -568,3 +568,10 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
 - **Lessons:** the origin first written in `render.yaml` (`synapse-studio.vercel.app`) is
   a different, unrelated project, so the API allowed browser calls from a third party.
   Only `/health` existed, so nothing was exposed. Check who owns a URL before trusting it.
+
+## 2026-11-22 - Web domain moved to synapsest.vercel.app
+- **Produced:** the Vercel production domain is now https://synapsest.vercel.app, checked
+  from outside ("Connected", database ok, 433 ms); the old -eight URL answers 307 to it.
+  `SYNAPSE_CORS_ORIGINS` lists both origins; README, roadmap and steering use the new one.
+- **Lessons:** `*.vercel.app` names are shared by every Vercel user: `synapsestudio` was
+  taken by a stranger's site. Check a name with a request before choosing it.

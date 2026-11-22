@@ -176,9 +176,10 @@ that needs a physical device stays pending until its session.
 - Web: `apps/web` is a placeholder Next.js 16 page that reads `/health` (spec
   `.kiro/specs/web-skeleton/`, self-contained, own `pnpm-lock.yaml`; TypeScript 6 and
   ESLint 9 are pinned on purpose). Verified locally end to end against Render.
-- Vercel: https://synapse-studio-eight.vercel.app (Root Directory `apps/web`,
-  `NEXT_PUBLIC_API_URL` set); showed "Connected", database ok. `synapse-studio.vercel.app`
-  belongs to ANOTHER project: never use it. `SYNAPSE_CORS_ORIGINS` points to the -eight URL.
+- Vercel: https://synapsest.vercel.app (Root Directory `apps/web`, `NEXT_PUBLIC_API_URL`
+  set); shows "Connected", database ok. The first URL `synapse-studio-eight.vercel.app`
+  redirects (307) to it. `synapse-studio.vercel.app` and `synapsestudio.vercel.app` belong
+  to OTHER people: never use them. `SYNAPSE_CORS_ORIGINS` lists synapsest and -eight.
 - Open in E7: Neon `dev` branch, spending caps (Hell), judge app (E2 + G6).
 
 ## Human actions still open (Hell)
