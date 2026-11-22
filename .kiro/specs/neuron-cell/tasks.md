@@ -18,7 +18,7 @@ a Conventional Commit with `-s` and CI checked.
 | D4.3 | Cell `verify:` over the composed machines, shortest counterexample | D-R7 | no | done |
 | D6.1 | Co-simulation on the cell clock, link models, `--cut`, partition equivalence | D-R8, MOC-C1, MOC-C2 | no | done |
 | D6.2 | Replay format and JSON Schema for the twin | D-R8 | no | done |
-| D5.1 | Dossier: Markdown and HTML with SVG timing diagram, BOM, reports | D-R9 | no | open |
+| D5.1 | Dossier: Markdown and HTML with SVG timing diagram, BOM, reports | D-R9 | no | done |
 | D7 | CLI `neuron cell check|build|sim|dossier`, `docs/cells.md`, CI smoke steps, roadmap, README | D-R10 | no | open |
 | D-HW | Confirm timing profiles (I1), run the bottling cell on real devices (I4 to I7) | D-R1, D-R4 | **yes** | pending (sessions) |
 
@@ -340,6 +340,42 @@ unknown kind, a missing field and a wrong type. Not done: the twin's reader (F7)
 `neuron cell sim --replay out.json` flag (D7), signal values with units or structure
 (values are text). Tests: 7 in `d6_replay.rs` (one property over random stimuli and cuts)
 and a doctest.
+## Results of D5.1
+`dossier.rs`: `dossier(plan, nir, sources, lib, &DossierOptions) -> Dossier { cell, trust,
+build_status, markdown, html }` (serde `Serialize`). It computes everything from the
+existing functions (`link_table`, `link_plans`, `build`, `watchdog_plans`, `zone_plans`,
+`check_electrical`, `check_tags`, `verify_cell`, and `cosimulate` as the test report;
+`DossierOptions.sim = None` skips it). One list of blocks is rendered twice, so both
+formats carry the same text: Markdown (the SVG is inline raw HTML) and one HTML file
+with inline CSS and SVG, no scripts and no external resource (no `http`, `src=`, `href=`,
+`url(`). All text is escaped (HTML entities; in Markdown `& < > | \ ` *` and newlines).
+Sections: 1 summary (cell, devices, lowest trust of the numbers; a warning that
+`generic` numbers are placeholders to be measured in lab session I1; the safety wording
+"a design aid, not a certified safety tool ... no claim of IEC 61508 or ISO 13849 ... a
+hardwired E-STOP is the authority", repeated in section 8), 2 build status per device
+(`built`, `failed` with its codes, or `not built`) with the diagnostics, 3 wiring list
+(`zero_hop` links: sender output and receiver input voltage, isolation or option,
+logical pins), 4 I/O list (manifest families, then the `io` declarations (source text)
+and PLC variable sections of the placed modules), 5 pin and address tables (register
+map, endpoints with Wire tag ids, topics and pins, notes), 6 link table (the four terms,
+total in text and in ns, `every`, `within`, met, trust) and the timing diagram (one
+lane per link, the four terms stacked, the `within` budget as a red line, integer
+coordinates from the link table only), 7 bill of materials (manifest, class, vendor
+class, count, instances, trust; media), 8 safety report (electrical, tags, zones and
+mutex proofs, watchdog bounds, cell verify), 9 test report (what ran, simulated time,
+deliveries with observed min and max against `within`, events by kind, faults, link
+loss against the MOC-C2 bound). A part that cannot be computed shows its diagnostics
+instead of being dropped. The bottling cell gives its dossier with `ctl` failed
+(`NE0610`) and `arm` failed (`NE0610`, `NE0804`); `plc` and `fpga` are `built`; the
+files of the devices are listed only when the whole cell builds (the build returns one
+result). Limits: the co-simulation of the bottling cell shows no delivery with its
+default stimuli (no drives), the timing diagram has no event timeline, a PDF is made
+from the HTML by the user, `neuron cell dossier` is D7, and all numbers are `generic`
+until session I1. `electrical::{output_volts, input_volts}` became `pub(crate)`. Tests:
+8 in `d5_dossier.rs` (determinism, link-table cells equal to `link_table`, wiring, BOM,
+self-contained HTML, safety and generic wording, per-device build status, test report
+with a delivery at 23.005 ms and a cut that raises `LinkLost`) and 5 in the module
+(escaping properties, lane sums), 130 in the crate.
 Decisions accepted by Hell on 2026-11-20: endpoints as NIR items (design decision 1),
 co-simulation on the interpreter with the fidelity bounds of Phase C added to the link
 budgets (decision 2), dossier as Markdown plus HTML with the PDF printed from it

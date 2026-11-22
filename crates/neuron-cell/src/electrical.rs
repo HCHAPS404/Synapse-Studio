@@ -11,14 +11,14 @@ use crate::{CellDiag, Family, Library, LinkReport, Manifest};
 /// Two voltage domains closer than this are the same domain.
 const SAME_VOLTS: f64 = 0.1;
 
-fn output_volts(m: &Manifest) -> Option<f64> {
+pub(crate) fn output_volts(m: &Manifest) -> Option<f64> {
     m.io.values()
         .find(|f| f.max_ma.is_some() && f.volts.is_some())
         .or_else(|| m.io.values().find(|f| f.volts.is_some()))
         .and_then(|f| f.volts)
 }
 
-fn input_volts(m: &Manifest) -> Option<f64> {
+pub(crate) fn input_volts(m: &Manifest) -> Option<f64> {
     m.io.values()
         .find(|f| f.kind.is_some() && f.volts.is_some())
         .or_else(|| m.io.values().find(|f| f.volts.is_some()))

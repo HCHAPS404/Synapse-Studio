@@ -778,3 +778,22 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   schema subset was enough to reject an unknown field, kind, missing field and wrong type,
   which makes "validates" a real test. A counterexample is a model trace, so its replay
   proves the violation in the model and not in the device programs.
+
+## 2026-11-23 · Task D5.1 (technical dossier)
+- **Kiro features:** spec-driven development (D-R9, design decision 3), property-based
+  tests with proptest, steering (rust-style, conventions), a sub-agent with strict
+  shell rules (file tools for edits, foreground cargo).
+- **Produced:** `neuron-cell::{dossier, Dossier, DossierOptions, BuildStatus,
+  SAFETY_WORDING}` in `dossier.rs`; `tests/d5_dossier.rs`; the generated dossiers of the
+  `Lab` and bottling cells can be written with `NEURON_DOSSIER_OUT=dir`.
+- **Results:** Markdown and one self-contained HTML (inline CSS and SVG, no scripts, no
+  external resources) from one block model, byte-identical across runs; the link-table
+  cells equal `link_table`; the bottling dossier marks `ctl` (`NE0610`) and `arm`
+  (`NE0610`, `NE0804`) as failed and still shows links, zones, watchdogs and the mutex
+  proof; the `Lab` dossier is complete, with a delivery at 23.005 ms and a `LinkLost`
+  after a cut.
+- **Lessons:** rendering one block list twice keeps both formats equal without a second
+  source of text. The build returns one result for the whole cell, so the files of the
+  devices that did build are not kept when another fails; the dossier says so instead of
+  hiding it. The default co-simulation has no stimuli, so the test report needs drives
+  to show a delivery.

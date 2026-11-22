@@ -14,6 +14,7 @@
 mod build;
 mod cosim;
 mod diag;
+mod dossier;
 mod electrical;
 mod endpoints;
 mod library;
@@ -35,6 +36,7 @@ pub use cosim::{
     SimRun,
 };
 pub use diag::CellDiag;
+pub use dossier::{dossier, BuildStatus, Dossier, DossierOptions, SAFETY_WORDING};
 pub use electrical::check_electrical;
 pub use endpoints::{
     endpoint_sources, link_plans, register_csv, register_map, Crossing, Endpoint, EndpointSource,
