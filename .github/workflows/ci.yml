@@ -106,6 +106,23 @@ jobs:
     defaults:
       run:
         working-directory: services/core
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: synapse
+          POSTGRES_PASSWORD: ci-only-not-a-secret
+          POSTGRES_DB: synapse_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U synapse -d synapse_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # Throwaway database of the service container; never the production Neon database.
+      SYNAPSE_TEST_DATABASE_URL: postgresql://synapse:ci-only-not-a-secret@localhost:5432/synapse_test
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6

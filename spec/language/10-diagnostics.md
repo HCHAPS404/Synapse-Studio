@@ -32,6 +32,7 @@ error[NE0201]: cannot add a length to a duration
 | NE08xx | safety and electrical |
 | NE09xx | verification |
 | NE10xx | translation between languages (emitters, importers, state-table kernels) |
+| NE11xx | services: Core API and Edge Daemon (never emitted by the compiler) |
 
 ## 10.2 Initial catalogue
 
@@ -119,6 +120,18 @@ error[NE0201]: cannot add a length to a duration
 | NE1002 | construct of the source language has no Neuron equivalent |
 | NE1003 | translation is less faithful than the project policy allows |
 | NE1004 | state table beyond the limits of the micro-kernel |
+| NE1101 | service: compile job rejected (size or limit) |
+| NE1102 | service: compile job timed out or killed |
+| NE1103 | service: rate limit |
+| NE1104 | service: guest quota or sandbox expired |
+| NE1105 | service: authentication failed |
+| NE1106 | service: permission denied |
+| NE1107 | service: version conflict |
+| NE1108 | service: package signature invalid |
+| NE1109 | service: command not allowed |
+| NE1110 | service: deployment blocked |
+| NE1111 | service: device offline or not paired |
+| NE1112 | service: timing profile invalid |
 
 ## 10.3 Initial lints
 

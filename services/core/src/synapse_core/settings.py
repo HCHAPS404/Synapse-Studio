@@ -18,7 +18,11 @@ class Settings(BaseSettings):
         default=None, description="Postgres URL (Neon). Optional in development."
     )
     database_timeout_s: float = 3.0
+    db_pool_size: int = Field(default=5, ge=1, le=50)
+    db_pool_recycle_s: int = Field(default=300, ge=30)
     cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:3000"])
+    log_level: str = Field(default="INFO", description="DEBUG | INFO | WARNING | ERROR")
+    log_json: bool = Field(default=True, description="Structured JSON logs")
 
 
 @lru_cache

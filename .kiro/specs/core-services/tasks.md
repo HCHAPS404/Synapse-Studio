@@ -5,7 +5,7 @@ first; then E2, E3, E4, E5, E6, E7 in that order. "Needs hardware" is `no` when 
 tested against simulated peers.
 | Id | Task | Requirements | Needs hardware | Status |
 |---|---|---|---|---|
-| E2.1 | Service layout, settings, structured logging with redaction, `ErrorBody` and `NE11xx` handlers, SQLAlchemy async session, Alembic baseline, `docs/errors/services.md`; CI Postgres container | E-R1, E-R19 | no | open |
+| E2.1 | Service layout, settings, structured logging with redaction, `ErrorBody` and `NE11xx` handlers, SQLAlchemy async session, Alembic baseline, `docs/errors/services.md`; CI Postgres container | E-R1, E-R19 | no | done |
 | E2.2 | `neuron check`, `build`, `emit --format json` (diagnostics and artifact list) with CLI tests | E-R2 | no | open |
 | E2.3 | Compile runner: temp dir, path checks, limits, timeout and process-group kill, environment stripping, network self-test, `NE1101` `NE1102` | E-R2 | no | open |
 | E2.4 | Projects, immutable versions and files (tables, routes, content hash, `row_version`, `NE1107`) | E-R1 | no | open |
@@ -57,3 +57,23 @@ E7 tasks start with E7.1 as soon as E2.1 has a migration; E7.3 to E7.5 close the
 Notes. Hardware rows stay pending until their session. The daemon, the relay and every
 screen text describe the software E-STOP as supplementary, and nothing claims IEC 61508
 or ISO 13849.
+
+## Results of E2.1
+Built in `services/core`: `settings.py` (adds pool, log level and JSON switch),
+`logging_config.py` (JSON lines, `request_id` context variable, a filter that redacts URL
+credentials, JWTs, bearer headers, `key=value` pairs and fields whose name looks secret),
+`middleware.py` (accepts a sane `X-Request-ID` or makes one, echoes it), `schemas/errors.py`
+(`ErrorBody`), `errors.py` (`ErrorCode` NE1101..NE1112, `ServiceError`, handlers for service,
+HTTP, validation and unhandled errors), `db/` (declarative base with a naming convention,
+async engine cached per URL with `pool_pre_ping`, `get_session` dependency, `service_meta`
+baseline table), Alembic (`alembic.ini`, `migrations/`, revision `0001`, URL only from the
+settings or a test override, never from the ini). `GET /health` is unchanged (same model,
+same blocking psycopg check in a thread). Docs: `docs/errors/services.md` with all twelve
+codes, rows in chapter 10 (plus the `NE11xx` range), embedded in `explain.rs` with a test.
+CI: Postgres 16 service container and `SYNAPSE_TEST_DATABASE_URL` for the core job.
+Choices: validation errors use `NE1101` (request rejected) and list only locations and
+messages, never input values; transport errors without a catalogue entry use `HTTP_<status>`
+(the `ErrorBody.code` pattern allows both); 401/403/409/429 map to NE1105/6/7/3. The
+catch-all 500 handler runs outside the request-id middleware, so its body has no request id.
+Open: `pyright` is not configured (the spec does not ask for it); the Postgres tests
+(migration round trip, async query) run in CI only. Tests: 23 pass, 2 skipped locally.

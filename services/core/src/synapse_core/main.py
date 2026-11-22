@@ -2,6 +2,8 @@
 
 import asyncio
 import time
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from typing import Annotated, Literal
 
 from fastapi import Depends, FastAPI
@@ -9,6 +11,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from synapse_core import __version__
+from synapse_core.db.session import dispose_engines
+from synapse_core.errors import install_error_handlers
+from synapse_core.logging_config import configure_logging
+from synapse_core.middleware import HEADER as REQUEST_ID_HEADER
+from synapse_core.middleware import RequestIdMiddleware
 from synapse_core.settings import Settings, get_settings
 
 SettingsDep = Annotated[Settings, Depends(get_settings)]
@@ -55,15 +62,25 @@ async def check_database(settings: Settings) -> ComponentStatus:
     )
 
 
+@asynccontextmanager
+async def _lifespan(_: FastAPI) -> AsyncIterator[None]:
+    yield
+    await dispose_engines()
+
+
 def create_app() -> FastAPI:
     """Application factory."""
     settings = get_settings()
-    app = FastAPI(title="SYNAPSE Core API", version=__version__)
+    configure_logging(settings.log_level, json_output=settings.log_json)
+    app = FastAPI(title="SYNAPSE Core API", version=__version__, lifespan=_lifespan)
+    install_error_handlers(app)
+    app.add_middleware(RequestIdMiddleware)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
         allow_methods=["GET", "POST", "PUT", "DELETE"],
         allow_headers=["*"],
+        expose_headers=[REQUEST_ID_HEADER, "Retry-After"],
     )
 
     @app.get("/health", response_model=HealthResponse)

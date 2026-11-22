@@ -816,3 +816,15 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   holds the whole corpus, so `neuron check` leaves unplaced modules out with a note and
   `neuron cell check` reports them. The stale NIR golden (press_plc reformatted) showed up
   only when the wider suites were run, so run the golden tests after any change to `examples/`.
+
+## 2026-11-23 · Task E2.1 (service layout, errors, logging, database baseline)
+- **Kiro features:** spec-driven task from `.kiro/specs/core-services/`, workspace rules,
+  steering for Python style.
+- **Produced:** `services/core` modules `errors.py`, `logging_config.py`, `middleware.py`,
+  `schemas/errors.py`, `db/`, Alembic baseline `0001`; `docs/errors/services.md`, chapter 10
+  rows NE1101..NE1112, `explain.rs` embedding; CI Postgres service container.
+- **Results:** 23 Python tests pass (2 Postgres tests wait for CI); ruff clean;
+  `cargo test -p neuron-sema --test catalogue` and the `explain` tests pass; `/health` unchanged.
+- **Lessons:** a property test of redaction first failed because the generated password
+  was a substring of "postgresql"; generated secrets need a prefix that cannot occur in
+  the surrounding text. Writing source from the shell added a byte-order mark: use the file tools.

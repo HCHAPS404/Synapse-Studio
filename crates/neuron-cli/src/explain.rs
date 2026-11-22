@@ -9,6 +9,7 @@ const TARGETS: &str = include_str!("../../../docs/errors/targets.md");
 const HDL: &str = include_str!("../../../docs/errors/hdl.md");
 const TRANSLATE: &str = include_str!("../../../docs/errors/translate.md");
 const CELL: &str = include_str!("../../../docs/errors/cell.md");
+const SERVICES: &str = include_str!("../../../docs/errors/services.md");
 const RESERVED: &str = include_str!("../../../docs/errors/reserved.md");
 
 /// Number of `#` that start a Markdown heading, and the heading text.
@@ -78,6 +79,7 @@ pub fn explain(code: &str) -> Option<String> {
         .or_else(|| section(HDL, &code))
         .or_else(|| section(TRANSLATE, &code))
         .or_else(|| section(CELL, &code))
+        .or_else(|| section(SERVICES, &code))
         .or_else(|| reserved(&code))
 }
 
@@ -97,6 +99,8 @@ mod tests {
         assert!(explain("NE0601").is_some_and(|t| t.contains("timer0")));
         assert!(explain("ne0610").is_some_and(|t| t.starts_with("NE0610")));
         assert!(explain("NE0704").is_some_and(|t| t.contains("place m on d")));
+        assert!(explain("NE1101").is_some_and(|t| t.contains("Nothing was executed")));
+        assert!(explain("ne1112").is_some_and(|t| t.starts_with("NE1112")));
         assert_eq!(explain("NE9999"), None);
     }
 
