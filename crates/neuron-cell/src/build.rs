@@ -12,8 +12,8 @@
 //! register media, `register_map.csv`; the endpoint sources are kept under `links/`.
 //! Cell sequences are added by a later task.
 use crate::{
-    endpoint_sources, link_plans, register_csv, Backend, CellDiag, CellPlan, DevicePlan,
-    EndpointSource, Library, LinkPlan, Manifest,
+    endpoint_sources, link_plans, register_csv, watchdog_plans, Backend, CellDiag, CellPlan,
+    DevicePlan, DeviceWatchdog, EndpointSource, Library, LinkPlan, Manifest,
 };
 use neuron_nir::{ModuleKind, Nir};
 use neuron_sema::{analyze, SemaOptions, SourceFile};
@@ -44,6 +44,8 @@ pub struct CellBuild {
     pub devices: Vec<DeviceBuild>,
     /// The plan of every link (endpoints, register map, crossing), in link order.
     pub links: Vec<LinkPlan>,
+    /// The cell watchdog and the MOC-C2 bound of every device that consumes a link.
+    pub watchdogs: Vec<DeviceWatchdog>,
 }
 
 impl CellBuild {
@@ -189,6 +191,7 @@ pub fn build(
     if !diags.is_empty() {
         return Err(diags);
     }
+    let watchdogs = watchdog_plans(nir, plan, &links);
     // Per-device link data, after every note is known.
     for d in &mut devices {
         let mine: Vec<&LinkPlan> = links
@@ -198,7 +201,8 @@ pub fn build(
         if mine.is_empty() {
             continue;
         }
-        let doc = serde_json::json!({ "device": d.instance, "links": mine });
+        let wd = watchdogs.iter().find(|w| w.device == d.instance);
+        let doc = serde_json::json!({ "device": d.instance, "links": mine, "watchdog": wd });
         if let Ok(mut text) = serde_json::to_string_pretty(&doc) {
             text.push('\n');
             d.files.insert("links.json".into(), text);
@@ -211,6 +215,7 @@ pub fn build(
         cell: plan.cell.clone(),
         devices,
         links,
+        watchdogs,
     })
 }
 

@@ -20,6 +20,7 @@ mod links;
 mod manifest;
 mod partition;
 mod units;
+mod watchdog;
 
 pub mod wire;
 pub use build::{build, device_package, device_package_with, CellBuild, DeviceBuild};
@@ -39,3 +40,7 @@ pub use manifest::{
 };
 pub use partition::{partition, CellPlan, DevicePlan, How, Placed};
 pub use units::{duration_ns, rate_bd};
+pub use watchdog::{
+    watchdog_plans, DeviceWatchdog, WatchdogPlan, DEFAULT_WATCHDOG_NS, HEARTBEAT_NS,
+    MISSED_HEARTBEATS,
+};

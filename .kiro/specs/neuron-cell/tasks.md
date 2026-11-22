@@ -11,7 +11,7 @@ a Conventional Commit with `-s` and CI checked.
 | D2.2 | Per-device build through the existing backends and emitters | D-R2 | no | done |
 | D3.1 | Link endpoints as NIR items, register maps, Neuron Wire frames, Latch+ACK, BUSY/DONE/TIMEOUT | D-R3 | no | done |
 | D3.2 | Latency formula, `NE0701` with alternatives, link table | D-R4 | no (generic profiles; measured in I1) | done |
-| D3.3 | Cell watchdog and safe state on loss | D-R5 | no | open |
+| D3.3 | Cell watchdog and safe state on loss | D-R5 | no | done |
 | D3.4 | Tags across devices, `NE0703`, single writer | D-R6 | no | open |
 | D4.1 | Zones and mutexes, `NE0805`, robot targets in zones | D-R7 | no | open |
 | D4.2 | Electrical compatibility, `NE0801` | D-R7 | no | done |
@@ -160,6 +160,34 @@ echo variable). No new diagnostic code. Tests: 19 new (8 in
 `d3_endpoints.rs`, 11 in `d3_wire.rs`, among them the properties WIRE-1, WIRE-2, WIRE-3,
 COBS round trip, decoder never panics, register blocks never overlap), 55 in the crate
 and 9 doctests.
+## Results of D3.3
+`watchdog.rs`: the cell watchdog is five heartbeats of 10 ms, `DEFAULT_WATCHDOG_NS` =
+50 ms (spec 11.3). Placement: in the generated **receiver** endpoint module of every link
+(same mechanism as D3.1: Neuron source, analyzed, added to the device package). The
+module declares `l<i>_alive` (the transport adapter sets it on every value or heartbeat
+that arrives) and `l<i>_lost`, and raises the built-in fault `LinkLost` when `alive` has
+been false for the watchdog period; a fault applies every `safe_state:` of the device
+package (spec 08 §8.2), so the device's own program reaches its safe state. Constructs
+per dialect: host and mcu `when l<i>_alive == false for 50 ms: fault LinkLost` plus an
+empty `safety:`; PLC a `ton` on `not alive`, rungs and `when l<i>_wd.q: fault LinkLost`
+(the ST output has `neuron_fault := TRUE`); FPGA a counter circuit `l<i>_wd` (50 ms at
+100 MHz, placed before the receiver circuit) with a `lost` output. Robot: the SPEL+
+emitter has no rule or background task and `until` only waits on an `io` input, so the
+robot endpoint declares `alive` and `lost` but no logic, and the link plan says so in
+`notes`; the watchdog of a robot controller is left for session I6 (open). Plan data:
+`LinkPlan.watchdog` (`period_ns`, `safe_state_ns` from the manifest `[safety]
+safe_state_time`, `loss_bound_ns`, `fault`), `CellBuild.watchdogs` (one `DeviceWatchdog`
+per consuming device: links, `bound_ns` = watchdog + safe-state time, and the actuators:
+every PLC `outputs` variable and every output-driving `io` of the placed modules,
+because a fault drives all of them and the link-to-output dataflow is not known until
+links are connected to user signals), and a `watchdog` object in each device's
+`links.json`. The bound is the static MOC-C2 check: the co-simulation (D6.1) cuts each
+link and compares the observed time with `bound_ns`; it is not built here. Not done: the
+transport adapter that sets `alive`, a boot grace period (an unconnected endpoint would
+fault after 50 ms), a configurable watchdog period, a check of the watchdog against the
+link budget. No new diagnostic code. Tests: 7 new in `d3_watchdog.rs` (bounds for the
+corpus cells, bottling plan, two links into one device, determinism, property of the
+bound), 62 in the crate and 10 doctests.
 Decisions accepted by Hell on 2026-11-20: endpoints as NIR items (design decision 1),
 co-simulation on the interpreter with the fidelity bounds of Phase C added to the link
 budgets (decision 2), dossier as Markdown plus HTML with the PDF printed from it

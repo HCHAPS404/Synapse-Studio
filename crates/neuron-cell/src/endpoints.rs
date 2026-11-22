@@ -36,7 +36,8 @@
 //! run time belong to the transport adapter and to D3.4 (tags); the co-simulation of D6.1
 //! moves the values.
 use crate::links::{duration_of, parse_links, ParsedLink, Shape};
-use crate::{CellDiag, CellPlan, Family, Kind, Library, Manifest};
+use crate::watchdog::rule_source;
+use crate::{CellDiag, CellPlan, Family, Kind, Library, Manifest, WatchdogPlan};
 use neuron_nir::{ItemDef, Module, ModuleKind, Nir, Trigger, Type};
 use serde::Serialize;
 use std::collections::BTreeMap;
@@ -169,6 +170,8 @@ pub struct LinkPlan {
     pub tx: Endpoint,
     /// Receiver end.
     pub rx: Endpoint,
+    /// Cell watchdog of the receiving device and the MOC-C2 bound (task D3.3).
+    pub watchdog: WatchdogPlan,
     /// Fidelity notes: what the endpoints do not do.
     pub notes: Vec<String>,
 }
@@ -418,6 +421,12 @@ pub fn link_plans(
                 format!("both ends run at {}", crate::fmt_ns(f.sender_period)),
             )
         };
+        if p.r.kind == Kind::Robot {
+            notes.push(
+                "the robot endpoint declares `alive` and `lost` but no watchdog logic: the SPEL+ emitter has no rule or background task and `until` waits only on an `io` input; the watchdog of a robot controller is confirmed in session I6, the MOC-C2 bound is still in the plan"
+                    .to_string(),
+            );
+        }
         if f.source.starts_with("default") {
             notes.push(format!("value type `bool` is the default: {}", f.source));
         }
@@ -510,6 +519,7 @@ pub fn link_plans(
                 location: rx_loc,
                 names: names_of(n, pattern, crossing, false),
             },
+            watchdog: WatchdogPlan::new(p.r.safe_state_ns),
             notes,
         });
     }
@@ -533,6 +543,11 @@ fn names_of(n: usize, pattern: Pattern, crossing: Crossing, tx: bool) -> Vec<Str
     };
     for s in extra {
         v.push(format!("l{n}_{s}"));
+    }
+    if !tx {
+        // The watchdog of the receiving device (task D3.3).
+        v.push(format!("l{n}_alive"));
+        v.push(format!("l{n}_lost"));
     }
     let _ = pattern;
     v
@@ -611,7 +626,7 @@ pub fn register_csv(plans: &[LinkPlan], device: &str) -> Option<String> {
 // Neuron source of the endpoint modules
 // ---------------------------------------------------------------------------------
 
-fn neuron_duration(ns: u64) -> String {
+pub(crate) fn neuron_duration(ns: u64) -> String {
     if ns >= 1_000_000_000 && ns % 1_000_000_000 == 0 {
         format!("{} s", ns / 1_000_000_000)
     } else if ns >= 1_000_000 && ns % 1_000_000 == 0 {
@@ -773,6 +788,12 @@ impl Side<'_> {
             }
             _ => {}
         }
+        if !self.tx {
+            s.push_str(&format!(
+                "let l{n}_wd = ton(preset: {})\nrung l{n}_wd_watch:\n  l{n}_wd.input = not l{n}_alive\nrung l{n}_wd_lost:\n  l{n}_lost = l{n}_wd.q\nsafety:\n  safe_state:\n    pass\n  when l{n}_wd.q:\n    fault LinkLost\n",
+                neuron_duration(self.l.watchdog.period_ns)
+            ));
+        }
     }
 
     fn tasks(&self, s: &mut String, ep: &Endpoint, prio: bool) {
@@ -801,6 +822,14 @@ impl Side<'_> {
         };
         if let Some(b) = body {
             s.push_str(&format!("task l{n}_handshake every {every}{attr}:\n{b}"));
+        }
+        if !self.tx {
+            // Robot programs (SPEL+ emitter) have no rule or background task and `until`
+            // only waits on an `io` input, so a robot declares `alive` and `lost` only;
+            // the plan's notes say so.
+            if self.dialect != "robot" {
+                s.push_str(&rule_source(n, self.l.watchdog.period_ns));
+            }
         }
     }
 
@@ -837,6 +866,12 @@ impl Side<'_> {
                 s.push_str(&format!("    l{n}_hold = pending\n"));
             }
         } else {
+            // The watchdog circuit goes first so the receiver stays the last circuit.
+            let limit = (self.l.watchdog.period_ns / 10).max(1);
+            let width = 64 - limit.leading_zeros();
+            s.push_str(&format!(
+                "circuit l{n}_wd(l{n}_alive: in bit, l{n}_lost: out bit) on sys:\n  const limit = {limit}\n  reg idle: bit<{width}> = 0\n  reg tripped: bit = 0\n  on rising(sys):\n    if l{n}_alive:\n      idle = 0\n      tripped = 0\n    elif idle == limit - 1:\n      tripped = 1\n    else:\n      idle = idle + 1\n  comb:\n    l{n}_lost = tripped\n"
+            ));
             let mut ports = vec![format!("l{n}_in: in {ty}")];
             if latch {
                 ports.push(format!("l{n}_req: in bit"));

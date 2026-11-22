@@ -671,3 +671,21 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   generator picks the construct per dialect and a refusal becomes a note, not a failed
   build. A PowerShell session keeps its variables between calls: a stale `$t` was
   written over a new file once, so file edits stay with the file tools.
+
+## 2026-11-23 · Task D3.3 (cell watchdog and safe state on loss)
+- **Kiro features:** spec-driven development (D-R5, MOC-C2), steering (codegen safety
+  rules: safe state on fault, no unbounded waits), property test of the bound.
+- **Produced:** `neuron-cell::watchdog` (`WatchdogPlan`, `DeviceWatchdog`,
+  `watchdog_plans`); receiver endpoint modules declare `l<i>_alive` and `l<i>_lost` and
+  raise `LinkLost` after 50 ms without a value; `LinkPlan.watchdog`, `CellBuild.watchdogs`
+  and a `watchdog` entry in each `links.json`.
+- **Results:** the PLC (SCL/ST), C, host and Verilog endpoints take the watchdog with no
+  fallback note, and the ST program has `neuron_fault := TRUE` for it; the bound is
+  watchdog + manifest safe-state time (60 ms for the S7-class PLC, 100 ms for the arm);
+  7 new tests, 62 in the crate. The robot has no watchdog logic (the SPEL+ emitter has no
+  rules): the plan says so, open for session I6.
+- **Lessons:** the robot emitter translates only `sequence`, `var`, `io` and `safe_state`,
+  so the generator declares the flags and states what is missing instead of inventing a
+  pin for `until`. The bottling cell still does not build, so its watchdog plan is tested
+  from the analysis, not from a build. Reading and rewriting a UTF-8 file from PowerShell
+  without an encoding mangled it; docs go through the file tools too.
