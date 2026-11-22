@@ -3,6 +3,18 @@ Source of truth for the catalogue: `spec/language/10-diagnostics.md`. The design
 `.kiro/specs/neuron-cell/`; the user guide is `docs/cells.md`. `neuron explain NE0704`
 prints the matching section. These checks run on a `cell` file and the modules of its
 package, after the semantic analysis.
+## Links
+### NE0701 link latency budget cannot be met
+The worst case of `link a.x -> b.y via m [every P] within L` is above `L`. The worst
+case (spec 14.8) is serialization (frame bytes over the bit rate) plus transport (the
+sender's output time, the medium's worst transport and the receiver's input time, each
+with its jitter) plus the receiver phase (one release of the receiver's shortest scan or
+task) plus polling (the period after `every`, the sender's scan without it, zero for an
+event-driven medium without `every`). The message gives each term and the trust level of
+the numbers: `generic` numbers are placeholders until lab session I1 measures them. The
+help lists the changes that meet `L`, fastest first: a shorter `every`, another medium
+both devices speak, or the event-driven form of a medium. When none does, raise `L` or
+put both ends of the logic on one device.
 ## Placement
 ### NE0704 module or sequence placed on a device that cannot run it
 `place m on d` names a device whose manifest does not run the dialect of `m`, or `m`

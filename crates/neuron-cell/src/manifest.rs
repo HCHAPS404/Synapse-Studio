@@ -93,7 +93,7 @@ impl Backend {
 }
 
 /// How far the numbers of a manifest can be believed.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Trust {
     /// Round placeholder numbers, not measured.

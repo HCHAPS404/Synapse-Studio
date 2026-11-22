@@ -15,7 +15,7 @@ digital_out = { prefix = "O", volts = 24.0, max_ma = 100 }
 
 [timing]
 scan_min = "4 ms"
-modbus_tcp = { transport = "5 ms", jitter = "2 ms" }
+modbus_tcp = { transport = "3 ms", jitter = "1 ms" }
 
 [safety]
 safe_state_time = "50 ms"

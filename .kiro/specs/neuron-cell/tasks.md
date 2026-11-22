@@ -10,7 +10,7 @@ a Conventional Commit with `-s` and CI checked.
 | D2.1 | Partitioner: explicit `place`, automatic assignment, `NE0704`, `NE0705`, `CellPlan` | D-R2 | no | done |
 | D2.2 | Per-device build through the existing backends and emitters | D-R2 | no | done |
 | D3.1 | Link endpoints as NIR items, register maps, Neuron Wire frames, Latch+ACK, BUSY/DONE/TIMEOUT | D-R3 | no | open |
-| D3.2 | Latency formula, `NE0701` with alternatives, link table | D-R4 | no (generic profiles; measured in I1) | open |
+| D3.2 | Latency formula, `NE0701` with alternatives, link table | D-R4 | no (generic profiles; measured in I1) | done |
 | D3.3 | Cell watchdog and safe state on loss | D-R5 | no | open |
 | D3.4 | Tags across devices, `NE0703`, single writer | D-R6 | no | open |
 | D4.1 | Zones and mutexes, `NE0805`, robot targets in zones | D-R7 | no | open |
@@ -87,6 +87,27 @@ support (B2 subset, `NE0610`), and `pick` is a six-axis program that the cell pl
 SCARA (`NE0804`, plus a `dest` parameter that the SPEL+ emitter does not translate). Both
 are limits of earlier backends, kept as open items; the native backend is not used by any
 manifest and is refused with a message. Tests: 4.
+
+## Results of D3.2
+
+Done before D3.1 because it only needs the manifests; D3.1 reuses it. `links.rs` gives
+one `LinkReport` per `link` (ends, medium and options, `every`, `within`, the four terms
+of spec 14.8, the lowest trust level of the numbers used, and the alternatives).
+Choices: transport adds the sender's output time, the medium's `transport_worst` and the
+receiver's input time, each with its jitter (a deliberate worst case); the receiver
+phase is the receiver's `scan_min` (D3.1 will use the program's own period when it is
+longer); polling is `every`, else the sender's `scan_min`, and zero for an event-driven
+medium without `every`; the value is counted as 4 bytes until D3.1 knows its type.
+`NE0701` gives every term and the alternatives that meet the budget: a shorter period,
+another medium both ends speak, or the event-driven form. A medium one end does not
+speak, or an end that is not a device of the cell, is `NE0607`. The five corpus and
+bottling links meet their budgets with generic numbers; to keep the bottling link
+`plc -> arm` (25 ms) inside its budget, the robots' placeholder Modbus timing went from
+5 + 2 ms to 3 + 1 ms (still generic, measured in I1 and I6). A 200 us link between two
+controllers over Modbus TCP is `NE0701` and proposes `via zero_hop` (150 us). Tests: 6,
+with a property test that the latency is the sum of its terms, grows one for one with
+the period, and that `NE0701` fires exactly when it exceeds the budget. `NE0701` moved
+from `docs/errors/reserved.md` to `docs/errors/cell.md`.
 
 Decisions accepted by Hell on 2026-11-20: endpoints as NIR items (design decision 1),
 co-simulation on the interpreter with the fidelity bounds of Phase C added to the link

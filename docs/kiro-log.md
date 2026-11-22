@@ -630,3 +630,15 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   no test had hit: the C backend has no function blocks, so the PID thermostat of the
   README does not compile to C, and the example's pick program is six-axis while the
   cell's arm is a SCARA. They are reported per device and kept as open items.
+
+## 2026-11-22 · Task D3.2 (link budgets and NE0701)
+- **Kiro features:** spec-driven development (D-R4, spec 14.8), steering (every number
+  traceable to a manifest, trust level shown).
+- **Produced:** `neuron-cell::link_table` (`LinkReport`, `Latency`, `Alternative`),
+  `NE0701` implemented (`docs/errors/cell.md`), robot placeholder timing adjusted.
+- **Results:** the five corpus and bottling links meet their budgets; a 200 us Modbus
+  link between two controllers is `NE0701` and proposes zero_hop at 150 us; 6 tests
+  with a property test of the formula and the check.
+- **Lessons:** with the first placeholder numbers the README's own bottling cell broke
+  its 25 ms budget by 1 ms. Placeholder numbers decide whether an example compiles, so
+  they are labeled `generic` in every message until session I1 measures them.
