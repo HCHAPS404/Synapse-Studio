@@ -4,7 +4,7 @@ from collections.abc import Awaitable, Callable
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Request
-from sqlalchemy.ext.asyncio import async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from synapse_core.auth.permissions import Permission, has_permission
 from synapse_core.compile.runner import CompileRunner, runner_config
@@ -155,3 +155,24 @@ def get_build_manager(
 
 
 BuildManagerDep = Annotated[BuildManager, Depends(get_build_manager)]
+
+
+def get_sessionmaker(
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> async_sessionmaker[AsyncSession]:
+    """A session factory for work outside the request transaction (e.g. audit writes).
+
+    503 when no database is configured.
+    """
+    engine = get_engine(settings)
+    if engine is None:
+        raise HTTPException(status_code=503, detail="database is not configured")
+    return async_sessionmaker(engine, expire_on_commit=False)
+
+
+SessionMakerDep = Annotated["async_sessionmaker[AsyncSession]", Depends(get_sessionmaker)]
+
+
+def principal_identity(principal: Principal) -> tuple[str, str]:
+    """`(actor, role)` for the audit log from any principal kind."""
+    return principal.key, principal.role

@@ -14,6 +14,8 @@ from fastapi import APIRouter, Depends, Query
 from synapse_core.api.deps import (
     OptionalGuestDep,
     Principal,
+    SessionMakerDep,
+    principal_identity,
     require_any_permission,
 )
 from synapse_core.auth.permissions import Permission
@@ -28,6 +30,7 @@ from synapse_core.schemas.projects import (
     VersionOut,
     VersionPage,
 )
+from synapse_core.services import audit
 from synapse_core.services import projects as svc
 from synapse_core.settings import Settings, get_settings
 
@@ -52,9 +55,10 @@ ReadDep = Annotated[
 async def create_project(
     body: ProjectCreate,
     session: SessionDep,
+    sessions: SessionMakerDep,
     settings: SettingsDep,
     guest: OptionalGuestDep,
-    _principal: WriteDep,
+    principal: WriteDep,
 ) -> ProjectOut:
     """Creates an empty project. A guest's project is bound to its sandbox and counts
     against the sandbox project quota (`NE1104`)."""
@@ -62,6 +66,15 @@ async def create_project(
         project = await svc.create_guest_project(session, body.name, guest.sandbox_id, settings)
     else:
         project = await svc.create_project(session, body.name)
+    actor, role = principal_identity(principal)
+    await audit.record(
+        sessions,
+        audit.AuditAction.PROJECT_CREATE,
+        actor=actor,
+        role=role,
+        result="ok",
+        target=str(project.id),
+    )
     return ProjectOut.model_validate(project)
 
 
@@ -103,9 +116,10 @@ async def create_version(
     project_id: uuid.UUID,
     body: VersionCreate,
     session: SessionDep,
+    sessions: SessionMakerDep,
     settings: SettingsDep,
     guest: OptionalGuestDep,
-    _principal: WriteDep,
+    principal: WriteDep,
 ) -> VersionOut:
     """Stores a new immutable version holding exactly the files sent.
 
@@ -117,7 +131,18 @@ async def create_version(
             max_files=settings.guest_max_files,
             max_file_bytes=settings.guest_max_file_bytes,
         )
-    return await svc.create_version(session, project_id, body.files, body.message, limits, guest)
+    version = await svc.create_version(session, project_id, body.files, body.message, limits, guest)
+    actor, role = principal_identity(principal)
+    await audit.record(
+        sessions,
+        audit.AuditAction.VERSION_CREATE,
+        actor=actor,
+        role=role,
+        result="ok",
+        target=str(version.id),
+        detail={"project_id": str(project_id), "number": version.number},
+    )
+    return version
 
 
 @router.get("/projects/{project_id}/versions", response_model=VersionPage)

@@ -14,6 +14,8 @@ from synapse_core.api.deps import (
     BuildManagerDep,
     OptionalGuestDep,
     Principal,
+    SessionMakerDep,
+    principal_identity,
     require_any_permission,
 )
 from synapse_core.auth.permissions import Permission
@@ -21,6 +23,7 @@ from synapse_core.compile.runner import runner_config
 from synapse_core.compile.sandbox import NetworkSandbox
 from synapse_core.db.session import SessionDep
 from synapse_core.schemas.builds import BuildOut, BuildPage, BuildRequest, CapabilitiesOut
+from synapse_core.services import audit
 from synapse_core.services import builds as svc
 from synapse_core.services import guests as guest_svc
 from synapse_core.services import projects as project_svc
@@ -55,10 +58,11 @@ async def create_build(
     version_id: uuid.UUID,
     body: BuildRequest,
     session: SessionDep,
+    sessions: SessionMakerDep,
     manager: BuildManagerDep,
     settings: SettingsDep,
     guest: OptionalGuestDep,
-    _principal: RunDep,
+    principal: RunDep,
 ) -> BuildOut:
     """Accepts a build; it runs in the background. Poll `GET /v1/builds/{id}`.
 
@@ -71,7 +75,18 @@ async def create_build(
         async def reserve(s: AsyncSession) -> None:
             await guest_svc.reserve_build(s, sandbox_id, settings)
 
-    return svc.build_out(await manager.submit(session, version_id, body, reserve=reserve))
+    build = await manager.submit(session, version_id, body, reserve=reserve)
+    actor, role = principal_identity(principal)
+    await audit.record(
+        sessions,
+        audit.AuditAction.BUILD_CREATE,
+        actor=actor,
+        role=role,
+        result="ok",
+        target=str(build.id),
+        detail={"version_id": str(version_id), "kind": body.kind.value},
+    )
+    return svc.build_out(build)
 
 
 @router.get("/versions/{version_id}/builds", response_model=BuildPage)

@@ -975,3 +975,18 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   token kinds through one resolver without trial-decoding each. Storing only the hash keeps
   the "shown once" guarantee honest; the issue route being `user.manage` stops a service
   principal from minting more tokens.
+
+## 2026-11-23 · Task E3.4 (Append-only audit log and the engineer read route)
+- **Kiro features:** spec-driven task from `.kiro/specs/core-services/`, workspace rules,
+  the E3.1–E3.3 "Results of" for the principal and session surfaces.
+- **Produced:** model `AuditLog`, migration `0007_audit_log` (Postgres INSERT/SELECT grant),
+  `services/audit.py`, `schemas/audit.py`, `api/audit.py` (`GET /v1/audit`, engineer-only),
+  audit writes on login/token issue+revoke/project+version+build create, `SessionMakerDep`
+  and `principal_identity` in `api/deps.py`, regenerated OpenAPI/SDK.
+- **Results:** 10 new tests; full suite 180 pass, 4 skipped; ruff clean; drift green. One row
+  per sensitive action; `detail` is scrubbed of secret-looking fields; the read route is
+  engineer-only and there is no update/delete route.
+- **Lessons:** writing audit in its own session and swallowing its errors keeps auditing off
+  the critical path of the audited action. A Postgres table owner bypasses its own grants,
+  so the append-only grant is honest only with a non-owner app role (noted for E7); the
+  code-level guarantee (no UPDATE/DELETE path) is what holds today.

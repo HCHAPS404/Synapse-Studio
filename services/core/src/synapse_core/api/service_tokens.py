@@ -10,7 +10,12 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from synapse_core.api.deps import Principal, require_permission
+from synapse_core.api.deps import (
+    Principal,
+    SessionMakerDep,
+    principal_identity,
+    require_permission,
+)
 from synapse_core.auth.permissions import Permission
 from synapse_core.db.session import SessionDep
 from synapse_core.errors import ErrorCode, ServiceError
@@ -20,6 +25,7 @@ from synapse_core.schemas.service_tokens import (
     ServiceTokenIssued,
     ServiceTokenList,
 )
+from synapse_core.services import audit
 from synapse_core.services import service_tokens as svc
 
 router = APIRouter(prefix="/v1/service-tokens", tags=["service-tokens"])
@@ -29,7 +35,10 @@ EngineerDep = Annotated[Principal, Depends(require_permission(Permission.USER_MA
 
 @router.post("", response_model=ServiceTokenIssued, status_code=201)
 async def issue_token(
-    body: ServiceTokenCreate, session: SessionDep, _principal: EngineerDep
+    body: ServiceTokenCreate,
+    session: SessionDep,
+    sessions: SessionMakerDep,
+    _principal: EngineerDep,
 ) -> ServiceTokenIssued:
     """Issues a service token. The secret is returned once and never stored in clear."""
     try:
@@ -38,6 +47,16 @@ async def issue_token(
         )
     except ValueError as exc:
         raise ServiceError(ErrorCode.JOB_REJECTED, str(exc)) from exc
+    actor, role = principal_identity(_principal)
+    await audit.record(
+        sessions,
+        audit.AuditAction.SERVICE_TOKEN_ISSUE,
+        actor=actor,
+        role=role,
+        result="ok",
+        target=str(row.id),
+        detail={"role": row.role, "cell_id": row.cell_id},
+    )
     return ServiceTokenIssued(
         id=row.id,
         role=row.role,
@@ -57,7 +76,21 @@ async def list_tokens(session: SessionDep, _principal: EngineerDep) -> ServiceTo
 
 
 @router.delete("/{token_id}", status_code=204)
-async def revoke_token(token_id: uuid.UUID, session: SessionDep, _principal: EngineerDep) -> None:
+async def revoke_token(
+    token_id: uuid.UUID,
+    session: SessionDep,
+    sessions: SessionMakerDep,
+    _principal: EngineerDep,
+) -> None:
     """Revokes a token; a missing or already-revoked token is a 404."""
     if not await svc.revoke_service_token(session, token_id):
         raise HTTPException(status_code=404, detail="no active token with that id")
+    actor, role = principal_identity(_principal)
+    await audit.record(
+        sessions,
+        audit.AuditAction.SERVICE_TOKEN_REVOKE,
+        actor=actor,
+        role=role,
+        result="ok",
+        target=str(token_id),
+    )

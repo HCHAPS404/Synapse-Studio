@@ -18,7 +18,7 @@ tested against simulated peers.
 | E3.1 | Users, argon2 hashes, login, JWT access tokens, first-engineer CLI, `NE1105` | E-R6 | no | done |
 | E3.2 | Permission matrix, route dependencies, role checks, `NE1106`; monotonicity and guest-isolation properties | E-R7, E-R3 | no | done |
 | E3.3 | Service tokens (hashed, revocable) and their issue route | E-R6, E-R10 | no | done |
-| E3.4 | Audit log table with `INSERT`/`SELECT` grants, audit writes on every sensitive action, read route for engineers | E-R8 | no | open |
+| E3.4 | Audit log table with `INSERT`/`SELECT` grants, audit writes on every sensitive action, read route for engineers | E-R8 | no | done |
 | E4.1 | Relay core: `WS /v1/relay`, lifecycle (`hello`, `welcome`, ping, timeouts), schema validation, role table checked against `relay.md`, error codes | E-R9, E-R7 | no | open |
 | E4.2 | Subscriptions, `cell_snapshot` cache, fan-out with bounded queues and drop policy, control rate limit; round-trip property over all examples | E-R9 | no | open |
 | E4.3 | Daemon pairing (code, claim, token, unpair), `daemons` and `devices` tables, `deployment_status` and heartbeat timeout | E-R10 | no | open |
@@ -396,3 +396,33 @@ revoke; role/cell binding rules; engineer-only issue denied to viewer/operator/a
 working after revoke; a daemon token without a cell is `NE1101`). Full suite 170 pass, 4
 skipped locally; ruff clean; OpenAPI/SDK regenerated for the three routes, drift check green.
 No new error code.
+
+## Results of E3.4
+Append-only audit log. New: model `AuditLog` (`at`, `actor`, `role`, `action`, `target`,
+`request_id`, `result`, `detail` JSON->JSONB) and migration `0007_audit_log` which, on
+Postgres, runs `REVOKE UPDATE, DELETE, TRUNCATE` and `GRANT INSERT, SELECT` on the table
+(the one non-reversed step the design allows); `services/audit.py` (`AuditAction` enum;
+`record` writes one row in its own session and never raises, so an audit failure cannot
+break the audited action; `query` with action/actor filters; `_scrub` replaces any
+secret-looking field before storage); `schemas/audit.py`; `api/audit.py` with `GET /v1/audit`
+gated by `require_permission(audit.read)` (engineer only). Audit writes were added to: login
+(ok and denied, target = the email, no password in the detail), service-token issue and
+revoke, project create, version create, build create. Dependencies `SessionMakerDep` and
+`principal_identity` were added to `api/deps.py` so a route can write audit rows outside its
+request transaction and label them with the caller's key and role. `request_id` is read from
+the request context so a row correlates with the structured logs.
+Honesty on the grant: the REVOKE/GRANT is applied, and no application code path issues an
+UPDATE or DELETE on `audit_log` (there is no such route or service call), so the log is
+append-only at the application layer. But Postgres lets a table *owner* bypass its own
+privilege grants, and in this single-service deployment the app connects as the owner, so
+the grant alone does not stop the owner; truly enforcing it at the database needs a separate
+non-owner application role, which is an E7 deployment concern. The code-level guarantee and
+the grant together are what E3.4 ships; this limit is recorded here rather than hidden.
+`role change` is in the `AuditAction` enum (`user.role_change`) ready for the user-management
+route that a later task adds; the actions with a route today all write their row.
+Tests: 10 in `tests/test_audit.py` (`_scrub`; login ok+denied audited with no password in
+the detail; project/version/build creation audited with targets and detail; service-token
+issue+revoke audited with no secret in the detail; engineer-only read, viewer and anonymous
+`NE1106`; no POST/PUT/PATCH/DELETE route on `/v1/audit`; actor filter and `X-Request-ID`
+correlation). Full suite 180 pass, 4 skipped locally; ruff clean; OpenAPI/SDK regenerated for
+the read route, drift check green. No new error code. This completes the E3 row.

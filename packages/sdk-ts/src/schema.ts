@@ -9,6 +9,25 @@ export interface ArtifactInfo {
   "sha256": string;
 }
 
+export interface AuditEntryOut {
+  "id": string;
+  "at": string;
+  "actor": string;
+  "role": string;
+  "action": string;
+  "target": string | null;
+  "request_id": string | null;
+  "result": string;
+  "detail": Record<string, unknown>;
+}
+
+export interface AuditPage {
+  "items": Array<AuditEntryOut>;
+  "total": number;
+  "limit": number;
+  "offset": number;
+}
+
 export type Backend = "st" | "scl" | "plcopen" | "spel" | "python" | "c" | "native" | "verilog";
 
 export interface BuildOut {
@@ -316,6 +335,7 @@ export interface VersionSummary {
 
 export interface ApiPaths {
   "/health": "GET";
+  "/v1/audit": "GET";
   "/v1/auth/login": "POST";
   "/v1/builds/{build_id}": "GET";
   "/v1/builds/{build_id}/artifacts/{name}": "GET";

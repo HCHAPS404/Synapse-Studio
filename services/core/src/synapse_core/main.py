@@ -13,6 +13,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from synapse_core import __version__
+from synapse_core.api.audit import router as audit_router
 from synapse_core.api.auth import router as auth_router
 from synapse_core.api.builds import router as builds_router
 from synapse_core.api.devices import router as devices_router
@@ -165,6 +166,7 @@ def create_app() -> FastAPI:
     app.include_router(devices_router)
     app.include_router(guests_router)
     app.include_router(service_tokens_router)
+    app.include_router(audit_router)
 
     @app.get("/health", response_model=HealthResponse)
     async def health(request: Request, settings: SettingsDep) -> HealthResponse:

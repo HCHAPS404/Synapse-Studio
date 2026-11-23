@@ -165,6 +165,31 @@ class User(Base):
     )
 
 
+class AuditLog(Base):
+    """An append-only record of a sensitive action (E3.4).
+
+    One row per audited action: who did it (`actor`, `role`), what (`action`, `target`),
+    the `request_id` that correlates it with the logs, the `result`, and a small `detail`
+    object that never holds a token, a password or a connection string. The application
+    database role is granted only `INSERT` and `SELECT` (migration `GRANT`), so there is no
+    update or delete path; the table is the authority on what happened.
+    """
+
+    __tablename__ = "audit_log"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_now, index=True
+    )
+    actor: Mapped[str] = mapped_column(String(120), nullable=False)
+    role: Mapped[str] = mapped_column(String(16), nullable=False)
+    action: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    target: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    request_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    result: Mapped[str] = mapped_column(String(16), nullable=False)
+    detail: Mapped[dict[str, Any]] = mapped_column(Json, nullable=False, default=dict)
+
+
 class ServiceToken(Base):
     """A long-lived token for a service principal (`daemon` or `twin`), E3.3.
 

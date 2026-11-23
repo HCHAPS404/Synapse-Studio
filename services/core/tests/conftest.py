@@ -15,6 +15,7 @@ from sqlalchemy import create_engine, delete
 
 from synapse_core.db.base import Base
 from synapse_core.db.models import (
+    AuditLog,
     Build,
     BuildArtifact,
     GuestSandbox,
@@ -74,6 +75,7 @@ async def app(schema: None) -> AsyncIterator[FastAPI]:
             Project,
             GuestSandbox,
             ServiceToken,
+            AuditLog,
             User,
         ):
             conn.execute(delete(model))
