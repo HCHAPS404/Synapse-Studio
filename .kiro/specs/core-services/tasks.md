@@ -16,7 +16,7 @@ tested against simulated peers.
 | E2.9 | OpenAPI export, generated `packages/sdk-ts`, CI drift check | E-R5 | no | done |
 | E2.10 | Docker image (Rust stage plus Python), `render.yaml` to `runtime: docker`, local `docker compose` for the API and Postgres | E-R2, E-R18 | no | open |
 | E3.1 | Users, argon2 hashes, login, JWT access tokens, first-engineer CLI, `NE1105` | E-R6 | no | done |
-| E3.2 | Permission matrix, route dependencies, role checks, `NE1106`; monotonicity and guest-isolation properties | E-R7, E-R3 | no | open |
+| E3.2 | Permission matrix, route dependencies, role checks, `NE1106`; monotonicity and guest-isolation properties | E-R7, E-R3 | no | done |
 | E3.3 | Service tokens (hashed, revocable) and their issue route | E-R6, E-R10 | no | open |
 | E3.4 | Audit log table with `INSERT`/`SELECT` grants, audit writes on every sensitive action, read route for engineers | E-R8 | no | open |
 | E4.1 | Relay core: `WS /v1/relay`, lifecycle (`hello`, `welcome`, ping, timeouts), schema validation, role table checked against `relay.md`, error codes | E-R9, E-R7 | no | open |
@@ -330,3 +330,40 @@ subcommand-required; a DB bootstrap that creates the first engineer then refuses
 Full suite 151 pass, 4 skipped locally (the Postgres-only `test_migration_round_trip`
 is deselected locally and runs in CI); OpenAPI/SDK regenerated for the login route and the
 drift check passes; ruff clean. No new error code (`NE1105` already documented in E2.1).
+
+## Results of E3.2
+Permission matrix and route-level RBAC. New: `auth/permissions.py` (`Permission` enum;
+`ROLE_PERMISSIONS` built so the user chain accumulates viewer -> operator -> engineer;
+`_GUEST` = `{sandbox.write, build.run}`; service roles `daemon`, `twin`; `DEVICE_PERMISSIONS`
+set for the isolation property; `has_permission`). `api/deps.py` reworked: a unified
+`Principal = AuthenticatedUser | GuestPrincipal`, `optional_principal` (three-part token =
+user JWT -> `NE1105`; two-part = guest token -> `NE1104`; no token = no DB access, so public
+routes and denied anonymous requests need no database), `require_permission` and
+`require_any_permission` dependency factories (anonymous or missing permission is `NE1106`).
+`services/users.py` gained `principal_from_access_token` (reads the role from the DB row, not
+the token, so a role change or a disable takes effect on the next request). Routes: project
+and build routes now carry permission dependencies and are scoped for guests in the service
+layer; `services/projects.py` threads a `GuestPrincipal` through `get_project`/`list`/
+`rename`/`create_version`/`get_version`/`list_versions` so a guest sees only its own
+sandbox's projects (a project of another sandbox or of a user answers 404, not 403, so its
+existence does not leak); `api/builds.py` checks the version is visible to the guest before
+build create/list/read/artifact. Device routes `GET /v1/devices` and `GET /v1/devices/{name}`
+require `device.read` (a guest is `NE1106`); `/v1/devices/catalog` stays public, the single
+exception the E2.6 design carved out; `/v1/capabilities` stays public.
+Choices and honesty on the monotonicity wording: the spec's correctness criteria are the
+authoritative statement, so the property tests check (a) the user chain viewer ⊂ operator ⊂
+engineer (strict supersets) and (b) guest isolation (the guest holds none of
+`DEVICE_PERMISSIONS`). The literal reading "engineer ⊇ ... ⊇ guest" does NOT hold and should
+not: a guest holds `sandbox.write` that no user role has, and viewer holds `project.read`/
+`device.read`/`telemetry.read` that the guest must not have. The guest is a separate role
+scoped to its own sandbox, exactly as the design says. The relay role table
+(`ROLE_MESSAGES`) comparison against `relay.md` is E4.1, not here. Login still writes no
+audit entry (E3.4). Service tokens are E3.3.
+Tests: `tests/test_permissions.py` (6, two Hypothesis properties: monotonic-over-the-chain,
+guest-denied-every-device-permission) and `tests/test_rbac_routes.py` (7 DB tests: anonymous
+denied, viewer reads not writes, operator/engineer write, guest denied device routes but
+catalog public, guest cannot see another sandbox's or a user's project, a disabled user's
+token stops working). Existing E2.4/E2.5 route tests now authenticate through a new
+`engineer_client` conftest fixture; the E2.8 guest build test passes the guest token to its
+build poll. Full suite 163 pass, 4 skipped locally; ruff clean; OpenAPI/SDK regenerated and
+the drift check passes. No new error code (`NE1106` already documented in E2.1).

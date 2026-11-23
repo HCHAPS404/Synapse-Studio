@@ -1725,7 +1725,7 @@
     },
     "/v1/devices": {
       "get": {
-        "description": "Device summaries only.",
+        "description": "Device summaries only. Needs `device.read` (a guest is `NE1106`).",
         "operationId": "list_devices_v1_devices_get",
         "responses": {
           "200": {
@@ -1747,7 +1747,7 @@
     },
     "/v1/devices/catalog": {
       "get": {
-        "description": "The whole catalog: every device and medium manifest.",
+        "description": "The whole catalog: every device and medium manifest (public).",
         "operationId": "device_catalog_v1_devices_catalog_get",
         "responses": {
           "200": {
@@ -1769,7 +1769,7 @@
     },
     "/v1/devices/{name}": {
       "get": {
-        "description": "One device manifest by name, or a 404.",
+        "description": "One device manifest by name, or a 404. Needs `device.read` (a guest is `NE1106`).",
         "operationId": "get_device_v1_devices__name__get",
         "parameters": [
           {
@@ -1834,7 +1834,7 @@
     },
     "/v1/projects": {
       "get": {
-        "description": "Lists projects, newest first.",
+        "description": "Lists projects, newest first; a guest sees only its own sandbox's projects.",
         "operationId": "list_projects_v1_projects_get",
         "parameters": [
           {
@@ -1973,7 +1973,7 @@
         ]
       },
       "put": {
-        "description": "Renames a project; a stale `row_version` is `NE1107`.",
+        "description": "Renames a project; a stale `row_version` is `NE1107`. A guest renames only its own.",
         "operationId": "update_project_v1_projects__project_id__put",
         "parameters": [
           {

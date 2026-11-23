@@ -1,16 +1,23 @@
-"""Dependencies shared by routers."""
+"""Dependencies shared by routers: the current principal and permission checks (E3.2)."""
 
+from collections.abc import Awaitable, Callable
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
+from synapse_core.auth.permissions import Permission, has_permission
 from synapse_core.compile.runner import CompileRunner, runner_config
 from synapse_core.compile.sandbox import NetworkSandbox
-from synapse_core.db.session import SessionDep, get_engine
+from synapse_core.db.session import get_engine
+from synapse_core.errors import ErrorCode, ServiceError
 from synapse_core.services.builds import BuildManager
 from synapse_core.services.guests import GuestPrincipal, principal_from_token
+from synapse_core.services.users import AuthenticatedUser, principal_from_access_token
 from synapse_core.settings import Settings, get_settings
+
+# A principal is a logged-in user or a guest sandbox; anonymous requests have none.
+Principal = AuthenticatedUser | GuestPrincipal
 
 
 def _bearer_token(request: Request) -> str | None:
@@ -22,26 +29,96 @@ def _bearer_token(request: Request) -> str | None:
     return None
 
 
-async def optional_guest(
-    request: Request,
-    session: SessionDep,
-    settings: Annotated[Settings, Depends(get_settings)],
-) -> GuestPrincipal | None:
-    """Resolves a guest token when one is sent; a bad or expired token is `NE1104`.
+def _looks_like_jwt(token: str) -> bool:
+    """A JWT has three dot-separated parts; a guest token (E2.8) has two."""
+    return token.count(".") == 2
 
-    When there is no token the request is anonymous (the open routes still work until E3
-    binds ownership). The principal is recorded on `request.state.principal_id` so the rate
-    limiter keys on the guest instead of the shared IP.
+
+async def optional_principal(
+    request: Request,
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> Principal | None:
+    """Resolves the caller from the bearer token, or `None` when there is none.
+
+    A three-part token is a user JWT (`NE1105` on failure); a two-part token is a guest
+    token (`NE1104` on failure). The resolved key is recorded on `request.state.principal_id`
+    so the rate limiter keys on the principal rather than the shared client IP. No token
+    means no database access, so a public route (and a denied anonymous request) never
+    needs a configured database.
     """
     token = _bearer_token(request)
     if token is None:
         return None
-    principal = await principal_from_token(session, token, settings)
+    engine = get_engine(settings)
+    if engine is None:
+        raise HTTPException(status_code=503, detail="database is not configured")
+    maker = async_sessionmaker(engine, expire_on_commit=False)
+    async with maker() as session:
+        principal: Principal
+        if _looks_like_jwt(token):
+            principal = await principal_from_access_token(session, token, settings)
+        else:
+            principal = await principal_from_token(session, token, settings)
     request.state.principal_id = principal.key
     return principal
 
 
+OptionalPrincipalDep = Annotated["Principal | None", Depends(optional_principal)]
+
+
+async def optional_guest(
+    principal: OptionalPrincipalDep,
+) -> GuestPrincipal | None:
+    """The principal when it is a guest, else `None` (routes that treat guests specially)."""
+    return principal if isinstance(principal, GuestPrincipal) else None
+
+
 OptionalGuestDep = Annotated["GuestPrincipal | None", Depends(optional_guest)]
+
+
+def _role_of(principal: Principal) -> str:
+    return principal.role
+
+
+def _denied() -> ServiceError:
+    return ServiceError(
+        ErrorCode.PERMISSION_DENIED,
+        "your role does not have permission for this action",
+    )
+
+
+def require_permission(permission: Permission) -> Callable[..., Awaitable[Principal]]:
+    """A dependency that admits only a principal whose role holds `permission` (`NE1106`).
+
+    An anonymous request (no token) is also `NE1106`: these routes are not public.
+    """
+
+    async def dependency(principal: OptionalPrincipalDep) -> Principal:
+        if principal is None or not has_permission(_role_of(principal), permission):
+            raise _denied()
+        return principal
+
+    return dependency
+
+
+def require_any_permission(
+    *permissions: Permission,
+) -> Callable[..., Awaitable[Principal]]:
+    """A dependency that admits a principal holding at least one of `permissions` (`NE1106`).
+
+    Used where a user role and a guest reach the same route through different permissions
+    (for example `project.write` for a user, `sandbox.write` for a guest).
+    """
+
+    async def dependency(principal: OptionalPrincipalDep) -> Principal:
+        if principal is None:
+            raise _denied()
+        role = _role_of(principal)
+        if not any(has_permission(role, p) for p in permissions):
+            raise _denied()
+        return principal
+
+    return dependency
 
 
 def get_build_manager(

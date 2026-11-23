@@ -101,18 +101,22 @@ def _manager(app: FastAPI, runner: CompileRunner, **kw: int) -> BuildManager:
     return manager
 
 
-async def _version(client: AsyncClient, mode: str = "ok") -> str:
-    project = (await client.post("/v1/projects", json={"name": "p"})).json()
+async def _version(engineer_client: AsyncClient, mode: str = "ok") -> str:
+    project = (await engineer_client.post("/v1/projects", json={"name": "p"})).json()
     files = {"a.neuron": "module a for host\n", "mode.txt": mode}
-    response = await client.post(f"/v1/projects/{project['id']}/versions", json={"files": files})
+    response = await engineer_client.post(
+        f"/v1/projects/{project['id']}/versions", json={"files": files}
+    )
     assert response.status_code == 201, response.text
     return str(response.json()["id"])
 
 
-async def _wait(client: AsyncClient, build_id: str, timeout_s: float = 30) -> dict[str, object]:
+async def _wait(
+    engineer_client: AsyncClient, build_id: str, timeout_s: float = 30
+) -> dict[str, object]:
     deadline = time.monotonic() + timeout_s
     while True:
-        body = (await client.get(f"/v1/builds/{build_id}")).json()
+        body = (await engineer_client.get(f"/v1/builds/{build_id}")).json()
         if body["status"] in FINAL:
             return body
         assert time.monotonic() < deadline, f"build still {body['status']}"
@@ -121,14 +125,14 @@ async def _wait(client: AsyncClient, build_id: str, timeout_s: float = 30) -> di
 
 @needs_db
 async def test_build_runs_and_stores_artifacts(
-    app: FastAPI, client: AsyncClient, tmp_path: Path
+    app: FastAPI, engineer_client: AsyncClient, tmp_path: Path
 ) -> None:
     _manager(app, CompileRunner(_config(tmp_path)))
-    version = await _version(client)
-    accepted = await client.post(f"/v1/versions/{version}/builds", json={"kind": "build"})
+    version = await _version(engineer_client)
+    accepted = await engineer_client.post(f"/v1/versions/{version}/builds", json={"kind": "build"})
     assert accepted.status_code == 202, accepted.text
     assert accepted.json()["status"] in {"queued", "running", "succeeded"}
-    done = await _wait(client, accepted.json()["id"])
+    done = await _wait(engineer_client, accepted.json()["id"])
     assert done["status"] == "succeeded"
     assert done["binary_version"] == "9.9.9-fake"
     assert done["exit_code"] == 0
@@ -136,30 +140,30 @@ async def test_build_runs_and_stores_artifacts(
     names = {a["name"]: a for a in done["artifacts"]}  # type: ignore[union-attr]
     assert set(names) == {"app.hex", "sub/app.lst"}
     # The fake writes text files, so Windows may store CRLF: compare with what is served.
-    download = await client.get(f"/v1/builds/{done['id']}/artifacts/sub/app.lst")
+    download = await engineer_client.get(f"/v1/builds/{done['id']}/artifacts/sub/app.lst")
     assert download.status_code == 200
     assert download.content.strip() == b"listing"
     digest = hashlib.sha256(download.content).hexdigest()
     assert download.headers["x-content-sha256"] == digest
     assert names["sub/app.lst"]["sha256"] == digest
     assert names["sub/app.lst"]["size"] == len(download.content)
-    hexfile = await client.get(f"/v1/builds/{done['id']}/artifacts/app.hex")
+    hexfile = await engineer_client.get(f"/v1/builds/{done['id']}/artifacts/app.hex")
     assert hexfile.content.startswith(b":00000001FF")
     assert names["app.hex"]["sha256"] == hashlib.sha256(hexfile.content).hexdigest()
-    assert (await client.get(f"/v1/builds/{done['id']}/artifacts/nope")).status_code == 404
-    listing = (await client.get(f"/v1/versions/{version}/builds")).json()
+    assert (await engineer_client.get(f"/v1/builds/{done['id']}/artifacts/nope")).status_code == 404
+    listing = (await engineer_client.get(f"/v1/versions/{version}/builds")).json()
     assert listing["total"] == 1
     assert listing["items"][0]["id"] == done["id"]
 
 
 @needs_db
 async def test_program_errors_are_a_failed_build_not_an_error(
-    app: FastAPI, client: AsyncClient, tmp_path: Path
+    app: FastAPI, engineer_client: AsyncClient, tmp_path: Path
 ) -> None:
     _manager(app, CompileRunner(_config(tmp_path)))
-    version = await _version(client, "errors")
-    accepted = await client.post(f"/v1/versions/{version}/builds", json={"kind": "check"})
-    done = await _wait(client, accepted.json()["id"])
+    version = await _version(engineer_client, "errors")
+    accepted = await engineer_client.post(f"/v1/versions/{version}/builds", json={"kind": "check"})
+    done = await _wait(engineer_client, accepted.json()["id"])
     assert done["status"] == "failed"
     assert done["error_code"] is None
     diagnostic = done["diagnostics"][0]  # type: ignore[index]
@@ -170,12 +174,12 @@ async def test_program_errors_are_a_failed_build_not_an_error(
 
 @needs_db
 async def test_timeout_is_an_error_build_with_ne1102(
-    app: FastAPI, client: AsyncClient, tmp_path: Path
+    app: FastAPI, engineer_client: AsyncClient, tmp_path: Path
 ) -> None:
     _manager(app, CompileRunner(_config(tmp_path, timeout_s=1)))
-    version = await _version(client, "sleep")
-    accepted = await client.post(f"/v1/versions/{version}/builds", json={"kind": "check"})
-    done = await _wait(client, accepted.json()["id"])
+    version = await _version(engineer_client, "sleep")
+    accepted = await engineer_client.post(f"/v1/versions/{version}/builds", json={"kind": "check"})
+    done = await _wait(engineer_client, accepted.json()["id"])
     assert done["status"] == "error"
     assert done["error_code"] == "NE1102"
     assert done["finished_at"] is not None
@@ -183,10 +187,10 @@ async def test_timeout_is_an_error_build_with_ne1102(
 
 @needs_db
 async def test_bad_options_are_rejected_before_anything_is_stored(
-    app: FastAPI, client: AsyncClient, tmp_path: Path
+    app: FastAPI, engineer_client: AsyncClient, tmp_path: Path
 ) -> None:
     manager = _manager(app, CompileRunner(_config(tmp_path)))
-    version = await _version(client)
+    version = await _version(engineer_client)
     for body in (
         {"kind": "check", "board": "uno"},
         {"kind": "emit"},
@@ -194,32 +198,36 @@ async def test_bad_options_are_rejected_before_anything_is_stored(
         {"kind": "build", "native": True, "host": True},
         {"kind": "build", "board": "--evil"},
     ):
-        response = await client.post(f"/v1/versions/{version}/builds", json=body)
+        response = await engineer_client.post(f"/v1/versions/{version}/builds", json=body)
         assert response.status_code == 422, body
         assert response.json()["code"] == "NE1101", body
     assert (
-        await client.post(f"/v1/versions/{version}/builds", json={"kind": "rm"})
+        await engineer_client.post(f"/v1/versions/{version}/builds", json={"kind": "rm"})
     ).status_code == 422
-    assert (await client.get(f"/v1/versions/{version}/builds")).json()["total"] == 0
+    assert (await engineer_client.get(f"/v1/versions/{version}/builds")).json()["total"] == 0
     assert manager.pending == 0
-    missing = await client.post(f"/v1/versions/{uuid.uuid4()}/builds", json={"kind": "check"})
+    missing = await engineer_client.post(
+        f"/v1/versions/{uuid.uuid4()}/builds", json={"kind": "check"}
+    )
     assert missing.status_code == 404
-    assert (await client.get(f"/v1/builds/{uuid.uuid4()}")).status_code == 404
+    assert (await engineer_client.get(f"/v1/builds/{uuid.uuid4()}")).status_code == 404
 
 
 @needs_db
 async def test_concurrency_is_bounded_and_a_full_queue_is_ne1103(
-    app: FastAPI, client: AsyncClient, tmp_path: Path
+    app: FastAPI, engineer_client: AsyncClient, tmp_path: Path
 ) -> None:
     runner = GatedRunner(_config(tmp_path))
     manager = _manager(app, runner, concurrency=2, queue_max=2)
-    version = await _version(client)
+    version = await _version(engineer_client)
     ids = []
     for _ in range(4):
-        response = await client.post(f"/v1/versions/{version}/builds", json={"kind": "check"})
+        response = await engineer_client.post(
+            f"/v1/versions/{version}/builds", json={"kind": "check"}
+        )
         assert response.status_code == 202
         ids.append(response.json()["id"])
-    full = await client.post(f"/v1/versions/{version}/builds", json={"kind": "check"})
+    full = await engineer_client.post(f"/v1/versions/{version}/builds", json={"kind": "check"})
     assert full.status_code == 429
     assert full.json()["code"] == "NE1103"
     assert int(full.headers["retry-after"]) >= 1
@@ -230,30 +238,30 @@ async def test_concurrency_is_bounded_and_a_full_queue_is_ne1103(
     assert runner.running == 2
     statuses = []
     for i in ids:
-        statuses.append((await client.get(f"/v1/builds/{i}")).json()["status"])
+        statuses.append((await engineer_client.get(f"/v1/builds/{i}")).json()["status"])
     statuses.sort()
     assert statuses == ["queued", "queued", "running", "running"]
     runner.gate.set()
     await manager.wait_idle()
     for i in ids:
-        assert (await _wait(client, i))["status"] == "succeeded"
+        assert (await _wait(engineer_client, i))["status"] == "succeeded"
     assert runner.peak == 2
     assert manager.pending == 0
-    again = await client.post(f"/v1/versions/{version}/builds", json={"kind": "check"})
+    again = await engineer_client.post(f"/v1/versions/{version}/builds", json={"kind": "check"})
     assert again.status_code == 202  # room again after the queue drained
     await manager.wait_idle()
 
 
 @needs_db
 async def test_interrupted_builds_are_marked_on_restart(
-    app: FastAPI, client: AsyncClient, tmp_path: Path
+    app: FastAPI, engineer_client: AsyncClient, tmp_path: Path
 ) -> None:
     manager = _manager(app, CompileRunner(_config(tmp_path)))
-    version = await _version(client)
+    version = await _version(engineer_client)
     async with manager._sessions() as session:  # noqa: SLF001
         for status in ("queued", "running", "succeeded"):
             session.add(Build(version_id=uuid.UUID(version), kind="check", status=status))
         await session.commit()
         assert await interrupt_unfinished(session) == 2
-    items = (await client.get(f"/v1/versions/{version}/builds")).json()["items"]
+    items = (await engineer_client.get(f"/v1/versions/{version}/builds")).json()["items"]
     assert sorted(b["status"] for b in items) == ["error", "error", "succeeded"]

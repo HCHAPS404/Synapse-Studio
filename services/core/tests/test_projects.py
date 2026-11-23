@@ -51,62 +51,66 @@ def _plain(doc: dict[str, object]) -> dict[str, object]:
 FILES = {"main.neuron": "module m for host\n", "lib/util.neuron": "module u for host\n"}
 
 
-async def _project(client: AsyncClient, name: str = "demo") -> dict[str, object]:
-    response = await client.post("/v1/projects", json={"name": name})
+async def _project(engineer_client: AsyncClient, name: str = "demo") -> dict[str, object]:
+    response = await engineer_client.post("/v1/projects", json={"name": name})
     assert response.status_code == 201, response.text
     return response.json()
 
 
 @needs_db
-async def test_create_get_and_list_projects(client: AsyncClient) -> None:
-    created = await _project(client, "  first  ")
+async def test_create_get_and_list_projects(engineer_client: AsyncClient) -> None:
+    created = await _project(engineer_client, "  first  ")
     assert created["name"] == "first"
     assert created["row_version"] == 1
-    got = await client.get(f"/v1/projects/{created['id']}")
+    got = await engineer_client.get(f"/v1/projects/{created['id']}")
     assert _plain(got.json()) == _plain(created)
     for n in range(2):
-        await _project(client, f"p{n}")
-    page = (await client.get("/v1/projects", params={"limit": 2})).json()
+        await _project(engineer_client, f"p{n}")
+    page = (await engineer_client.get("/v1/projects", params={"limit": 2})).json()
     assert page["total"] == 3
     assert len(page["items"]) == 2
-    rest = (await client.get("/v1/projects", params={"limit": 2, "offset": 2})).json()
+    rest = (await engineer_client.get("/v1/projects", params={"limit": 2, "offset": 2})).json()
     assert len(rest["items"]) == 1
     seen = {p["id"] for p in page["items"]} | {p["id"] for p in rest["items"]}
     assert len(seen) == 3
 
 
 @needs_db
-async def test_bad_input_and_unknown_ids(client: AsyncClient) -> None:
-    assert (await client.post("/v1/projects", json={"name": "  "})).status_code == 422
-    assert (await client.post("/v1/projects", json={"name": "x", "extra": 1})).status_code == 422
-    missing = await client.get(f"/v1/projects/{uuid.uuid4()}")
+async def test_bad_input_and_unknown_ids(engineer_client: AsyncClient) -> None:
+    assert (await engineer_client.post("/v1/projects", json={"name": "  "})).status_code == 422
+    assert (
+        await engineer_client.post("/v1/projects", json={"name": "x", "extra": 1})
+    ).status_code == 422
+    missing = await engineer_client.get(f"/v1/projects/{uuid.uuid4()}")
     assert missing.status_code == 404
     assert missing.json()["code"] == "HTTP_404"
-    assert (await client.get(f"/v1/versions/{uuid.uuid4()}")).status_code == 404
-    assert (await client.get("/v1/projects", params={"limit": 0})).status_code == 422
+    assert (await engineer_client.get(f"/v1/versions/{uuid.uuid4()}")).status_code == 404
+    assert (await engineer_client.get("/v1/projects", params={"limit": 0})).status_code == 422
 
 
 @needs_db
-async def test_rename_uses_row_version(client: AsyncClient) -> None:
-    project = await _project(client)
+async def test_rename_uses_row_version(engineer_client: AsyncClient) -> None:
+    project = await _project(engineer_client)
     url = f"/v1/projects/{project['id']}"
-    ok = await client.put(url, json={"name": "renamed", "row_version": 1})
+    ok = await engineer_client.put(url, json={"name": "renamed", "row_version": 1})
     assert ok.status_code == 200
     assert ok.json()["name"] == "renamed"
     assert ok.json()["row_version"] == 2
-    stale = await client.put(url, json={"name": "other", "row_version": 1})
+    stale = await engineer_client.put(url, json={"name": "other", "row_version": 1})
     assert stale.status_code == 409
     assert stale.json()["code"] == "NE1107"
-    assert (await client.get(url)).json()["name"] == "renamed"
-    unknown = await client.put(f"/v1/projects/{uuid.uuid4()}", json={"name": "x", "row_version": 1})
+    assert (await engineer_client.get(url)).json()["name"] == "renamed"
+    unknown = await engineer_client.put(
+        f"/v1/projects/{uuid.uuid4()}", json={"name": "x", "row_version": 1}
+    )
     assert unknown.status_code == 404
 
 
 @needs_db
-async def test_versions_are_numbered_hashed_and_complete(client: AsyncClient) -> None:
-    project = await _project(client)
+async def test_versions_are_numbered_hashed_and_complete(engineer_client: AsyncClient) -> None:
+    project = await _project(engineer_client)
     base = f"/v1/projects/{project['id']}/versions"
-    v1 = await client.post(base, json={"files": FILES, "message": "first"})
+    v1 = await engineer_client.post(base, json={"files": FILES, "message": "first"})
     assert v1.status_code == 201, v1.text
     body = v1.json()
     assert body["number"] == 1
@@ -115,12 +119,12 @@ async def test_versions_are_numbered_hashed_and_complete(client: AsyncClient) ->
     assert [f["path"] for f in body["files"]] == ["lib/util.neuron", "main.neuron"]
     assert body["content_hash"] == content_hash({k: v.encode() for k, v in FILES.items()})
     reordered = dict(reversed(list(FILES.items())))
-    v2 = (await client.post(base, json={"files": reordered})).json()
+    v2 = (await engineer_client.post(base, json={"files": reordered})).json()
     assert v2["number"] == 2
     assert v2["content_hash"] == body["content_hash"]
-    fetched = (await client.get(f"/v1/versions/{body['id']}")).json()
+    fetched = (await engineer_client.get(f"/v1/versions/{body['id']}")).json()
     assert _plain(fetched) == _plain(body)
-    listing = (await client.get(base)).json()
+    listing = (await engineer_client.get(base)).json()
     assert listing["total"] == 2
     assert [v["number"] for v in listing["items"]] == [2, 1]
     assert "files" not in listing["items"][0]
@@ -128,30 +132,32 @@ async def test_versions_are_numbered_hashed_and_complete(client: AsyncClient) ->
 
 
 @needs_db
-async def test_version_rejects_bad_files_with_ne1101(client: AsyncClient) -> None:
-    project = await _project(client)
+async def test_version_rejects_bad_files_with_ne1101(engineer_client: AsyncClient) -> None:
+    project = await _project(engineer_client)
     base = f"/v1/projects/{project['id']}/versions"
     for files in ({}, {"../x.neuron": "a"}, {"/abs": "a"}, {"A.neuron": "a", "a.neuron": "b"}):
-        response = await client.post(base, json={"files": files})
+        response = await engineer_client.post(base, json={"files": files})
         assert response.status_code == 422, files
         assert response.json()["code"] == "NE1101"
     big = {"big.neuron": "x" * (200 * 1024 + 1)}
-    assert (await client.post(base, json={"files": big})).json()["code"] == "NE1101"
-    assert (await client.get(base)).json()["total"] == 0
-    unknown = await client.post(f"/v1/projects/{uuid.uuid4()}/versions", json={"files": FILES})
+    assert (await engineer_client.post(base, json={"files": big})).json()["code"] == "NE1101"
+    assert (await engineer_client.get(base)).json()["total"] == 0
+    unknown = await engineer_client.post(
+        f"/v1/projects/{uuid.uuid4()}/versions", json={"files": FILES}
+    )
     assert unknown.status_code == 404
 
 
 @needs_db
 @pytest.mark.parametrize("method", ["PUT", "PATCH", "DELETE", "POST"])
-async def test_versions_cannot_be_modified(client: AsyncClient, method: str) -> None:
-    project = await _project(client)
+async def test_versions_cannot_be_modified(engineer_client: AsyncClient, method: str) -> None:
+    project = await _project(engineer_client)
     version = (
-        await client.post(f"/v1/projects/{project['id']}/versions", json={"files": FILES})
+        await engineer_client.post(f"/v1/projects/{project['id']}/versions", json={"files": FILES})
     ).json()
-    response = await client.request(
+    response = await engineer_client.request(
         method, f"/v1/versions/{version['id']}", json={"files": {"a.neuron": "x"}}
     )
     assert response.status_code == 405
-    again = (await client.get(f"/v1/versions/{version['id']}")).json()
+    again = (await engineer_client.get(f"/v1/versions/{version['id']}")).json()
     assert _plain(again) == _plain(version)

@@ -1,7 +1,9 @@
-"""Routes `/v1/projects` and `/v1/versions`.
+"""Routes `/v1/projects` and `/v1/versions` (RBAC applied in E3.2).
 
-Until E3 and E2.8 these routes are open and projects have no owner; the permission
-dependencies land with E3.2.
+A user needs `project.read` to read and `project.write` to create or rename; a guest reaches
+these routes through `sandbox.write` and is scoped to its own sandbox (projects of other
+sandboxes and of users are invisible to it, answered as 404). Anonymous requests are
+`NE1106`.
 """
 
 import uuid
@@ -9,7 +11,12 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
 
-from synapse_core.api.deps import OptionalGuestDep
+from synapse_core.api.deps import (
+    OptionalGuestDep,
+    Principal,
+    require_any_permission,
+)
+from synapse_core.auth.permissions import Permission
 from synapse_core.compile.paths import InputLimits
 from synapse_core.db.session import SessionDep
 from synapse_core.schemas.projects import (
@@ -30,6 +37,16 @@ Limit = Annotated[int, Query(ge=1, le=100)]
 Offset = Annotated[int, Query(ge=0)]
 SettingsDep = Annotated[Settings, Depends(get_settings)]
 
+# A guest reaches write routes through `sandbox.write`; a user through `project.write`.
+WriteDep = Annotated[
+    Principal, Depends(require_any_permission(Permission.PROJECT_WRITE, Permission.SANDBOX_WRITE))
+]
+# A guest reaches read routes through `sandbox.write` (its own sandbox); a user through
+# `project.read`.
+ReadDep = Annotated[
+    Principal, Depends(require_any_permission(Permission.PROJECT_READ, Permission.SANDBOX_WRITE))
+]
+
 
 @router.post("/projects", response_model=ProjectOut, status_code=201)
 async def create_project(
@@ -37,6 +54,7 @@ async def create_project(
     session: SessionDep,
     settings: SettingsDep,
     guest: OptionalGuestDep,
+    _principal: WriteDep,
 ) -> ProjectOut:
     """Creates an empty project. A guest's project is bound to its sandbox and counts
     against the sandbox project quota (`NE1104`)."""
@@ -48,23 +66,35 @@ async def create_project(
 
 
 @router.get("/projects", response_model=ProjectPage)
-async def list_projects(session: SessionDep, limit: Limit = 50, offset: Offset = 0) -> ProjectPage:
-    """Lists projects, newest first."""
-    return await svc.list_projects(session, limit, offset)
+async def list_projects(
+    session: SessionDep,
+    guest: OptionalGuestDep,
+    _principal: ReadDep,
+    limit: Limit = 50,
+    offset: Offset = 0,
+) -> ProjectPage:
+    """Lists projects, newest first; a guest sees only its own sandbox's projects."""
+    return await svc.list_projects(session, limit, offset, guest)
 
 
 @router.get("/projects/{project_id}", response_model=ProjectOut)
-async def get_project(project_id: uuid.UUID, session: SessionDep) -> ProjectOut:
+async def get_project(
+    project_id: uuid.UUID, session: SessionDep, guest: OptionalGuestDep, _principal: ReadDep
+) -> ProjectOut:
     """Reads one project."""
-    return ProjectOut.model_validate(await svc.get_project(session, project_id))
+    return ProjectOut.model_validate(await svc.get_project(session, project_id, guest))
 
 
 @router.put("/projects/{project_id}", response_model=ProjectOut)
 async def update_project(
-    project_id: uuid.UUID, body: ProjectUpdate, session: SessionDep
+    project_id: uuid.UUID,
+    body: ProjectUpdate,
+    session: SessionDep,
+    guest: OptionalGuestDep,
+    _principal: WriteDep,
 ) -> ProjectOut:
-    """Renames a project; a stale `row_version` is `NE1107`."""
-    project = await svc.rename_project(session, project_id, body.name, body.row_version)
+    """Renames a project; a stale `row_version` is `NE1107`. A guest renames only its own."""
+    project = await svc.rename_project(session, project_id, body.name, body.row_version, guest)
     return ProjectOut.model_validate(project)
 
 
@@ -75,6 +105,7 @@ async def create_version(
     session: SessionDep,
     settings: SettingsDep,
     guest: OptionalGuestDep,
+    _principal: WriteDep,
 ) -> VersionOut:
     """Stores a new immutable version holding exactly the files sent.
 
@@ -86,18 +117,25 @@ async def create_version(
             max_files=settings.guest_max_files,
             max_file_bytes=settings.guest_max_file_bytes,
         )
-    return await svc.create_version(session, project_id, body.files, body.message, limits)
+    return await svc.create_version(session, project_id, body.files, body.message, limits, guest)
 
 
 @router.get("/projects/{project_id}/versions", response_model=VersionPage)
 async def list_versions(
-    project_id: uuid.UUID, session: SessionDep, limit: Limit = 50, offset: Offset = 0
+    project_id: uuid.UUID,
+    session: SessionDep,
+    guest: OptionalGuestDep,
+    _principal: ReadDep,
+    limit: Limit = 50,
+    offset: Offset = 0,
 ) -> VersionPage:
     """Lists the versions of a project, newest first, without file contents."""
-    return await svc.list_versions(session, project_id, limit, offset)
+    return await svc.list_versions(session, project_id, limit, offset, guest)
 
 
 @router.get("/versions/{version_id}", response_model=VersionOut)
-async def get_version(version_id: uuid.UUID, session: SessionDep) -> VersionOut:
+async def get_version(
+    version_id: uuid.UUID, session: SessionDep, guest: OptionalGuestDep, _principal: ReadDep
+) -> VersionOut:
     """Reads a version with its files."""
-    return await svc.get_version(session, version_id)
+    return await svc.get_version(session, version_id, guest)

@@ -940,3 +940,23 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   the DB bootstrap test drives the async body on the running loop instead of `cli.main`.
   Reusing E2.8's `token_secret()` for JWTs keeps one secret; argon2 cost in settings lets
   tests pick the cheapest parameters while production keeps real cost.
+
+## 2026-11-23 · Task E3.2 (Permission matrix, RBAC route dependencies, guest isolation)
+- **Kiro features:** spec-driven task from `.kiro/specs/core-services/`, workspace rules,
+  E3.1 "Results of" for the principal/token surface.
+- **Produced:** `auth/permissions.py` (matrix, `DEVICE_PERMISSIONS`, `has_permission`),
+  reworked `api/deps.py` (unified `Principal`, `optional_principal`, `require_permission`,
+  `require_any_permission`), `services/users.principal_from_access_token`, guest scoping in
+  `services/projects.py`, permission deps on the project/build/device routes,
+  `tests/test_permissions.py` and `tests/test_rbac_routes.py`, an `engineer_client` conftest
+  fixture, regenerated OpenAPI/SDK.
+- **Results:** 13 new tests (2 Hypothesis properties); full suite 163 pass, 4 skipped;
+  ruff clean; drift check green. Anonymous/under-privileged requests are `NE1106`; a guest
+  is scoped to its own sandbox (others' projects are 404, not 403); device list/read need
+  `device.read`, the catalog stays public; a role read from the DB row means a disable takes
+  effect on the next request.
+- **Lessons:** the loose "engineer ⊇ ... ⊇ guest" phrasing does not hold and should not —
+  the guest is a separate, sandbox-scoped role; the property tests assert the spec's actual
+  criteria (user-chain monotonicity + guest device-isolation). Resolving the principal
+  without a DB session when there is no token keeps public routes working with no database
+  and avoids a 503 masking a 403.

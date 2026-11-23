@@ -84,3 +84,38 @@ async def client(app: FastAPI) -> AsyncIterator[AsyncClient]:
     transport = ASGITransport(app=app, raise_app_exceptions=False)
     async with AsyncClient(transport=transport, base_url="http://test") as http:
         yield http
+
+
+@pytest.fixture
+async def engineer_client(app: FastAPI, client: AsyncClient) -> AsyncClient:
+    """A client authenticated as an engineer (E3.2): the project/build routes need a role.
+
+    Creates an engineer with the cheapest argon2 parameters, logs in, and sets the bearer
+    header on the shared client. Tests of the open-until-E3.2 routes use this so they keep
+    exercising the route logic rather than the permission gate.
+    """
+    from sqlalchemy.ext.asyncio import async_sessionmaker
+
+    from synapse_core.db.session import get_engine
+    from synapse_core.services import users as users_svc
+
+    settings = app.dependency_overrides[get_settings]()
+    cheap = Settings(
+        database_url=settings.database_url,
+        argon2_time_cost=1,
+        argon2_memory_cost_kib=8,
+        argon2_parallelism=1,
+    )
+    engine = get_engine(settings)
+    assert engine is not None
+    async with async_sessionmaker(engine, expire_on_commit=False)() as session:
+        await users_svc.create_user(
+            session, "engineer@test.local", "engineer-password", "engineer", cheap
+        )
+    resp = await client.post(
+        "/v1/auth/login",
+        json={"email": "engineer@test.local", "password": "engineer-password"},
+    )
+    assert resp.status_code == 200, resp.text
+    client.headers["Authorization"] = f"Bearer {resp.json()['access_token']}"
+    return client

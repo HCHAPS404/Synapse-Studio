@@ -20,9 +20,20 @@ from synapse_core.settings import Settings, get_settings
 DEVICES = _REPO_ROOT / "devices"
 
 
-def _client(settings: Settings | None = None) -> TestClient:
+def _client(settings: Settings | None = None, *, as_viewer: bool = False) -> TestClient:
     app = create_app()
     app.dependency_overrides[get_settings] = lambda: settings or Settings(database_url=None)
+    if as_viewer:
+        # The device list/read routes need `device.read` (E3.2); inject a viewer principal
+        # so these catalog-shape tests do not need a database or a real login.
+        import uuid
+
+        from synapse_core.api.deps import optional_principal
+        from synapse_core.services.users import AuthenticatedUser
+
+        app.dependency_overrides[optional_principal] = lambda: AuthenticatedUser(
+            user_id=uuid.uuid4(), role="viewer"
+        )
     return TestClient(app)
 
 
@@ -84,7 +95,7 @@ def test_catalog_route() -> None:
 
 
 def test_list_and_get_device_routes() -> None:
-    client = _client()
+    client = _client(as_viewer=True)
     items = client.get("/v1/devices").json()["items"]
     assert len(items) == len(_device_files())
     assert "io" not in items[0]  # summary only

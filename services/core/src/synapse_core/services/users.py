@@ -85,6 +85,28 @@ async def count_users(session: AsyncSession) -> int:
     return (await session.execute(select(func.count()).select_from(User))).scalar_one()
 
 
+async def principal_from_access_token(
+    session: AsyncSession, token: str, settings: Settings
+) -> AuthenticatedUser:
+    """Resolves a user JWT to a live, enabled user; any failure is `NE1105`.
+
+    The signature and expiry are checked first, then the user is loaded so a token for a
+    deleted or disabled account is rejected. The role is read from the database row, not the
+    token claim, so a role change takes effect on the next request without waiting for the
+    old token to expire.
+    """
+    from synapse_core.auth.tokens import TokenError, verify_access_token
+
+    try:
+        claims = verify_access_token(token, secret=settings.token_secret())
+    except TokenError as exc:
+        raise _auth_failed() from exc
+    user = await session.get(User, claims.subject)
+    if user is None or user.disabled:
+        raise _auth_failed()
+    return AuthenticatedUser(user_id=user.id, role=user.role)
+
+
 async def authenticate(
     session: AsyncSession, email: str, password: str, settings: Settings
 ) -> tuple[str, AccessClaims]:

@@ -21,6 +21,7 @@ from synapse_core.schemas.projects import (
     VersionSummary,
 )
 from synapse_core.services import guests
+from synapse_core.services.guests import GuestPrincipal
 from synapse_core.settings import Settings
 
 
@@ -65,24 +66,41 @@ async def create_guest_project(
     return project
 
 
-async def get_project(session: AsyncSession, project_id: uuid.UUID) -> Project:
-    """The project, or a 404."""
+async def get_project(
+    session: AsyncSession, project_id: uuid.UUID, guest: GuestPrincipal | None = None
+) -> Project:
+    """The project, or a 404. A guest only ever sees its own sandbox's projects.
+
+    When a guest asks for a project of another sandbox (or a user's project) the answer is
+    404, not 403, so the guest cannot even learn the project exists.
+    """
     project = await session.get(Project, project_id)
-    if project is None:
+    if project is None or not _visible(project, guest):
         raise _not_found("project")
     return project
 
 
-async def list_projects(session: AsyncSession, limit: int, offset: int) -> ProjectPage:
-    """A page of projects, newest first."""
-    total = (await session.execute(select(func.count()).select_from(Project))).scalar_one()
+def _visible(project: Project, guest: GuestPrincipal | None) -> bool:
+    """A guest sees only its own sandbox's projects; a user sees every project."""
+    if guest is None:
+        return True
+    return project.sandbox_id == guest.sandbox_id
+
+
+async def list_projects(
+    session: AsyncSession, limit: int, offset: int, guest: GuestPrincipal | None = None
+) -> ProjectPage:
+    """A page of projects, newest first; a guest sees only its own sandbox's projects."""
+    base = select(Project)
+    count = select(func.count()).select_from(Project)
+    if guest is not None:
+        base = base.where(Project.sandbox_id == guest.sandbox_id)
+        count = count.where(Project.sandbox_id == guest.sandbox_id)
+    total = (await session.execute(count)).scalar_one()
     rows = (
         (
             await session.execute(
-                select(Project)
-                .order_by(Project.created_at.desc(), Project.id)
-                .limit(limit)
-                .offset(offset)
+                base.order_by(Project.created_at.desc(), Project.id).limit(limit).offset(offset)
             )
         )
         .scalars()
@@ -94,13 +112,19 @@ async def list_projects(session: AsyncSession, limit: int, offset: int) -> Proje
 
 
 async def rename_project(
-    session: AsyncSession, project_id: uuid.UUID, name: str, row_version: int
+    session: AsyncSession,
+    project_id: uuid.UUID,
+    name: str,
+    row_version: int,
+    guest: GuestPrincipal | None = None,
 ) -> Project:
     """Renames a project if `row_version` is still current; otherwise `NE1107`.
 
     The check and the write are one `UPDATE ... WHERE row_version = :seen`, so two
-    concurrent writers cannot both succeed.
+    concurrent writers cannot both succeed. A guest may rename only its own project (a 404
+    otherwise, checked before the write).
     """
+    await get_project(session, project_id, guest)
     result = await session.execute(
         update(Project)
         .where(Project.id == project_id, Project.row_version == row_version)
@@ -127,9 +151,14 @@ async def create_version(
     files: dict[str, str],
     message: str,
     limits: InputLimits | None = None,
+    guest: GuestPrincipal | None = None,
 ) -> VersionOut:
-    """Stores a new immutable version of a project (`NE1101` for bad paths or sizes)."""
+    """Stores a new immutable version of a project (`NE1101` for bad paths or sizes).
+
+    A guest may add a version only to its own project (a 404 otherwise).
+    """
     checked = check_files(files, limits or InputLimits())
+    await get_project(session, project_id, guest)
     # Lock the project row so concurrent snapshots get distinct numbers.
     locked = await session.execute(
         select(Project.id).where(Project.id == project_id).with_for_update()
@@ -178,11 +207,16 @@ def _summary(version: ProjectVersion, file_count: int, total_bytes: int) -> Vers
     )
 
 
-async def get_version(session: AsyncSession, version_id: uuid.UUID) -> VersionOut:
-    """A version with its files, or a 404."""
+async def get_version(
+    session: AsyncSession, version_id: uuid.UUID, guest: GuestPrincipal | None = None
+) -> VersionOut:
+    """A version with its files, or a 404. A guest sees only its own project's versions."""
     version = await session.get(ProjectVersion, version_id)
     if version is None:
         raise _not_found("version")
+    if guest is not None:
+        # Ensure the version's project belongs to this guest (404 otherwise).
+        await get_project(session, version.project_id, guest)
     rows = (
         (
             await session.execute(
@@ -202,10 +236,14 @@ async def get_version(session: AsyncSession, version_id: uuid.UUID) -> VersionOu
 
 
 async def list_versions(
-    session: AsyncSession, project_id: uuid.UUID, limit: int, offset: int
+    session: AsyncSession,
+    project_id: uuid.UUID,
+    limit: int,
+    offset: int,
+    guest: GuestPrincipal | None = None,
 ) -> VersionPage:
-    """Version summaries of a project, newest first."""
-    await get_project(session, project_id)
+    """Version summaries of a project, newest first; a guest only its own project's."""
+    await get_project(session, project_id, guest)
     total = (
         await session.execute(
             select(func.count())

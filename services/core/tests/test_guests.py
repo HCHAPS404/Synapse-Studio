@@ -100,10 +100,15 @@ def _auth(token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
-async def _wait(client: AsyncClient, build_id: str, timeout_s: float = 30) -> dict[str, object]:
+async def _wait(
+    client: AsyncClient,
+    build_id: str,
+    headers: dict[str, str] | None = None,
+    timeout_s: float = 30,
+) -> dict[str, object]:
     deadline = time.monotonic() + timeout_s
     while True:
-        body = (await client.get(f"/v1/builds/{build_id}")).json()
+        body = (await client.get(f"/v1/builds/{build_id}", headers=headers)).json()
         if body["status"] in FINAL:
             return body
         assert time.monotonic() < deadline
@@ -150,7 +155,7 @@ async def test_a_guest_builds_a_corpus_example_end_to_end(
         f"/v1/versions/{version.json()['id']}/builds", json={"kind": "build"}, headers=auth
     )
     assert accepted.status_code == 202, accepted.text
-    done = await _wait(client, accepted.json()["id"])
+    done = await _wait(client, accepted.json()["id"], headers=auth)
     assert done["status"] == "succeeded"
     assert {a["name"] for a in done["artifacts"]} == {"app.hex", "sub/app.lst"}  # type: ignore[union-attr]
     # The build counter advanced on the sandbox.
