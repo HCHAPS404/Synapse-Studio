@@ -122,6 +122,28 @@ class BuildArtifact(Base):
     content: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
 
 
+class GuestSandbox(Base):
+    """A login-free workspace for a judge (E2.8).
+
+    Quotas are enforced against the counters here. `ip_hash` is a salted SHA-256 of the
+    client IP (never the IP itself), used only to rate-limit sandbox creation and to spot
+    abuse; it is not reversible. `build_day` marks the UTC date the `builds_today` counter
+    belongs to; a build on a new day resets it.
+    """
+
+    __tablename__ = "guest_sandboxes"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_now
+    )
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    ip_hash: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    project_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    builds_today: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    build_day: Mapped[str] = mapped_column(String(10), nullable=False, default="")
+
+
 class VersionFile(Base):
     """One file of a version (UTF-8 text)."""
 

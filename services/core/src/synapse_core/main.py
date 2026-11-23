@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 from synapse_core import __version__
 from synapse_core.api.builds import router as builds_router
 from synapse_core.api.devices import router as devices_router
+from synapse_core.api.guests import router as guests_router
 from synapse_core.api.projects import router as projects_router
 from synapse_core.compile.sandbox import NetworkSandbox, detect_network_sandbox
 from synapse_core.db.session import dispose_engines, get_engine
@@ -25,6 +26,7 @@ from synapse_core.middleware import HEADER as REQUEST_ID_HEADER
 from synapse_core.middleware import RequestIdMiddleware
 from synapse_core.ratelimit import RateLimitMiddleware
 from synapse_core.services.builds import interrupt_unfinished
+from synapse_core.services.guests import cleanup_expired
 from synapse_core.settings import Settings, get_settings
 
 log = logging.getLogger(__name__)
@@ -94,6 +96,22 @@ async def _interrupt_unfinished_builds() -> None:
         log.warning("cannot check unfinished builds", extra={"error": type(exc).__name__})
 
 
+async def _guest_cleanup_loop(interval_s: float) -> None:
+    """Deletes expired guest sandboxes and their data on a timer."""
+    while True:
+        await asyncio.sleep(interval_s)
+        engine = get_engine(get_settings())
+        if engine is None:
+            continue
+        try:
+            async with async_sessionmaker(engine)() as session:
+                removed = await cleanup_expired(session)
+            if removed:
+                log.info("removed expired guest sandboxes", extra={"count": removed})
+        except Exception as exc:  # noqa: BLE001 - never let the loop die
+            log.warning("guest cleanup failed", extra={"error": type(exc).__name__})
+
+
 @asynccontextmanager
 async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     # Self-test of the compile sandbox; the result is reported by /health.
@@ -106,7 +124,13 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
         },
     )
     await _interrupt_unfinished_builds()
+    cleanup = asyncio.create_task(_guest_cleanup_loop(get_settings().guest_cleanup_interval_s))
     yield
+    cleanup.cancel()
+    try:
+        await cleanup
+    except asyncio.CancelledError:
+        pass
     manager = getattr(app.state, "build_manager", None)
     if manager is not None:
         await manager.shutdown()
@@ -136,6 +160,7 @@ def create_app() -> FastAPI:
     app.include_router(projects_router)
     app.include_router(builds_router)
     app.include_router(devices_router)
+    app.include_router(guests_router)
 
     @app.get("/health", response_model=HealthResponse)
     async def health(request: Request, settings: SettingsDep) -> HealthResponse:

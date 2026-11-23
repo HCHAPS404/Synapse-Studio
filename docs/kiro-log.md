@@ -893,3 +893,19 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   startup path; `create_app()` builds its limiter from `get_settings()`, which the
   dependency override does not reach, hence the state hook. Keeping `limits.py` free of
   FastAPI makes the pure token-bucket property test trivial to drive with a fake clock.
+## 2026-11-23 · Task E2.8 (guest mode)
+- **Kiro features:** spec-driven task from `.kiro/specs/core-services/`, workspace rules.
+- **Produced:** `GuestSandbox` model + migration `0004_guests`, `auth/tokens.py` (HMAC
+  guest token), `services/guests.py` (sandboxes, quotas, cleanup), `schemas/guests.py`,
+  `api/guests.py` (`POST /v1/guest`), `optional_guest` dependency, guest binding and quota
+  checks in projects and builds, eight new settings, a lifespan cleanup task,
+  `tests/test_guests.py`.
+- **Results:** 10 new tests, including an end-to-end guest build of a corpus example
+  through the fake runner; migration round-trip verified on SQLite; full suite 114 pass,
+  26 skip locally; ruff clean. `NE1104` on quota and on an expired/missing sandbox.
+- **Lessons:** a stateless signed token needs no store to recognise a guest, but loading
+  the sandbox row anyway lets a token outliving its deleted sandbox fail cleanly as
+  `NE1104`. A `reserve(session)` callback passed into `BuildManager.submit` keeps the
+  quota check in the same transaction as the build row without the manager importing the
+  guest service. No JWT library yet: a tiny HMAC token keeps E2.8 dependency-free and E3
+  reuses the same secret.

@@ -17,6 +17,7 @@ from synapse_core.db.base import Base
 from synapse_core.db.models import (
     Build,
     BuildArtifact,
+    GuestSandbox,
     Project,
     ProjectVersion,
     VersionFile,
@@ -63,7 +64,7 @@ async def app(schema: None) -> AsyncIterator[FastAPI]:
     await dispose_engines()
     engine = create_engine(sqlalchemy_url(TEST_URL).replace("+aiosqlite", ""))
     with engine.begin() as conn:
-        for model in (BuildArtifact, Build, VersionFile, ProjectVersion, Project):
+        for model in (BuildArtifact, Build, VersionFile, ProjectVersion, Project, GuestSandbox):
             conn.execute(delete(model))
     engine.dispose()
 

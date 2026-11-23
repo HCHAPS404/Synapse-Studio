@@ -9,6 +9,7 @@ restart marks unfinished builds as `error` (`interrupt_unfinished`).
 import asyncio
 import logging
 import uuid
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 
 from fastapi import HTTPException
@@ -24,6 +25,9 @@ from synapse_core.schemas.builds import BuildOut, BuildPage, BuildRequest
 log = logging.getLogger(__name__)
 
 RETRY_AFTER_S = 5
+
+# Reserves a quota against the given session (committed with the build). Raises on refusal.
+type BuildReservation = Callable[[AsyncSession], Awaitable[None]]
 
 
 def _not_found(what: str) -> HTTPException:
@@ -79,12 +83,18 @@ class BuildManager:
         return self._pending
 
     async def submit(
-        self, session: AsyncSession, version_id: uuid.UUID, request: BuildRequest
+        self,
+        session: AsyncSession,
+        version_id: uuid.UUID,
+        request: BuildRequest,
+        *,
+        reserve: "BuildReservation | None" = None,
     ) -> Build:
         """Validates and stores a build as `queued`, then starts it in the background.
 
         Raises `NE1101` for bad options or files and `NE1103` when the queue is full;
-        in both cases nothing is stored.
+        in both cases nothing is stored. `reserve`, when given, reserves a guest's per-day
+        build quota in the same transaction (`NE1104` when the quota is reached).
         """
         if await session.get(ProjectVersion, version_id) is None:
             raise _not_found("version")
@@ -102,6 +112,8 @@ class BuildManager:
                 "the build queue is full; retry shortly",
                 headers={"Retry-After": str(RETRY_AFTER_S)},
             )
+        if reserve is not None:
+            await reserve(session)
         build = Build(
             version_id=version_id,
             kind=request.kind.value,

@@ -20,6 +20,8 @@ from synapse_core.schemas.projects import (
     VersionPage,
     VersionSummary,
 )
+from synapse_core.services import guests
+from synapse_core.settings import Settings
 
 
 def content_hash(files: dict[str, bytes]) -> str:
@@ -41,8 +43,23 @@ def _not_found(what: str) -> HTTPException:
 
 
 async def create_project(session: AsyncSession, name: str) -> Project:
-    """Creates a project at `row_version` 1."""
+    """Creates a project at `row_version` 1 (anonymous/user; not bound to a sandbox)."""
     project = Project(name=name)
+    session.add(project)
+    await session.commit()
+    return project
+
+
+async def create_guest_project(
+    session: AsyncSession, name: str, sandbox_id: uuid.UUID, settings: Settings
+) -> Project:
+    """Creates a project bound to a guest sandbox, reserving its project quota first.
+
+    The quota check locks the sandbox row and the whole thing is one transaction, so two
+    concurrent creations cannot both pass a quota of one remaining slot.
+    """
+    await guests.reserve_project(session, sandbox_id, settings)
+    project = Project(name=name, sandbox_id=sandbox_id)
     session.add(project)
     await session.commit()
     return project

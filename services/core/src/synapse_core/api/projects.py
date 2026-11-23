@@ -7,8 +7,10 @@ dependencies land with E3.2.
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
 
+from synapse_core.api.deps import OptionalGuestDep
+from synapse_core.compile.paths import InputLimits
 from synapse_core.db.session import SessionDep
 from synapse_core.schemas.projects import (
     ProjectCreate,
@@ -20,17 +22,29 @@ from synapse_core.schemas.projects import (
     VersionPage,
 )
 from synapse_core.services import projects as svc
+from synapse_core.settings import Settings, get_settings
 
 router = APIRouter(prefix="/v1", tags=["projects"])
 
 Limit = Annotated[int, Query(ge=1, le=100)]
 Offset = Annotated[int, Query(ge=0)]
+SettingsDep = Annotated[Settings, Depends(get_settings)]
 
 
 @router.post("/projects", response_model=ProjectOut, status_code=201)
-async def create_project(body: ProjectCreate, session: SessionDep) -> ProjectOut:
-    """Creates an empty project."""
-    return ProjectOut.model_validate(await svc.create_project(session, body.name))
+async def create_project(
+    body: ProjectCreate,
+    session: SessionDep,
+    settings: SettingsDep,
+    guest: OptionalGuestDep,
+) -> ProjectOut:
+    """Creates an empty project. A guest's project is bound to its sandbox and counts
+    against the sandbox project quota (`NE1104`)."""
+    if guest is not None:
+        project = await svc.create_guest_project(session, body.name, guest.sandbox_id, settings)
+    else:
+        project = await svc.create_project(session, body.name)
+    return ProjectOut.model_validate(project)
 
 
 @router.get("/projects", response_model=ProjectPage)
@@ -56,10 +70,23 @@ async def update_project(
 
 @router.post("/projects/{project_id}/versions", response_model=VersionOut, status_code=201)
 async def create_version(
-    project_id: uuid.UUID, body: VersionCreate, session: SessionDep
+    project_id: uuid.UUID,
+    body: VersionCreate,
+    session: SessionDep,
+    settings: SettingsDep,
+    guest: OptionalGuestDep,
 ) -> VersionOut:
-    """Stores a new immutable version holding exactly the files sent."""
-    return await svc.create_version(session, project_id, body.files, body.message)
+    """Stores a new immutable version holding exactly the files sent.
+
+    A guest gets tighter file limits (`NE1101` over them): fewer files and smaller files.
+    """
+    limits = None
+    if guest is not None:
+        limits = InputLimits(
+            max_files=settings.guest_max_files,
+            max_file_bytes=settings.guest_max_file_bytes,
+        )
+    return await svc.create_version(session, project_id, body.files, body.message, limits)
 
 
 @router.get("/projects/{project_id}/versions", response_model=VersionPage)

@@ -1,11 +1,15 @@
 """Runtime configuration loaded from environment variables (never hard-coded)."""
 
+import secrets
 from functools import lru_cache
 
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from synapse_core.limits import LimiterSettings
+
+# A random key made once per process; development guest tokens do not outlive a restart.
+_DEV_TOKEN_SECRET = secrets.token_bytes(32)
 
 
 class Settings(BaseSettings):
@@ -38,6 +42,25 @@ class Settings(BaseSettings):
         default=None,
         description="Directory of the device manifests; default: the repo `devices/`",
     )
+    jwt_secret: SecretStr | None = Field(
+        default=None,
+        description="HMAC secret for guest tokens (E2.8) and JWTs (E3); required in production",
+    )
+    guest_ip_salt: SecretStr | None = Field(
+        default=None, description="Salt for the one-way hash of a guest's IP"
+    )
+    guest_token_ttl_s: int = Field(
+        default=24 * 3600, ge=60, description="Guest token and sandbox lifetime"
+    )
+    guest_max_projects: int = Field(default=5, ge=1, description="Projects per sandbox")
+    guest_max_files: int = Field(default=50, ge=1, description="Files per version for a guest")
+    guest_max_file_bytes: int = Field(
+        default=200 * 1024, ge=1, description="Bytes per file for a guest"
+    )
+    guest_max_builds_per_day: int = Field(default=100, ge=1, description="Builds per day")
+    guest_cleanup_interval_s: float = Field(
+        default=600.0, gt=0, description="How often the expiry cleanup task runs"
+    )
     log_level: str = Field(default="INFO", description="DEBUG | INFO | WARNING | ERROR")
     log_json: bool = Field(default=True, description="Structured JSON logs")
 
@@ -48,6 +71,28 @@ class Settings(BaseSettings):
     ratelimit_compile_rate: float = Field(default=10.0, gt=0)
     ratelimit_guest_capacity: float = Field(default=5.0, gt=0)
     ratelimit_guest_rate: float = Field(default=1.0 / 60.0, gt=0)
+
+    def token_secret(self) -> bytes:
+        """The HMAC key for guest tokens.
+
+        In `production` a `SYNAPSE_JWT_SECRET` of at least 32 bytes is required; elsewhere a
+        stable per-process development key is derived so local runs and tests work without a
+        secret. A development token is never valid in another process, which is the point.
+        """
+        if self.jwt_secret is not None:
+            key = self.jwt_secret.get_secret_value().encode("utf-8")
+            if self.environment == "production" and len(key) < 32:
+                raise ValueError("SYNAPSE_JWT_SECRET must be at least 32 bytes in production")
+            return key
+        if self.environment == "production":
+            raise ValueError("SYNAPSE_JWT_SECRET is required in production")
+        return _DEV_TOKEN_SECRET
+
+    def guest_ip_salt_bytes(self) -> bytes:
+        """The salt for hashing a guest IP; a stable development default when unset."""
+        if self.guest_ip_salt is not None:
+            return self.guest_ip_salt.get_secret_value().encode("utf-8")
+        return b"synapse-dev-guest-salt"
 
     @property
     def limiter(self) -> "LimiterSettings":

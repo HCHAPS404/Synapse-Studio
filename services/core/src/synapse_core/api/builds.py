@@ -8,13 +8,15 @@ from typing import Annotated
 from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, Query, Request, Response
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from synapse_core.api.deps import BuildManagerDep
+from synapse_core.api.deps import BuildManagerDep, OptionalGuestDep
 from synapse_core.compile.runner import runner_config
 from synapse_core.compile.sandbox import NetworkSandbox
 from synapse_core.db.session import SessionDep
 from synapse_core.schemas.builds import BuildOut, BuildPage, BuildRequest, CapabilitiesOut
 from synapse_core.services import builds as svc
+from synapse_core.services import guests as guest_svc
 from synapse_core.services.capabilities import build_capabilities
 from synapse_core.settings import Settings, get_settings
 
@@ -31,9 +33,20 @@ async def create_build(
     body: BuildRequest,
     session: SessionDep,
     manager: BuildManagerDep,
+    settings: SettingsDep,
+    guest: OptionalGuestDep,
 ) -> BuildOut:
-    """Accepts a build; it runs in the background. Poll `GET /v1/builds/{id}`."""
-    return svc.build_out(await manager.submit(session, version_id, body))
+    """Accepts a build; it runs in the background. Poll `GET /v1/builds/{id}`.
+
+    A guest's build counts against the sandbox per-day build quota (`NE1104`)."""
+    reserve: svc.BuildReservation | None = None
+    if guest is not None:
+        sandbox_id = guest.sandbox_id
+
+        async def reserve(s: AsyncSession) -> None:
+            await guest_svc.reserve_build(s, sandbox_id, settings)
+
+    return svc.build_out(await manager.submit(session, version_id, body, reserve=reserve))
 
 
 @router.get("/versions/{version_id}/builds", response_model=BuildPage)

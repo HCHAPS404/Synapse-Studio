@@ -7,9 +7,41 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from synapse_core.compile.runner import CompileRunner, runner_config
 from synapse_core.compile.sandbox import NetworkSandbox
-from synapse_core.db.session import get_engine
+from synapse_core.db.session import SessionDep, get_engine
 from synapse_core.services.builds import BuildManager
+from synapse_core.services.guests import GuestPrincipal, principal_from_token
 from synapse_core.settings import Settings, get_settings
+
+
+def _bearer_token(request: Request) -> str | None:
+    """The token of an `Authorization: Bearer <token>` header, if present and well formed."""
+    header = request.headers.get("Authorization", "")
+    scheme, _, value = header.partition(" ")
+    if scheme.lower() == "bearer" and value:
+        return value.strip()
+    return None
+
+
+async def optional_guest(
+    request: Request,
+    session: SessionDep,
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> GuestPrincipal | None:
+    """Resolves a guest token when one is sent; a bad or expired token is `NE1104`.
+
+    When there is no token the request is anonymous (the open routes still work until E3
+    binds ownership). The principal is recorded on `request.state.principal_id` so the rate
+    limiter keys on the guest instead of the shared IP.
+    """
+    token = _bearer_token(request)
+    if token is None:
+        return None
+    principal = await principal_from_token(session, token, settings)
+    request.state.principal_id = principal.key
+    return principal
+
+
+OptionalGuestDep = Annotated["GuestPrincipal | None", Depends(optional_guest)]
 
 
 def get_build_manager(

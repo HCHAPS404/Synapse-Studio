@@ -12,7 +12,7 @@ tested against simulated peers.
 | E2.5 | Builds API on the runner: queue and semaphore, stored diagnostics and artifacts with SHA-256, `GET /v1/capabilities` | E-R1, E-R2 | no | done |
 | E2.6 | Device catalog from `devices/` manifests (read-only routes) | E-R1 | no | done |
 | E2.7 | Token bucket limiter, per-client buckets, `Retry-After`, `NE1103`; property test of the rate bound | E-R4 | no | done |
-| E2.8 | Guest mode: sandboxes, guest token, quotas, expiry cleanup, `NE1104`; a guest builds a corpus example | E-R3 | no | open |
+| E2.8 | Guest mode: sandboxes, guest token, quotas, expiry cleanup, `NE1104`; a guest builds a corpus example | E-R3 | no | done |
 | E2.9 | OpenAPI export, generated `packages/sdk-ts`, CI drift check | E-R5 | no | open |
 | E2.10 | Docker image (Rust stage plus Python), `render.yaml` to `runtime: docker`, local `docker compose` for the API and Postgres | E-R2, E-R18 | no | open |
 | E3.1 | Users, argon2 hashes, login, JWT access tokens, first-engineer CLI, `NE1105` | E-R6 | no | open |
@@ -237,3 +237,36 @@ Open: the per-session WebSocket control-message rate of E-R4 lands with the rela
 real principals arrive with E3. Tests: 9 in `tests/test_ratelimit.py`, including a
 Hypothesis property that the admitted count over any window never exceeds
 `capacity + rate * elapsed` (full suite: 110 pass, 21 skip; ruff clean).
+
+## Results of E2.8
+Guest mode without login. Model `GuestSandbox` (`id`, `created_at`, `expires_at`, `ip_hash`
+nullable, `project_count`, `builds_today`, `build_day`) and migration `0004_guests`
+(reversible; upgrade/downgrade/upgrade verified on SQLite). `auth/tokens.py`: a compact
+`payload.signature` guest token (URL-safe base64 of canonical JSON, HMAC-SHA256 over the
+payload), `mint_guest_token`/`verify_guest_token` checking signature in constant time then
+expiry and the `guest` role; no third-party JWT dependency (E3 folds this into full JWTs on
+the same `SYNAPSE_JWT_SECRET`). `services/guests.py`: `create_sandbox`, `principal_from_token`
+(`NE1104` on a bad/expired token or a missing sandbox), `reserve_project`/`reserve_build`
+(row-locked quota check and increment in the caller's transaction), `cleanup_expired`
+(deletes expired sandboxes; their projects cascade to versions, files, builds, artifacts),
+`hash_ip` (salted one-way). Route `POST /v1/guest` (`api/guests.py`). Dependency
+`optional_guest` in `api/deps.py` reads `Authorization: Bearer`, resolves a live sandbox and
+records `request.state.principal_id` so the rate limiter keys on the guest. Projects and
+builds bind to the sandbox and enforce quotas: `create_guest_project`, guest file limits on
+version creation (`guest_max_files`, `guest_max_file_bytes`), a per-day build reservation
+passed into `BuildManager.submit`. New settings: `jwt_secret`, `guest_ip_salt`,
+`guest_token_ttl_s`, `guest_max_projects` (5), `guest_max_files` (50), `guest_max_file_bytes`
+(200 KiB), `guest_max_builds_per_day` (100), `guest_cleanup_interval_s`; `Settings.token_secret()`
+requires `SYNAPSE_JWT_SECRET` in production and derives a per-process dev key otherwise. The
+lifespan starts a periodic cleanup task.
+Choices: the token is stateless so recognising a guest needs no read, but the sandbox row is
+still loaded to enforce quotas and expiry, so a token outliving its deleted sandbox is
+`NE1104`. Guests never reach a device route: the guest principal holds no device permission
+and the device routes stay closed to it (the full matrix lands in E3.2). Quotas are the
+design's numbers. Open: read-scoping a guest to only its own projects, and keying device
+denial to the matrix, are E3.2; WebSocket guest limits are E4. Tests: 10 in
+`tests/test_guests.py` (token mint/verify, tamper, wrong key, expiry, one-way IP hash;
+route; an end-to-end guest build of `h01_gateway_counter.neuron` through the fake runner;
+project quota `NE1104`; invalid/missing sandbox `NE1104`; expiry cleanup). DB tests ran on
+SQLite locally (30 across guests/builds/projects) and run on Postgres through Alembic in CI;
+full suite 114 pass, 26 skip locally; ruff clean.
