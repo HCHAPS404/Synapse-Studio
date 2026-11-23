@@ -13,7 +13,7 @@ tested against simulated peers.
 | E2.6 | Device catalog from `devices/` manifests (read-only routes) | E-R1 | no | done |
 | E2.7 | Token bucket limiter, per-client buckets, `Retry-After`, `NE1103`; property test of the rate bound | E-R4 | no | done |
 | E2.8 | Guest mode: sandboxes, guest token, quotas, expiry cleanup, `NE1104`; a guest builds a corpus example | E-R3 | no | done |
-| E2.9 | OpenAPI export, generated `packages/sdk-ts`, CI drift check | E-R5 | no | open |
+| E2.9 | OpenAPI export, generated `packages/sdk-ts`, CI drift check | E-R5 | no | done |
 | E2.10 | Docker image (Rust stage plus Python), `render.yaml` to `runtime: docker`, local `docker compose` for the API and Postgres | E-R2, E-R18 | no | open |
 | E3.1 | Users, argon2 hashes, login, JWT access tokens, first-engineer CLI, `NE1105` | E-R6 | no | open |
 | E3.2 | Permission matrix, route dependencies, role checks, `NE1106`; monotonicity and guest-isolation properties | E-R7, E-R3 | no | open |
@@ -270,3 +270,29 @@ route; an end-to-end guest build of `h01_gateway_counter.neuron` through the fak
 project quota `NE1104`; invalid/missing sandbox `NE1104`; expiry cleanup). DB tests ran on
 SQLite locally (30 across guests/builds/projects) and run on Postgres through Alembic in CI;
 full suite 114 pass, 26 skip locally; ruff clean.
+
+## Results of E2.9
+`tools/export-openapi.py` exports the FastAPI document to `spec/api/openapi.json` (canonical:
+sorted keys, two-space indent, `info.version` pinned to `1.0.0` so it never drifts with the
+package version) and generates `packages/sdk-ts/src/schema.ts` from the same document. The
+generator is pure Python (stdlib only), so CI needs no Node and makes no network call. It
+maps the OpenAPI 3.1 schema dialect to TypeScript (`$ref`, `anyOf`/`oneOf` unions, `allOf`
+intersections, `const`/`enum` literals, arrays, objects with required/optional fields,
+`additionalProperties` to `Record`), emitting an `export interface` per object schema and an
+`export type` per alias, plus an `ApiPaths` map of route to allowed methods. `ErrorBody` is
+produced by the exception handlers, not declared on a route, so FastAPI omits it from the
+components; the script adds it from `ErrorBody.model_json_schema()` (still generated, not
+hand-written) so clients can type errors. `--check` regenerates in memory and compares,
+failing on any difference. `packages/sdk-ts` holds `package.json` (`gen`, `gen:check`,
+`typecheck` scripts), `tsconfig.json` (strict), `README.md`, `.gitignore`, the generated
+`src/schema.ts`, and a thin hand-written `src/index.ts` (`SynapseClient`, `ApiError`,
+`startGuestSession`) that re-exports the generated types; `src/index.ts` is the only
+hand-written code and the types it uses all come from `schema.ts`. CI (`core` job) runs
+`uv run python ../../tools/export-openapi.py --check` after the tests, so a model change that
+is not regenerated fails the build (E-R5). Choices: a Python generator rather than
+`openapi-typescript` (the design named it) keeps CI Node-free and offline, as the user asked,
+while still generating the types and diffing on drift; the richer per-operation request/
+response typing is left to a later pass. Verified: `--check` passes on the committed files
+and fails (exit 1) on a deliberate edit; `tsc --noEmit` compiles `schema.ts` and `index.ts`
+cleanly under strict mode. No new tests (the drift check is the test); core suite unchanged
+(114 pass, 26 skip).

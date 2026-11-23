@@ -130,3 +130,7 @@ jobs:
       - run: uv run ruff check .
       - run: uv run ruff format --check .
       - run: uv run pytest -q
+      - name: OpenAPI and SDK types are up to date (E2.9 drift check)
+        # Regenerate spec/api/openapi.json and packages/sdk-ts/src/schema.ts from the app;
+        # --check fails on any difference, so a model change without regeneration breaks CI.
+        run: uv run python ../../tools/export-openapi.py --check

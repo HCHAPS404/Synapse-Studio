@@ -909,3 +909,17 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   quota check in the same transaction as the build row without the manager importing the
   guest service. No JWT library yet: a tiny HMAC token keeps E2.8 dependency-free and E3
   reuses the same secret.
+## 2026-11-23 · Task E2.9 (OpenAPI export and generated SDK)
+- **Kiro features:** spec-driven task from `.kiro/specs/core-services/`, workspace rules.
+- **Produced:** `tools/export-openapi.py` (export + pure-Python TS generator),
+  `spec/api/openapi.json`, `packages/sdk-ts` (`package.json`, `tsconfig.json`, `README.md`,
+  `.gitignore`, generated `src/schema.ts`, thin `src/index.ts`), a CI drift-check step in
+  the `core` job.
+- **Results:** `--check` passes on the committed files and fails on a deliberate edit;
+  `tsc --noEmit` compiles the generated types and the client cleanly under strict; core
+  suite unchanged (114 pass, 26 skip). Types are generated, never hand-written.
+- **Lessons:** `ErrorBody` never appears in a route response, so FastAPI leaves it out of
+  the components; adding it from `model_json_schema()` keeps it generated. A stdlib-only
+  generator keeps CI Node-free and offline (the user's constraint) while still satisfying
+  "generated, CI fails on drift"; pinning `info.version` stops the document churning with
+  the package version.
