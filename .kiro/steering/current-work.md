@@ -182,39 +182,56 @@ that needs a physical device stays pending until its session.
   to OTHER people: never use them. `SYNAPSE_CORS_ORIGINS` lists synapsest and -eight.
 - Open in E7: Neon `dev` branch, spending caps (Hell), judge app (E2 + G6).
 
-## Handoff 2026-11-22 (night): Phase D in progress, Phase E spec committed
+## Handoff 2026-11-23: Phases D and E done in software
 
-Hell asked for Phase D end to end, then Phase E (E2..E7). He accepted the five E
-decisions (Docker image calling `neuron-cli`; own auth with guest mode; telemetry in plain
-Postgres tables; relay inside the Core API; D first). Spec `.kiro/specs/core-services/`
-is committed (`455a4fb`); its six defaults are listed in the session report: isolation
-self-test may report `unverified`; two confirmations may be one person (setting for two);
-cross compilers in the image (fallback check/emit); E2.2 adds `--format json`;
-`neuron cell check --profile` in E6.3; limiter and relay single-instance.
+`main` = `develop` = `1df9c9f`, CI green, tags `phase-d-software` and `phase-e-software`.
 
-`main` = `b0864f4`; `develop` = `ed064c5` (pushed). Promote after CI is green (ask Hell).
-Render CORS: re-check that `/health` answers `access-control-allow-origin` for
-`https://synapsest.vercel.app`; if not, Blueprint "Manual sync" in Render.
+Phase D (cell compiler) complete in software: crate `crates/neuron-cell` (manifests,
+partitioner, link budgets `NE0701`, endpoints + Neuron Wire, watchdog, tags `NE0703`,
+electrical `NE0801`, zones/mutex `NE0805`, cell `verify`, co-simulation, replay, dossier)
+and `neuron cell check|build|sim|dossier` in `neuron-cli`. Open (D-HW): generic numbers
+until session I1; not run on real devices (I4–I7); the bottling example does not build for
+every device (C backend has no function blocks; `pick` is six-axis on a SCARA); robot
+watchdog logic pending I6.
 
-Phase D done (crate `crates/neuron-cell`, 36 tests + 7 doctests, all in `tasks.md`
-"Results of" paragraphs): D1.1 manifests (`867236a`), D1.2 (`39920e4`), D2.1 partitioner
-NE0704/NE0705 (`09de5a5`), D2.2 build per device (`085d9a5`), D3.2 link budgets NE0701
-(`a7b8b76`, done before D3.1 on purpose), D4.2 electrical NE0801 (`ed064c5`).
-Open, in this order: D3.1 endpoints as NIR items (largest: touches every emitter's
-subset; also gives each link its real value type and the receiver's real period, which
-D3.2 approximates with 4 bytes and `scan_min`), D3.3 watchdog, D3.4 tags NE0703, D4.1
-zones NE0805, D4.3 cell verify, D6.1 co-simulation, D6.2 replay schema, D5.1 dossier,
-D7 CLI `neuron cell check|build|sim|dossier` + `docs/cells.md` + CI smoke.
-Known gaps found by D2.2 (kept open, earlier backends): the C backend has no function
-blocks, so `thermostat` (README example) does not build to C; `pick_robot` is six-axis
-while the bottling cell's arm is a SCARA, and the SPEL+ emitter does not translate its
-`dest` parameter. Placeholder robot Modbus timing was lowered to 3+1 ms so the bottling
-link meets 25 ms.
+Phase E (services) complete in software, spec `.kiro/specs/core-services/`:
+- E2 Core API in `services/core` (projects/versions/builds, compile runner, device
+  catalog, rate limiter, guest mode, OpenAPI + generated `packages/sdk-ts`, Docker image).
+- E3 auth (argon2 + JWT), RBAC matrix, service tokens, append-only audit log.
+- E4 relay WS server implementing `spec/protocols/relay.md`, pairing, telemetry in plain
+  Postgres, advisory E-STOP to twin/simulated only.
+- E5 Edge Daemon `services/edge-daemon` with drivers (serial, Modbus TCP/RTU, S7, TCP,
+  MQTT, CAN) tested against simulators, signed packages (Ed25519), command allowlist,
+  deployment state machine, heartbeat/local E-STOP, LAN PWA. E5.12 OPC UA skipped
+  (stretch); E5-HW pending I4–I7.
+- E6 black box + calibration (synthetic numbers; E6-HW pending I1).
+- E7 Alembic on deploy, `docs/deploy.md`, `tools/live-smoke.py` + scheduled Action,
+  judge-path guest flow in `apps/web`, `docs/runbook.md` + uptime stub.
 
-Terminal (22 nov, after the PC restart): plain foreground `cargo test` with
-`Select-String` filtering works; one cargo at a time; do not run a cargo command in the
-same tool batch as a file edit it depends on (the order is not guaranteed).
+**Watch the Render deploy of E2.10.** `render.yaml` is now `runtime: docker`
+(`services/core/Dockerfile`: a Rust stage builds `neuron-cli`, the Python stage runs the
+API). The first Docker build on Render takes several minutes and had never run when this
+was written; `/health` still answered the old python deploy at promote time. If the Docker
+build fails or times out on Render, revert `render.yaml` to the previous `runtime: python`
+(git history) or ship the fallback check/emit-only image (drop the Rust stage); the compile
+runner degrades safely without the `neuron` binary. Set the new Render secrets
+`SYNAPSE_JWT_SECRET`, `SYNAPSE_SIGNING_KEY`, `SYNAPSE_GUEST_IP_SALT` (listed `sync: false`).
+
+Progress: 48 of 90 tasks (53%). Next phases not started: F and G (Martin: engine, twin,
+web IDE, virtual lab, apps), H (AI, Hell), the hardware sessions I, then J and K.
+
+Terminal (23 nov): foreground `cargo`/`uv`/`pnpm` with captured-then-filtered output
+works; one heavy command at a time; never edit a file in the same tool batch as a command
+that depends on it. CI gotchas this phase: gitleaks false positive on an Ed25519
+`key.sign()` (added to `.gitleaksignore` by fingerprint); Modbus-RTU-over-pty tests are
+unreliable on CI runners (now gated on `SYNAPSE_RTU_LOOPBACK`); a new `examples/` file must
+be `neuron fmt`-clean and its parser/NIR goldens refreshed (`UPDATE_GOLDEN=1`).
 ## Human actions still open (Hell)
 
-Add Martin as collaborator and protect `main`/`develop`; Neon, Render (paid) and Vercel
-accounts before 21 nov; session I1 (inventory, measurements); G2 with the UNO; spec review.
+Protect `main`/`develop` (Martin is a collaborator; accounts done). Watch the first
+Render Docker deploy of `main` and set the three new `sync: false` secrets there
+(`SYNAPSE_JWT_SECRET`, `SYNAPSE_SIGNING_KEY`, `SYNAPSE_GUEST_IP_SALT`). Create the Neon
+`dev` branch (commands in `docs/deploy.md`). Set Render/Neon spending caps and an external
+uptime-monitor account (E7-H). Session I1 (inventory, measurements) to replace the generic
+timing numbers. G2 with the UNO. Independent spec review for `spec-v1.0`. Optionally revoke
+the Neon MCP API key (id 3566976) now that cloud setup is done.
