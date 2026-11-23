@@ -29,7 +29,7 @@ tested against simulated peers.
 | E5.2 | Signed packages: manifest, Ed25519 sign (API side) and verify (daemon), quarantine, `NE1108` | E-R13 | no | done |
 | E5.3 | Command allowlist with per-command Pydantic arguments, `NE1109`, `NE1111` for offline devices | E-R13 | no | done |
 | E5.4 | Deployment state machine in the API and the daemon, `NE1110`, property test over event sequences | E-R14 | no | done |
-| E5.5 | Serial driver and `Flasher` (avrdude, UF2) with fake tools and `loop://` | E-R12 | no | open |
+| E5.5 | Serial driver and `Flasher` (avrdude, UF2) with fake tools and `loop://` | E-R12 | no | done |
 | E5.6 | Modbus TCP and RTU drivers against a pymodbus server and a loopback serial pair | E-R12 | no | open |
 | E5.7 | S7 driver against the snap7 server or a mock | E-R12 | no | open |
 | E5.8 | TCP socket and MQTT drivers against a local server and an in-process broker | E-R12 | no | open |
@@ -717,6 +717,25 @@ precondition (a stored error-free build + cell check) and the daemon dry-run at 
 the routed/persisted layer on top, wired when the deploy routes and the daemon apply path land
 (after the drivers; the gate rules are the E5.4 deliverable). Open: the REST deploy routes and
 the daemon's apply using E5.2 `verify_package`. Tests: core 5 + daemon 6, including two Hypothesis
-properties over random event sequences of up to 30 events — no illegal transition passes silently,
+properties over random event sequences of up to 30 events ï¿½ no illegal transition passes silently,
 a terminal state stays terminal, and `applied` is reachable only through the exact ordered happy
 path. No new error code (NE1110 documented in E2.1).
+## Results of E5.5
+Serial driver and the Flasher. `drivers/serial.py` (`SerialDriver`) opens a `pyserial` URL
+(`cfg.params['url']`, default `loop://`) in a worker thread and speaks a small framed-ASCII
+line protocol: a write sends `TAG=VALUE\n` and confirms it against the `loop://` echo; a read
+sends `TAG?\n`, drains the echo and returns the last confirmed value. An unknown tag, a closed
+port or an unconfirmed write is a `bad`-quality sample or a `DriverError` — never a guessed
+value; a non-writable tag is refused. `flasher.py` (`Flasher`, `FlashTarget`, `FlashResult`)
+runs avrdude (`method="avrdude"`, argv built from `avrdude_cmd`/`programmer`/`mcu`/`port`, never
+a shell) or copies a UF2 file to a mounted drive (`method="uf2"`), each under a per-device
+`asyncio.Lock` and a timeout; a non-zero exit, a timeout or a missing tool/drive is a
+`DriverError`. The avrdude command is a list so tests inject a fake tool
+(`tests/fake_avrdude.py`, invoked via `sys.executable`), matching the core runner's fake-tool
+pattern; all tests are hardware-free. Choices: `loop://` is the serial test peer the design
+names; since it only echoes, a read returns the value the driver last wrote and confirmed
+(a real device answers the `TAG?` probe), which is enough to exercise open/write/read/close over
+a real port object. Open: wiring the Flasher to the E5.3 `flash` command and the E5.2 verified
+package, done in E5.10's runtime. Tests: 11 in `tests/test_e5_5_serial_flash.py` (serial
+write/read round trip, unknown tag bad, bool round trip, non-writable refused, bad URL; avrdude
+success, non-zero exit, timeout; UF2 copy, unknown device, missing artifact). No new error code.

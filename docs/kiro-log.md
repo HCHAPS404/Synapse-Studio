@@ -1132,3 +1132,13 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
 - **Lessons:** making the machine a pure function (no DB, no I/O) lets one Hypothesis property prove
   "no shortcut to applied" directly, and a shared fixed transition vector keeps the API and daemon
   tables from drifting apart without importing one package into the other.
+## 2026-11-23 · Task E5.5 (Serial driver over loop:// and the Flasher with fake avrdude/UF2)
+- **Kiro features:** spec-driven task from `.kiro/specs/core-services/` (design "E5 Edge Daemon"
+  driver table and "Flashing"), requirement E-R12; the core runner's fake-tool test pattern reused.
+- **Produced:** `synapse_daemon.drivers.serial.SerialDriver` (framed-ASCII over `pyserial`
+  `loop://`) and `synapse_daemon.flasher` (`Flasher`/`FlashTarget`, avrdude as an argv and UF2
+  copy, per-device lock + timeout); `tests/fake_avrdude.py`.
+- **Results:** 11 new tests; the daemon suite is 48 pass; ruff clean.
+- **Lessons:** making the avrdude invocation a command list (not a bare path) lets the test inject a
+  fake tool through `sys.executable` on every OS; keeping a confirmed-write cache for `loop://`
+  reads gives a real round trip through the serial port object without a device answering the probe.
