@@ -10,7 +10,7 @@ tested against simulated peers.
 | E2.3 | Compile runner: temp dir, path checks, limits, timeout and process-group kill, environment stripping, network self-test, `NE1101` `NE1102` | E-R2 | no | done |
 | E2.4 | Projects, immutable versions and files (tables, routes, content hash, `row_version`, `NE1107`) | E-R1 | no | done |
 | E2.5 | Builds API on the runner: queue and semaphore, stored diagnostics and artifacts with SHA-256, `GET /v1/capabilities` | E-R1, E-R2 | no | done |
-| E2.6 | Device catalog from `devices/` manifests (read-only routes) | E-R1 | no | open |
+| E2.6 | Device catalog from `devices/` manifests (read-only routes) | E-R1 | no | done |
 | E2.7 | Token bucket limiter, per-client buckets, `Retry-After`, `NE1103`; property test of the rate bound | E-R4 | no | open |
 | E2.8 | Guest mode: sandboxes, guest token, quotas, expiry cleanup, `NE1104`; a guest builds a corpus example | E-R3 | no | open |
 | E2.9 | OpenAPI export, generated `packages/sdk-ts`, CI drift check | E-R5 | no | open |
@@ -185,3 +185,32 @@ build, an `NE1102` timeout, option rejection before storage, bounded concurrency
 `NE1103` full queue and a drained-queue retry, restart marking). A gated fake runner proves
 the peak concurrency. Like E2.4 they ran on SQLite locally; Postgres through Alembic runs
 in CI.
+
+## Results of E2.6
+New package `services/core/src/synapse_core/devices/`: `models.py` (Pydantic v2 models that
+mirror `crates/neuron-cell/src/manifest.rs`: `Kind`, `Backend`, `Trust`, `Family`,
+`IoFamily`, `MediumTiming`, `RobotLimits`, `DeviceManifest`, `MediumManifest`, plus
+`DeviceSummary`/`DeviceCatalog`/`DeviceList` for the routes), `catalog.py` (reads the TOML
+with `tomllib`, flattens `[timing]` into `scan_min` plus a medium map exactly as the Rust
+`RawTiming` does, validates name-matches-file-stem and class-matches-folder, caches per
+directory), `api/devices.py`. Routes (read-only, no database): `GET /v1/devices/catalog`
+(every device and medium), `GET /v1/devices` (summaries), `GET /v1/devices/{name}`.
+The manifest directory comes from a new setting `devices_dir`; its default is the repo
+`devices/` resolved relative to the package (`parents[5]`), so the service finds it
+whatever the working directory, and an env var overrides it. **The E2.10 Docker image must
+copy `devices/` into the image**: Render runs this service with `rootDir: services/core`
+(confirmed in `render.yaml`), which does not contain `devices/`; the design already lists
+`devices/` among the files stage 2 copies.
+Choices: durations and bit rates stay as the manifest strings (`"1 ms"`); this catalog is
+descriptive and the Rust side owns the authoritative numeric parsing for `neuron cell
+check`, so the two cannot disagree on a number. Models use `extra="forbid"`, matching the
+Rust `deny_unknown_fields`. The catalog is public (it has no secrets); E-R3 keeps every
+other `/v1/devices/*` route from guests, enforced with the permission matrix in E3.2.
+Not done: cross-checks the Rust side also makes (backend fits the class, dialects known,
+units valid) are left to `neuron cell check`; the catalog loads what the repo ships, which
+the Rust `neuron-cell` tests already validate.
+Tests: 20 in `tests/test_devices.py`, including a parametrized case per file under
+`devices/` (`test_every_device_manifest_loads`, `test_every_medium_manifest_loads`) so
+every shipped manifest is asserted to load, the catalog count and route tests, a
+`devices_dir` override, and rejection of a missing `[safety]`, a name/stem mismatch and an
+unknown field. These need no database and run everywhere.

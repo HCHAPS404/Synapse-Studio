@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from synapse_core import __version__
 from synapse_core.api.builds import router as builds_router
+from synapse_core.api.devices import router as devices_router
 from synapse_core.api.projects import router as projects_router
 from synapse_core.compile.sandbox import NetworkSandbox, detect_network_sandbox
 from synapse_core.db.session import dispose_engines, get_engine
@@ -127,6 +128,7 @@ def create_app() -> FastAPI:
 
     app.include_router(projects_router)
     app.include_router(builds_router)
+    app.include_router(devices_router)
 
     @app.get("/health", response_model=HealthResponse)
     async def health(request: Request, settings: SettingsDep) -> HealthResponse:

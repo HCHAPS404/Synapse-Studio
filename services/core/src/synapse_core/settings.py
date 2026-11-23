@@ -32,6 +32,10 @@ class Settings(BaseSettings):
     compile_queue_max: int = Field(
         default=8, ge=0, le=1000, description="Jobs that may wait; more is NE1103"
     )
+    devices_dir: str | None = Field(
+        default=None,
+        description="Directory of the device manifests; default: the repo `devices/`",
+    )
     log_level: str = Field(default="INFO", description="DEBUG | INFO | WARNING | ERROR")
     log_json: bool = Field(default=True, description="Structured JSON logs")
 

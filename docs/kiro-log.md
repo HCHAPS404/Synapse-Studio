@@ -870,3 +870,13 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
 - **Lessons:** a gated fake runner (an injected subclass holding a `peak` counter) proves
   the semaphore bound without timing. Storing artifact bytes in a table keeps one Render
   instance simple; the input and output caps already bound the size.
+## 2026-11-23 · Task E2.6 (device catalog from the manifests)
+- **Kiro features:** spec-driven task from `.kiro/specs/core-services/`, workspace rules.
+- **Produced:** `synapse_core/devices/` (`models.py`, `catalog.py`), `api/devices.py`,
+  `devices_dir` setting, `tests/test_devices.py`.
+- **Results:** 20 new tests (one per manifest file, catalog/route tests, override,
+  rejections); 101 pass, 21 skip; ruff clean. Read-only, no database.
+- **Lessons:** the Python models mirror `manifest.rs` but keep durations as strings, since
+  the Rust side owns the authoritative numeric parsing; duplicating it would risk drift.
+  `devices/` is outside the Render `rootDir`, so a package-relative default locates it and
+  the E2.10 image must copy it in.
