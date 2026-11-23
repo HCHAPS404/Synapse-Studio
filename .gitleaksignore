@@ -8,3 +8,8 @@
 69cf5bf5949dc5938cb9aaddf4c64bc14028d5db:ltm/bin/ltm.py:stripe-access-token:918
 # 2026-11-22: the first version of this file quoted that same fake string in a comment.
 369e7936f57fe5a140c7c5f414bda35724e6f2e8:.gitleaksignore:stripe-access-token:5
+#
+# 2026-11-23: E5.2 package signing. The flagged line is `signature = key.sign(...)`,
+# an Ed25519 signing call, not a key. No secret is in the source; the signing key comes
+# from the environment at run time.
+591adfb2b47daae835a2e16f6d3cae861c1d61a5:services/core/src/synapse_core/packages.py:generic-api-key:100
