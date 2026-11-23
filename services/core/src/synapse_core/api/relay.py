@@ -39,11 +39,13 @@ async def relay(
     engine = get_engine(settings)
     sessions = async_sessionmaker(engine, expire_on_commit=False) if engine is not None else None
     timeouts: SessionTimeouts | None = getattr(websocket.app.state, "relay_timeouts", None)
+    control_rate: float = getattr(websocket.app.state, "relay_control_rate", 20.0)
     session = RelaySession(
         StarletteTransport(websocket),
         get_hub(websocket),
         settings,
         sessions,
         timeouts=timeouts,
+        control_rate=control_rate,
     )
     await session.run()

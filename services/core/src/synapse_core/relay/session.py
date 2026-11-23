@@ -1,4 +1,4 @@
-"""Per-connection relay session: lifecycle, validation, role checks (E4.1).
+"""Per-connection relay session: lifecycle, validation, roles, subscriptions (E4.1, E4.2).
 
 Transport-agnostic so it can be driven by a real Starlette WebSocket or an in-process fake
 in tests. The lifecycle follows `spec/protocols/relay.md`:
@@ -10,8 +10,10 @@ in tests. The lifecycle follows `spec/protocols/relay.md`:
 4. every inbound frame is validated against the JSON Schema; a role may send only the
    messages of its row in the table, otherwise `forbidden`.
 
-Subscriptions, the `cell_snapshot` cache, fan-out and the control-message rate limit are
-added in E4.2; E4.1 validates, checks the role and acks requests that carry an `id`.
+E4.2 adds: subscriptions (`subscribe`/`unsubscribe` with an `ack` and the cached
+`cell_snapshot`), fan-out of publisher frames through the hub, a bounded per-session outbox
+with the drop policy (a writer task drains it to the transport), and a control-message rate
+limit of 20 per second per session (`rate_limited`), built on the E2.7 token bucket.
 """
 
 from __future__ import annotations
@@ -23,9 +25,10 @@ from typing import Any, Protocol
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from synapse_core.limits import BucketConfig, RateLimiter
 from synapse_core.relay import protocol as proto
 from synapse_core.relay.auth import RelayAuthError, identify
-from synapse_core.relay.hub import Hub, Session
+from synapse_core.relay.hub import Hub, Session, Subscription, _OutboxClosed
 from synapse_core.relay.roles import may_send
 from synapse_core.relay.validate import (
     FrameError,
@@ -39,6 +42,14 @@ from synapse_core.relay.validate import (
 from synapse_core.settings import Settings
 
 log = logging.getLogger(__name__)
+
+# Channels a client may subscribe to (the `Channel` enum of the schema).
+VALID_CHANNELS: frozenset[str] = frozenset(
+    {"cell", "telemetry", "trace", "deployment", "replay", "safety"}
+)
+
+# Control-message rate limit (relay.md: fewer than 20 control messages per second).
+_CONTROL_SCOPE = "control"
 
 
 class Transport(Protocol):
@@ -63,12 +74,11 @@ class SessionTimeouts:
     silence_close_s: float = 45.0
 
 
-# Requests that carry an optional `id` and are confirmed with `ack` when E4.1 has no other
-# reply for them yet. subscribe/unsubscribe get real behaviour in E4.2.
-_ACKABLE: frozenset[str] = frozenset(
+# Client requests that carry an optional `id` and get an `ack` (sim/replay control). They are
+# forwarded to the twin/daemon of the cell by the fan-out once E5 connects real publishers;
+# here they are validated, role-checked, rate-limited and acknowledged.
+_SIM_CONTROL: frozenset[str] = frozenset(
     {
-        "subscribe",
-        "unsubscribe",
         "sim_start",
         "sim_pause",
         "sim_step",
@@ -78,6 +88,25 @@ _ACKABLE: frozenset[str] = frozenset(
         "replay_play",
     }
 )
+
+# Publisher frames routed by the hub to the cell's subscribers.
+_PUBLISHER: frozenset[str] = frozenset(
+    {
+        "telemetry",
+        "trace",
+        "sim_state",
+        "deployment_status",
+        "estop_state",
+        "cell_snapshot",
+        "replay_header",
+        "replay_events",
+        "replay_end",
+    }
+)
+
+# Messages that count against the control-message rate limit: client-originated frames other
+# than the liveness `pong` (which is a mandated response, not client traffic).
+_RATE_EXEMPT: frozenset[str] = frozenset({"pong"})
 
 
 class RelaySession:
@@ -91,6 +120,7 @@ class RelaySession:
         sessions: async_sessionmaker[AsyncSession] | None,
         *,
         timeouts: SessionTimeouts | None = None,
+        control_rate: float = 20.0,
     ) -> None:
         self._t = transport
         self._hub = hub
@@ -98,6 +128,10 @@ class RelaySession:
         self._sessions = sessions
         self._timeouts = timeouts or SessionTimeouts()
         self._session: Session | None = None
+        self._writer: asyncio.Task[None] | None = None
+        # One token bucket per session: capacity = burst = the per-second limit, refilled at
+        # the same rate (reuses the E2.7 limiter core).
+        self._limiter = RateLimiter({_CONTROL_SCOPE: BucketConfig(control_rate, control_rate)})
 
     async def run(self) -> None:
         """Accepts the socket, runs the handshake and the message loop, and cleans up."""
@@ -105,6 +139,7 @@ class RelaySession:
         try:
             if not await self._handshake():
                 return
+            self._writer = asyncio.create_task(self._drain_outbox())
             await self._loop()
         except TransportClosed:
             pass
@@ -114,6 +149,27 @@ class RelaySession:
         finally:
             if self._session is not None:
                 self._hub.unregister(self._session.id)
+            if self._writer is not None:
+                self._writer.cancel()
+                try:
+                    await self._writer
+                except (asyncio.CancelledError, _OutboxClosed):
+                    pass
+
+    # -- outbox writer -------------------------------------------------------------
+
+    async def _drain_outbox(self) -> None:
+        """Sends queued frames to the transport in order until the outbox closes."""
+        assert self._session is not None
+        outbox = self._session.outbox
+        try:
+            while True:
+                frame = await outbox.get()
+                await self._t.send_json(frame)
+        except _OutboxClosed:
+            return
+        except TransportClosed:
+            return
 
     # -- handshake -----------------------------------------------------------------
 
@@ -160,11 +216,12 @@ class RelaySession:
             id=session_id,
             roles=identity.roles,
             key=identity.key,
-            sink=self._t.send_json,
+            outbox=self._hub.new_outbox(),
             cell_id=identity.cell_id,
             capabilities=capabilities,
         )
         self._hub.register(self._session)
+        # welcome is sent directly (before the writer starts) so it is always the first frame.
         await self._t.send_json(
             proto.welcome(session_id, sorted(identity.roles), capabilities=capabilities or None)
         )
@@ -185,8 +242,6 @@ class RelaySession:
         assert self._session is not None
         pinged = False
         while True:
-            # First wait up to the idle window; on timeout send a ping and wait the rest of
-            # the silence budget for any frame before closing.
             try:
                 text = await asyncio.wait_for(
                     self._t.receive_text(), timeout=self._timeouts.idle_ping_s
@@ -195,7 +250,7 @@ class RelaySession:
                 if pinged:
                     await self._t.close(code=1000)
                     return
-                await self._send_server_ping()
+                self._enqueue(self._server_ping())
                 pinged = True
                 try:
                     text = await asyncio.wait_for(
@@ -214,11 +269,10 @@ class RelaySession:
             frame = _decode_frame(text)
             validate_message(frame)
         except VersionError:
-            # After welcome, a version problem is a non-fatal bad_message (relay.md).
-            await self._send(proto.error(proto.RelayCode.BAD_MESSAGE, "unsupported version"))
+            self._enqueue(proto.error(proto.RelayCode.BAD_MESSAGE, "unsupported version"))
             return
         except FrameError as exc:
-            await self._send(proto.error(proto.RelayCode.BAD_MESSAGE, str(exc)))
+            self._enqueue(proto.error(proto.RelayCode.BAD_MESSAGE, str(exc)))
             return
 
         mtype = message_type(frame)
@@ -226,7 +280,7 @@ class RelaySession:
         request_id = frame.get("id") if isinstance(frame.get("id"), str) else None
 
         if not may_send(self._session.roles, mtype):
-            await self._send(
+            self._enqueue(
                 proto.error(
                     proto.RelayCode.FORBIDDEN,
                     f"a session with roles {sorted(self._session.roles)} may not send {mtype}",
@@ -235,29 +289,88 @@ class RelaySession:
             )
             return
 
+        if mtype not in _RATE_EXEMPT and not self._allow_control():
+            self._enqueue(
+                proto.error(
+                    proto.RelayCode.RATE_LIMITED,
+                    "too many control messages; slow down",
+                    request_id=request_id,
+                )
+            )
+            return
+
         if mtype == "ping":
-            await self._send(proto.pong(int(frame["id"]), int(frame["t_ns"])))
+            self._enqueue(proto.pong(int(frame["id"]), int(frame["t_ns"])))
             return
         if mtype == "pong":
-            return  # liveness only; nothing to answer
+            return
         if mtype == "hello":
-            await self._send(proto.error(proto.RelayCode.BAD_MESSAGE, "already greeted"))
+            self._enqueue(proto.error(proto.RelayCode.BAD_MESSAGE, "already greeted"))
             return
-        if mtype in _ACKABLE and request_id is not None:
-            # E4.1 confirms the request; E4.2 adds subscriptions, cache and forwarding.
-            await self._send(proto.ack(request_id, mtype))
+        if mtype == "subscribe":
+            self._on_subscribe(frame, request_id)
             return
-        # Publisher frames (telemetry/trace/…) are accepted and fanned out in E4.2.
+        if mtype == "unsubscribe":
+            self._on_unsubscribe(frame, request_id)
+            return
+        if mtype in _SIM_CONTROL:
+            # Routed to the cell's twin/daemon by the fan-out; acked to the sender.
+            self._fan_out(frame)
+            if request_id is not None:
+                self._enqueue(proto.ack(request_id, mtype))
+            return
+        if mtype in _PUBLISHER:
+            self._fan_out(frame)
+            return
+
+    # -- handlers ------------------------------------------------------------------
+
+    def _on_subscribe(self, frame: dict[str, Any], request_id: str | None) -> None:
+        assert self._session is not None
+        cell = str(frame["cell"])
+        device = frame.get("device")
+        device = str(device) if isinstance(device, str) else None
+        channels = [c for c in frame.get("channels", []) if c in VALID_CHANNELS]
+        self._hub.subscribe(
+            self._session, Subscription(cell=cell, channels=frozenset(channels), device=device)
+        )
+        if request_id is not None:
+            self._enqueue(proto.ack(request_id, "subscribe"))
+        # Replay the cached cell snapshot to a new `cell`-channel subscriber (relay.md).
+        if "cell" in channels:
+            snapshot = self._hub.cached_snapshot(cell)
+            if snapshot is not None:
+                self._enqueue(snapshot)
+
+    def _on_unsubscribe(self, frame: dict[str, Any], request_id: str | None) -> None:
+        assert self._session is not None
+        cell = str(frame["cell"])
+        device = frame.get("device")
+        device = str(device) if isinstance(device, str) else None
+        self._hub.unsubscribe(self._session, cell, device)
+        if request_id is not None:
+            self._enqueue(proto.ack(request_id, "unsubscribe"))
+
+    def _fan_out(self, frame: dict[str, Any]) -> None:
+        """Delivers a publisher/control frame to the cell's subscribers (not the sender)."""
+        assert self._session is not None
+        cell = frame.get("cell")
+        if isinstance(cell, str):
+            self._hub.publish(frame, cell, exclude=self._session.id)
+
+    def _allow_control(self) -> bool:
+        assert self._session is not None
+        return self._limiter.check(_CONTROL_SCOPE, self._session.id).allowed
 
     # -- helpers -------------------------------------------------------------------
 
-    async def _send_server_ping(self) -> None:
-        await self._send(
-            {"v": proto.PROTOCOL_VERSION, "type": "ping", "id": 0, "t_ns": proto.now_ns()}
-        )
+    def _server_ping(self) -> dict[str, Any]:
+        return {"v": proto.PROTOCOL_VERSION, "type": "ping", "id": 0, "t_ns": proto.now_ns()}
 
-    async def _send(self, frame: dict[str, Any]) -> None:
-        await self._t.send_json(frame)
+    def _enqueue(self, frame: dict[str, Any]) -> None:
+        """Queues a frame on the session outbox (subject to the drop policy)."""
+        if self._session is not None:
+            self._session.enqueue(frame)
 
     async def _try_send(self, frame: dict[str, Any]) -> None:
         try:

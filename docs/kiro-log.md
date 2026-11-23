@@ -1011,3 +1011,20 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   in-process with Starlette's `TestClient` and short timeouts, no network and no real clock
   wait. `BaseHTTPMiddleware` skips WebSocket scopes, so the relay's control-message rate limit
   belongs inside the session (E4.2), not in the HTTP limiter.
+
+## 2026-11-23 · Task E4.2 (Relay subscriptions, snapshot cache, fan-out, control rate limit)
+- **Kiro features:** spec-driven task from `.kiro/specs/core-services/`, the relay contract and
+  its example messages (`spec/protocols/examples/`), the E2.7 token-bucket limiter, and the
+  E4.1 "Results of" for the hub and session surfaces this builds on.
+- **Produced:** `relay/hub.py` grown with `Subscription`, `BoundedOutbox` (drop policy),
+  per-cell snapshot cache and `publish` fan-out with channel/device matching; `relay/session.py`
+  with an outbox writer task, real `subscribe`/`unsubscribe` (ack + cached snapshot), publisher
+  fan-out, and a per-session 20/s control-message rate limit reusing the E2.7 bucket.
+- **Results:** 12 new tests (9 DB-free hub/property, 3 WebSocket fan-out); full suite 207 pass,
+  4 skipped; ruff clean; drift green. The Hypothesis property validates every example message
+  against the JSON Schema and round-trips it unchanged, then routes publisher examples.
+- **Lessons:** routing every post-`welcome` send through one bounded outbox and a single writer
+  task gives ordered delivery, a uniform drop policy and no concurrent writes to the socket.
+  The drop policy must keep control/snapshot/replay frames even past the soft bound, so the
+  queue is not a hard cap for those; only `telemetry`/`trace` are ever dropped. Making the
+  control rate injectable let the limit be hit deterministically in a test without real time.

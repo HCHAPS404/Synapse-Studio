@@ -20,7 +20,7 @@ tested against simulated peers.
 | E3.3 | Service tokens (hashed, revocable) and their issue route | E-R6, E-R10 | no | done |
 | E3.4 | Audit log table with `INSERT`/`SELECT` grants, audit writes on every sensitive action, read route for engineers | E-R8 | no | done |
 | E4.1 | Relay core: `WS /v1/relay`, lifecycle (`hello`, `welcome`, ping, timeouts), schema validation, role table checked against `relay.md`, error codes | E-R9, E-R7 | no | done |
-| E4.2 | Subscriptions, `cell_snapshot` cache, fan-out with bounded queues and drop policy, control rate limit; round-trip property over all examples | E-R9 | no | open |
+| E4.2 | Subscriptions, `cell_snapshot` cache, fan-out with bounded queues and drop policy, control rate limit; round-trip property over all examples | E-R9 | no | done |
 | E4.3 | Daemon pairing (code, claim, token, unpair), `daemons` and `devices` tables, `deployment_status` and heartbeat timeout | E-R10 | no | open |
 | E4.4 | Telemetry ingest from relay frames, tables, indexes, storage cap | E-R11 | no | open |
 | E4.5 | Retention and 1-minute roll-up task with advisory lock; `GET /v1/telemetry`; property test of retention | E-R11 | no | open |
@@ -470,4 +470,41 @@ daemon service token grants `daemon` and may not `sim_start`, a revoked service 
 `unauthenticated`). Full suite 195 pass, 4 skipped locally (the Postgres-only migration-grant
 test deselected; relay DB tests ran on SQLite with `--with aiosqlite`, and on Postgres in CI);
 ruff clean; OpenAPI/SDK drift check green (WebSocket routes do not appear in the OpenAPI doc).
+
+## Results of E4.2
+Subscriptions, the snapshot cache, fan-out and the control-message rate limit. `hub.py` grew:
+`Subscription` (cell, channels, optional single device); `BoundedOutbox` (a bounded FIFO with
+the relay drop policy — when full it drops the oldest `telemetry`/`trace` frame to make room,
+never a control reply, snapshot or replay framing, counting `dropped`); `Session` now holds an
+`outbox` and its `subscriptions`; `Hub.subscribe`/`unsubscribe`, a per-cell `cell_snapshot`
+cache (`cached_snapshot`), and `publish(frame, cell, exclude=…)` which routes a publisher frame
+to every subscriber whose cell, channel and (optional) device match. `CHANNEL_MESSAGES` maps
+the six schema channels (`cell`→`cell_snapshot`+`sim_state`, `telemetry`, `trace`,
+`deployment`, `replay`, `safety`→`estop_state`) to message types; `_frame_touches_device`
+scopes a device subscription (telemetry `id` prefix, `trace`/`replay_events` `device`,
+`deployment_status` entries; frames with no device info always match). `session.py` now runs a
+writer task that drains the outbox to the transport in order (all post-`welcome` sends go
+through it, so the drop policy and ordering are uniform and there is no concurrent send on the
+socket); `welcome` is sent directly before the writer starts so it is always first.
+`subscribe` is acked and, when the `cell` channel was asked for, the cached snapshot is
+enqueued; `unsubscribe` is acked; `sim_*`/`replay_play` are fanned out to the cell (excluding
+the sender) and acked; publisher frames are fanned out. The control-message rate limit reuses
+the E2.7 token bucket: one `RateLimiter` per session, scope `control`, capacity = rate =
+20/s (injectable via `app.state.relay_control_rate`); every client frame except `pong` draws a
+token, and an empty bucket is a `rate_limited` error (echoing any `id`). Choices: the control
+limiter is per session (not the shared HTTP limiter), as E-R4 wants a per-session WebSocket
+limit; a non-droppable frame is kept even past the soft bound rather than dropped, honouring
+the protocol's "never drops control replies"; `sim_*` forwarding reaches the twin through the
+same fan-out as publisher frames (no separate path), and real twin/daemon publishers connect
+in E5. Open: `sim_*` targeting (twin-only, `simulated: true` devices) and the advisory E-STOP
+audit path are E4.6; telemetry persistence is E4.4. Tests: 12 new — `tests/test_relay_hub.py`
+(9, DB-free: the drop policy drops oldest telemetry, never control frames, and evicts a
+droppable to make room for a control frame; fan-out matches only the right cell/channel/device;
+the snapshot is cached and replayed; and a Hypothesis property over every file in
+`spec/protocols/examples/` that each message decodes, validates against the schema unchanged,
+re-serialises identically, and a publisher example routes to a matching subscriber) and
+`tests/test_relay_fanout.py` (3, needs a DB: a twin's `telemetry` fans out to a web subscriber,
+a cached `cell_snapshot` is delivered after a later `subscribe`, and the control-message rate
+limit refuses a burst with `rate_limited`). Full suite 207 pass, 4 skipped locally (relay DB
+tests on SQLite with `--with aiosqlite`, Postgres in CI); ruff clean; OpenAPI/SDK drift green.
 
