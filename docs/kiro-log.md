@@ -1174,3 +1174,12 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   keeps a per-topic cache filled by a reader task and a read returns the latest value or `bad` -- it
   never blocks waiting or invents a value; a shared mock broker that fans a publish to subscribers lets
   two mock clients model a real pub/sub exchange with no broker process.
+## 2026-11-23 · Task E5.9 (CAN driver on the python-can virtual bus)
+- **Kiro features:** spec-driven task from `.kiro/specs/core-services/` (design driver table),
+  requirement E-R12.
+- **Produced:** `synapse_daemon.drivers.can.CanDriver` -- byte-slice tag mapping, a reader task that
+  caches the latest frame per arbitration id, int/bool decode and pack, bad-quality reads.
+- **Results:** 7 new tests on the virtual bus; daemon suite 77 pass / 1 skip; ruff clean.
+- **Lessons:** the virtual bus does not loop a sender's own frames back, so the driver updates its
+  per-id cache on write; running the blocking `recv` in a worker thread keeps the async read path
+  from stalling the event loop while still returning `bad` promptly when no frame has arrived.

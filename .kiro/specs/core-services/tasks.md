@@ -33,7 +33,7 @@ tested against simulated peers.
 | E5.6 | Modbus TCP and RTU drivers against a pymodbus server and a loopback serial pair | E-R12 | no | done |
 | E5.7 | S7 driver against the snap7 server or a mock | E-R12 | no | done |
 | E5.8 | TCP socket and MQTT drivers against a local server and an in-process broker | E-R12 | no | done |
-| E5.9 | CAN driver on the python-can virtual bus | E-R12 | no | open |
+| E5.9 | CAN driver on the python-can virtual bus | E-R12 | no | done |
 | E5.10 | Heartbeat, local E-STOP input (read-only), `estop_state`, advisory request handling, safe state outputs | E-R15 | no (simulated input) | open |
 | E5.11 | Serve the PWA on the LAN and offline operation; `docs/daemon.md` with the safety wording | E-R12, E-R20 | no | open |
 | E5.12 | OPC UA driver against an in-process `asyncua` server (stretch, after E5.1 to E5.11) | E-R12 | no | open |
@@ -781,3 +781,16 @@ non-writable refused, connect failure), and the MQTT driver against a shared in-
 (a publisher's message is read back, a write to a self-subscribed topic reads back, an unseen tag is
 bad, a non-writable tag is refused). Also removed an unused helper in the serial driver. No new error
 code; no hardware, no network beyond localhost, no real broker.
+## Results of E5.9
+CAN driver (`drivers/can.py`, `CanDriver`) over `python-can`, tested on the virtual bus
+(`interface="virtual"`). A tag maps to a byte slice of a CAN frame:
+`{"arbitration_id", "start", "length", "kind": "int"|"bool", "signed", "extended"}`. On open the
+driver opens the bus and starts a reader task that caches the last data bytes per arbitration id
+(blocking `recv` runs in a worker thread); a read decodes the slice from the cached frame or is
+`bad` when none has been seen; a write packs the value into the last-known frame for that id and
+sends it (and updates the cache so a read reflects it). A failed send raises `DriverError`; a
+non-writable or unmapped tag is refused; no value is guessed. Tests (`tests/test_e5_9_can.py`, 7,
+each on a unique virtual channel): read an int and a bool from a peer-sent frame, a write the peer
+receives with the right id and bytes, a write read back, an unseen tag bad, a non-writable tag
+refused, a read before open bad. No new error code; no hardware, uses only the in-process virtual
+bus.
