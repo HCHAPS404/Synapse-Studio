@@ -1,0 +1,3 @@
+header hdl name=nexys_a7_vga target=-
+  11 clock sys freq=100 MHz
+  13 circuit vga ports=5 members=8

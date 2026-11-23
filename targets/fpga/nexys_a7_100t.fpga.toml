@@ -26,4 +26,10 @@ pins = [
   "D4", "C4",
   # Two Pmod rows (JA) as general 3.3 V I/O: JA1..JA4, JA7..JA10.
   "C17", "D18", "E18", "G17", "D17", "E17", "F18", "G18",
+  # VGA connector (4 bits per colour) and the sync signals.
+  # VGA_R[0..3], VGA_G[0..3], VGA_B[0..3], then VGA_HS, VGA_VS.
+  "A3", "B4", "C5", "A4",
+  "C6", "A5", "B6", "A6",
+  "B7", "C7", "D7", "D8",
+  "B11", "B12",
 ]

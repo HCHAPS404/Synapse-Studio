@@ -1,0 +1,54 @@
+## VGA 640x480 @ 60 Hz colour bars on a Nexys A7-100T.
+##
+## The board clock is 100 MHz; VGA 640x480@60 needs a 25.175 MHz pixel clock. Dividing by
+## four gives 25.0 MHz, which is within VGA tolerance, so the pixel enable is one tick in
+## four rather than a separate clock domain (no vendor clock IP needed).
+##
+## Standard 640x480 timing (pixels): visible 640, front porch 16, sync 96, back porch 48
+## = 800 per line. Lines: visible 480, front 10, sync 2, back 33 = 525. Both syncs are
+## active low. Eight vertical colour bars across the 640 visible pixels (80 px each).
+module nexys_a7_vga for hdl
+clock sys: 100 MHz @ pin(E3)
+
+circuit vga(
+  hsync: out bit @ pin(B11),
+  vsync: out bit @ pin(B12),
+  red: out bit<4> @ pin(A3, B4, C5, A4),
+  green: out bit<4> @ pin(C6, A5, B6, A6),
+  blue: out bit<4> @ pin(B7, C7, D7, D8),
+) on sys:
+  # Divide the 100 MHz clock to a 25 MHz pixel enable (one tick in four).
+  reg div: bit<2> = 0
+  reg pix: bit = 0
+  # Pixel and line counters over the full 800 x 525 frame.
+  reg hcount: bit<10> = 0
+  reg vcount: bit<10> = 0
+
+  on rising(sys):
+    div = div +% 1
+    pix = div == 0
+    if pix:
+      if hcount == 799:
+        hcount = 0
+        if vcount == 524:
+          vcount = 0
+        else:
+          vcount = vcount + 1
+      else:
+        hcount = hcount + 1
+
+  # Visible-area flag and the bar index (bits 9:7 of hcount give 0..7 across 640 px).
+  wire visible: bit
+  wire bar: bit<3>
+
+  comb:
+    # Sync pulses (active low): low during the sync window of each axis.
+    hsync = not (hcount >= 656 and hcount < 752)
+    vsync = not (vcount >= 490 and vcount < 492)
+
+    visible = hcount < 640 and vcount < 480
+    bar = hcount[9:7]
+    # Colour only in the visible area; black everywhere else (blanking).
+    red = if visible and bar[0] then 4'hf else 4'h0
+    green = if visible and bar[1] then 4'hf else 4'h0
+    blue = if visible and bar[2] then 4'hf else 4'h0

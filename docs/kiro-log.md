@@ -1390,3 +1390,17 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   UART0 TX and the per-port edge interrupts were left out on purpose (the GPIO interrupt is
   per-port, not per-line like STM32 EXTI, risky to wire without the board), the same honesty
   rule the other ports apply to ADC/PWM. Not run on hardware yet; lm4flash not installed.
+
+## 2026-11-23 · VGA 640x480 colour bars for the Nexys A7-100T
+- **Kiro features:** the `hdl` dialect and the FPGA board model; honest diagnostics
+  (`NE0003`, `NE0208`, `NE0610`) caught every mistake before any hardware.
+- **Produced:** `examples/nexys_a7_vga.neuron` (a 25 MHz pixel enable from the 100 MHz
+  clock, standard 640x480@60 timing, eight vertical colour bars) and the VGA pins added to
+  `targets/fpga/nexys_a7_100t.fpga.toml`. `neuron emit-verilog --board nexys_a7_100t` writes
+  `top.v` and a complete `top.xdc` (clock E3, HSYNC B11, VSYNC B12, 4 bits each of R/G/B).
+- **Results:** check and emit pass; the XDC constrains all 15 signals; a self-contained
+  Vivado/open-toolchain package, no third-party code to write.
+- **Lessons:** Neuron has no C ternary (`? :`) — use `if/then/else`; `~` is for bit vectors
+  and `not` for bool; the Verilog backend takes `wire` in a `comb:` block but not a local
+  `var`, so the colour logic uses wires. A multi-bit port needs one pin per bit in
+  `@ pin(...)`. Synthesis and the bitstream still need an FPGA toolchain (lab batch).
