@@ -1153,3 +1153,13 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   at address 1 while the client reads 0-based; sharing one read/write path between the TCP and RTU
   subclasses means the TCP server test also exercises the RTU driver's logic, and the pty pair proves
   the serial transport where the OS allows it.
+## 2026-11-23 · Task E5.7 (S7 driver against a python-snap7 server or a mock)
+- **Kiro features:** spec-driven task from `.kiro/specs/core-services/` (design driver table,
+  "or a mock when the library is not available"), requirement E-R12.
+- **Produced:** `synapse_daemon.drivers.s7.S7Driver` -- typed DB int/real/bool reads and writes,
+  injectable `client_factory` for a mock, bad-quality reads and refused non-writable/unmapped tags.
+- **Results:** 6 tests (real in-process snap7 `Server` round trip + mock-client suite); daemon suite
+  green; ruff clean.
+- **Lessons:** an injectable client factory lets the same driver run against the real native server
+  when the wheel's library loads and against a dict-backed mock otherwise, so the suite is green on
+  any machine without pretending the native path was exercised when it was not.

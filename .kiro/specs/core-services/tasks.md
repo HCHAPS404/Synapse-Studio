@@ -31,7 +31,7 @@ tested against simulated peers.
 | E5.4 | Deployment state machine in the API and the daemon, `NE1110`, property test over event sequences | E-R14 | no | done |
 | E5.5 | Serial driver and `Flasher` (avrdude, UF2) with fake tools and `loop://` | E-R12 | no | done |
 | E5.6 | Modbus TCP and RTU drivers against a pymodbus server and a loopback serial pair | E-R12 | no | done |
-| E5.7 | S7 driver against the snap7 server or a mock | E-R12 | no | open |
+| E5.7 | S7 driver against the snap7 server or a mock | E-R12 | no | done |
 | E5.8 | TCP socket and MQTT drivers against a local server and an in-process broker | E-R12 | no | open |
 | E5.9 | CAN driver on the python-can virtual bus | E-R12 | no | open |
 | E5.10 | Heartbeat, local E-STOP input (read-only), `estop_state`, advisory request handling, safe state outputs | E-R15 | no (simulated input) | open |
@@ -755,3 +755,15 @@ failure raises); RTU has a genuine loopback round trip over a POSIX pty pair aga
 `ModbusSerialServer` (skipped on Windows, runs on Linux CI), plus an offline read that is bad and a
 client-construction check. pymodbus 3.16's data blocks are 1-based internally, so the server seeds at
 address 1 and the client reads 0-based. No new error code; no hardware, no network beyond localhost.
+## Results of E5.7
+S7 driver (`drivers/s7.py`, `S7Driver`) over `python-snap7`. A tag maps to a DB location via
+`cfg.tag_map[tag] = {"db", "start", "kind": "int"|"real"|"bool", "bit"}`. Reads and writes use
+snap7's typed DB helpers (`db_read_int`/`db_read_real`/`db_read_bool` and the matching writes) in a
+worker thread; a failed read is a `bad`-quality sample, a failed write or a non-writable/unmapped
+tag raises `DriverError`, no value is guessed. The driver takes an optional `client_factory` so a
+test injects a mock when the native snap7 library is absent (the design's fallback). Choices:
+`int`/`real`/`bool` cover the D3 scalar link types; wider DB structs are a later extension. Tests
+(`tests/test_e5_7_s7.py`, 6): a real round trip against an in-process snap7 `Server` on a free high
+port with a registered DB area (skipped only if the native library cannot load), plus always-running
+mock-client tests (int/real/bool round trip, non-writable refused, unmapped read bad, read before
+open bad, connect failure raises). No new error code; no hardware, no network beyond localhost.
