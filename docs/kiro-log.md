@@ -1121,3 +1121,14 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
 - **Lessons:** keeping the allowlist a name->model map makes "only these commands, only these args"
   one place to read and test; routing writes through the driver's own writability check means the
   command layer cannot be the hole that lets a non-writable tag be written.
+## 2026-11-23 · Task E5.4 (Deployment state machine in the API and the daemon, NE1110, property test)
+- **Kiro features:** spec-driven task from `.kiro/specs/core-services/` (design "Deployment state
+  machine"), requirement E-R14 and its "deployment gate" correctness criterion, shared `NE1110`.
+- **Produced:** `synapse_core.deploy` and `synapse_daemon.deploy` -- identical pure transition
+  functions (`allowed_events`, `next_state`, `is_terminal`) with the ordered happy path and the
+  three terminal states; an illegal transition is `NE1110` on each side.
+- **Results:** core 5 + daemon 6 tests, two of them Hypothesis properties over random event
+  sequences; ruff clean both sides; core suite + OpenAPI drift green.
+- **Lessons:** making the machine a pure function (no DB, no I/O) lets one Hypothesis property prove
+  "no shortcut to applied" directly, and a shared fixed transition vector keeps the API and daemon
+  tables from drifting apart without importing one package into the other.

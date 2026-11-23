@@ -1,0 +1,94 @@
+"""E5.4 (daemon side): the deployment state machine and its invariants (Hypothesis)."""
+
+from __future__ import annotations
+
+import pytest
+from hypothesis import given
+from hypothesis import strategies as st
+
+from synapse_daemon.deploy import (
+    TERMINAL_STATES,
+    DeployEvent,
+    DeployState,
+    allowed_events,
+    is_terminal,
+    next_state,
+)
+from synapse_daemon.errors import DaemonError, ErrorCode
+
+_EVENTS = list(DeployEvent)
+
+# The one path that reaches `applied`, in order.
+_HAPPY_PATH = [
+    DeployEvent.VERIFY,
+    DeployEvent.DRY_RUN,
+    DeployEvent.CONFIRM_1,
+    DeployEvent.CONFIRM_2,
+    DeployEvent.APPLY,
+]
+
+
+def test_transition_table_vector() -> None:
+    # This vector is asserted identically in the API-side test, so the two machines agree.
+    table = {s.value: sorted(e.value for e in allowed_events(s)) for s in DeployState}
+    assert table == {
+        "requested": ["abort", "fail", "reject", "verify"],
+        "verified": ["abort", "dry_run", "fail"],
+        "dry_run_ok": ["abort", "confirm_1", "fail"],
+        "confirmed_1": ["abort", "confirm_2", "fail"],
+        "confirmed_2": ["abort", "apply", "fail"],
+        "applied": [],
+        "rejected": [],
+        "failed": [],
+        "aborted": [],
+    }
+
+
+def test_happy_path_reaches_applied() -> None:
+    state = DeployState.REQUESTED
+    for event in _HAPPY_PATH:
+        state = next_state(state, event)
+    assert state is DeployState.APPLIED
+
+
+def test_confirm_2_before_dry_run_is_ne1110() -> None:
+    with pytest.raises(DaemonError) as exc:
+        next_state(DeployState.VERIFIED, DeployEvent.CONFIRM_2)
+    assert exc.value.code is ErrorCode.DEPLOYMENT_BLOCKED
+
+
+def test_apply_without_confirmations_is_ne1110() -> None:
+    with pytest.raises(DaemonError) as exc:
+        next_state(DeployState.VERIFIED, DeployEvent.APPLY)
+    assert exc.value.code is ErrorCode.DEPLOYMENT_BLOCKED
+
+
+@given(st.lists(st.sampled_from(_EVENTS), max_size=30))
+def test_no_illegal_transition_and_terminal_stays_terminal(events: list[DeployEvent]) -> None:
+    state = DeployState.REQUESTED
+    for event in events:
+        if is_terminal(state):
+            # A terminal state admits no event: every one is NE1110.
+            with pytest.raises(DaemonError):
+                next_state(state, event)
+            assert state in TERMINAL_STATES
+            continue
+        if event in allowed_events(state):
+            state = next_state(state, event)
+        else:
+            with pytest.raises(DaemonError):
+                next_state(state, event)
+
+
+@given(st.lists(st.sampled_from(_EVENTS), max_size=30))
+def test_applied_only_through_the_ordered_path(events: list[DeployEvent]) -> None:
+    # Apply only the legal events; if we ever reach `applied`, the legal prefix that got
+    # there must have been exactly the happy path in order.
+    state = DeployState.REQUESTED
+    taken: list[DeployEvent] = []
+    for event in events:
+        if not is_terminal(state) and event in allowed_events(state):
+            state = next_state(state, event)
+            taken.append(event)
+    if state is DeployState.APPLIED:
+        assert taken == _HAPPY_PATH

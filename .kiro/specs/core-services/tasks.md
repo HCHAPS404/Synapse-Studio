@@ -28,7 +28,7 @@ tested against simulated peers.
 | E5.1 | Daemon package: config, `Driver` protocol, simulated driver, relay client with reconnect, local LAN mode, pairing client | E-R12, E-R10 | no | done |
 | E5.2 | Signed packages: manifest, Ed25519 sign (API side) and verify (daemon), quarantine, `NE1108` | E-R13 | no | done |
 | E5.3 | Command allowlist with per-command Pydantic arguments, `NE1109`, `NE1111` for offline devices | E-R13 | no | done |
-| E5.4 | Deployment state machine in the API and the daemon, `NE1110`, property test over event sequences | E-R14 | no | open |
+| E5.4 | Deployment state machine in the API and the daemon, `NE1110`, property test over event sequences | E-R14 | no | done |
 | E5.5 | Serial driver and `Flasher` (avrdude, UF2) with fake tools and `loop://` | E-R12 | no | open |
 | E5.6 | Modbus TCP and RTU drivers against a pymodbus server and a loopback serial pair | E-R12 | no | open |
 | E5.7 | S7 driver against the snap7 server or a mock | E-R12 | no | open |
@@ -701,3 +701,22 @@ dispatcher, and the real flash/reopen handlers, land with E5.5/E5.10. Tests: 9 i
 `tests/test_e5_3_commands.py` (read/write allowed; unknown command, missing arg and extra arg all
 `NE1109`; offline device `NE1111`; status for the daemon and for an offline device; the allowlist
 holds no dangerous command). No new error code (NE1109/NE1111 documented in E2.1).
+## Results of E5.4
+Deployment state machine, a pure transition function with no I/O, in the API
+(`services/core/src/synapse_core/deploy.py`, raises `ServiceError(NE1110)`) and mirrored on
+the daemon (`services/edge-daemon/src/synapse_daemon/deploy.py`, raises `DaemonError(NE1110)`).
+States `requested, verified, dry_run_ok, confirmed_1, confirmed_2, applied` plus the terminal
+`rejected, failed, aborted`. The happy path is gated step by step (`verify, dry_run, confirm_1,
+confirm_2, apply`); `reject` only from `requested`; `fail`/`abort` from any non-terminal state;
+no event leaves a terminal state. `allowed_events` and `next_state` are the whole API; any
+out-of-order event is `NE1110`. The two tables are identical and kept in step by a fixed vector
+asserted in both suites. Choices: a pure function (not a stored row) is the unit of correctness,
+so the Hypothesis property drives it directly; the stored `deployments` row, the per-confirmation
+authenticated call with a server nonce, `SYNAPSE_REQUIRE_DISTINCT_CONFIRMERS`, the `verified`
+precondition (a stored error-free build + cell check) and the daemon dry-run at reduced speed are
+the routed/persisted layer on top, wired when the deploy routes and the daemon apply path land
+(after the drivers; the gate rules are the E5.4 deliverable). Open: the REST deploy routes and
+the daemon's apply using E5.2 `verify_package`. Tests: core 5 + daemon 6, including two Hypothesis
+properties over random event sequences of up to 30 events — no illegal transition passes silently,
+a terminal state stays terminal, and `applied` is reachable only through the exact ordered happy
+path. No new error code (NE1110 documented in E2.1).
