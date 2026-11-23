@@ -35,7 +35,7 @@ tested against simulated peers.
 | E5.8 | TCP socket and MQTT drivers against a local server and an in-process broker | E-R12 | no | done |
 | E5.9 | CAN driver on the python-can virtual bus | E-R12 | no | done |
 | E5.10 | Heartbeat, local E-STOP input (read-only), `estop_state`, advisory request handling, safe state outputs | E-R15 | no (simulated input) | done |
-| E5.11 | Serve the PWA on the LAN and offline operation; `docs/daemon.md` with the safety wording | E-R12, E-R20 | no | open |
+| E5.11 | Serve the PWA on the LAN and offline operation; `docs/daemon.md` with the safety wording | E-R12, E-R20 | no | done |
 | E5.12 | OPC UA driver against an in-process `asyncua` server (stretch, after E5.1 to E5.11) | E-R12 | no | open |
 | E5-HW | Daemon flashes the UNO and talks to a PLC and a robot controller in the lab; Python `host` node on the Pi 5 | E-R12, E-R14 | **yes** | pending (I4 to I7) |
 | E6.1 | Black box: ring buffer, fault window, local SQLite store, record JSON Schema | E-R16 | no | open |
@@ -813,3 +813,21 @@ synthesised tripped), an advisory never reports tripped unless the input says so
 one failing output does not block the rest, a single heartbeat frame, the heartbeat loop repeats then
 stops. Open: the run loop that wires the controller/heartbeat to the relay client and the driver pool
 is E5.11. No new error code; the input is simulated (E5-HW stays pending for a real input).
+## Results of E5.11
+Serve the PWA on the LAN and offline operation. `lan.py` gained `LanServer`, a minimal
+static-file HTTP server over plain asyncio (no web framework, no cloud): it serves the built
+PWA from `pwa_dir` and a `/health` endpoint that reports the run mode
+(`{"status":"ok","mode":"local","offline":true}` when no cloud relay is configured), with
+`safe_join` rejecting path traversal and an `index.html` SPA fallback. Only `GET` is served;
+other methods are 405. `docs/daemon.md` documents running the daemon, the `SYNAPSE_DAEMON_*`
+settings, local LAN / offline mode, pairing, the driver table, flashing, signed packages
+(`NE1108`), the command allowlist (`NE1109`/`NE1111`), the deployment gate (`NE1110`), and the
+heartbeat/E-STOP behaviour. The safety section states plainly: the software E-STOP is
+supplementary, the hardwired E-STOP is the authority, no message or command releases/bypasses/
+disables a safety function, and nothing claims IEC 61508 or ISO 13849. Tests
+(`tests/test_e5_11_lan.py`, 8): `safe_join` rejects `..` (stripped before normpath so a leading
+`/` cannot collapse it) and resolves `/` to index; serves index and an asset; SPA fallback; the
+`/health` offline payload; traversal forbidden; POST rejected; health works with no PWA
+directory. This completes the E5 software row (E5.1–E5.11); E5.12 (OPC UA) is a stretch and
+E5-HW stays pending for sessions I4–I7. Daemon suite: 93 pass, 1 skipped (the POSIX pty RTU
+test). No new error code.

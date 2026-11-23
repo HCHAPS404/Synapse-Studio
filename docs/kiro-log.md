@@ -1193,3 +1193,13 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
 - **Lessons:** making the advisory handler reply with `read_state()` and never a synthesised value
   keeps the contract's "report only what the daemon reads" structural; driving every safe output past a
   failing one means a single dead driver cannot stop the rest of the cell reaching its safe state.
+## 2026-11-23 · Task E5.11 (Serve the PWA on the LAN, offline operation, docs/daemon.md)
+- **Kiro features:** spec-driven task from `.kiro/specs/core-services/` (design "local mode serves
+  the PWA"), requirements E-R12/E-R20 and the relay.md safety rule.
+- **Produced:** `synapse_daemon.lan.LanServer` (asyncio static server + `/health`, traversal-safe,
+  SPA fallback) and `docs/daemon.md` with the full safety wording.
+- **Results:** 8 new tests; daemon suite 93 pass / 1 skip; ruff clean; format clean. E5 software row
+  (E5.1-E5.11) complete.
+- **Lessons:** rejecting `..` segments before `normpath` matters -- `normpath` collapses
+  `/../../x` to `/x` and would silently allow traversal; a tiny stdlib asyncio server is enough to
+  serve the PWA offline without pulling a web framework into the daemon.
