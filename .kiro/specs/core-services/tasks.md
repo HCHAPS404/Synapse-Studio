@@ -30,7 +30,7 @@ tested against simulated peers.
 | E5.3 | Command allowlist with per-command Pydantic arguments, `NE1109`, `NE1111` for offline devices | E-R13 | no | done |
 | E5.4 | Deployment state machine in the API and the daemon, `NE1110`, property test over event sequences | E-R14 | no | done |
 | E5.5 | Serial driver and `Flasher` (avrdude, UF2) with fake tools and `loop://` | E-R12 | no | done |
-| E5.6 | Modbus TCP and RTU drivers against a pymodbus server and a loopback serial pair | E-R12 | no | open |
+| E5.6 | Modbus TCP and RTU drivers against a pymodbus server and a loopback serial pair | E-R12 | no | done |
 | E5.7 | S7 driver against the snap7 server or a mock | E-R12 | no | open |
 | E5.8 | TCP socket and MQTT drivers against a local server and an in-process broker | E-R12 | no | open |
 | E5.9 | CAN driver on the python-can virtual bus | E-R12 | no | open |
@@ -725,7 +725,7 @@ Serial driver and the Flasher. `drivers/serial.py` (`SerialDriver`) opens a `pys
 (`cfg.params['url']`, default `loop://`) in a worker thread and speaks a small framed-ASCII
 line protocol: a write sends `TAG=VALUE\n` and confirms it against the `loop://` echo; a read
 sends `TAG?\n`, drains the echo and returns the last confirmed value. An unknown tag, a closed
-port or an unconfirmed write is a `bad`-quality sample or a `DriverError` — never a guessed
+port or an unconfirmed write is a `bad`-quality sample or a `DriverError` ï¿½ never a guessed
 value; a non-writable tag is refused. `flasher.py` (`Flasher`, `FlashTarget`, `FlashResult`)
 runs avrdude (`method="avrdude"`, argv built from `avrdude_cmd`/`programmer`/`mcu`/`port`, never
 a shell) or copies a UF2 file to a mounted drive (`method="uf2"`), each under a per-device
@@ -739,3 +739,19 @@ a real port object. Open: wiring the Flasher to the E5.3 `flash` command and the
 package, done in E5.10's runtime. Tests: 11 in `tests/test_e5_5_serial_flash.py` (serial
 write/read round trip, unknown tag bad, bool round trip, non-writable refused, bad URL; avrdude
 success, non-zero exit, timeout; UF2 copy, unknown device, missing artifact). No new error code.
+## Results of E5.6
+Modbus TCP and RTU drivers (`drivers/modbus.py`). A tag maps to a Modbus object via
+`cfg.tag_map[tag] = {"type": "coil"|"holding", "address": int}`. `_ModbusDriver` holds the shared
+async read/write logic (read a single coil or holding register, write a coil or register, check
+`isError()`); subclasses build the client: `ModbusTcpDriver` (`AsyncModbusTcpClient`, params
+`host`/`port`/`device_id`) and `ModbusRtuDriver` (`AsyncModbusSerialClient`, params `port` serial
+URL/`baudrate`). A failed read is a `bad`-quality sample; a failed or error-response write raises
+`DriverError`; a non-writable or unmapped tag is refused; the driver never returns a guessed value.
+Choices: single-register/coil access covers the D3 link layout (one tag, one address); multi-register
+types are a later extension. Tests (`tests/test_e5_6_modbus.py`, 9): the shared read/write path is
+driven end to end against an in-process `ModbusTcpServer` on an ephemeral port (read a holding
+register, write-then-read a register and a coil, non-writable refused, unmapped read bad, connect
+failure raises); RTU has a genuine loopback round trip over a POSIX pty pair against
+`ModbusSerialServer` (skipped on Windows, runs on Linux CI), plus an offline read that is bad and a
+client-construction check. pymodbus 3.16's data blocks are 1-based internally, so the server seeds at
+address 1 and the client reads 0-based. No new error code; no hardware, no network beyond localhost.

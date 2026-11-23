@@ -1142,3 +1142,14 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
 - **Lessons:** making the avrdude invocation a command list (not a bare path) lets the test inject a
   fake tool through `sys.executable` on every OS; keeping a confirmed-write cache for `loop://`
   reads gives a real round trip through the serial port object without a device answering the probe.
+## 2026-11-23 · Task E5.6 (Modbus TCP and RTU drivers against a pymodbus server and a pty loopback)
+- **Kiro features:** spec-driven task from `.kiro/specs/core-services/` (design driver table),
+  requirement E-R12.
+- **Produced:** `synapse_daemon.drivers.modbus` -- `_ModbusDriver` shared logic + `ModbusTcpDriver`
+  and `ModbusRtuDriver`; tag->object mapping, bad-quality reads, refused non-writable/unmapped tags.
+- **Results:** 9 tests (TCP end-to-end against an in-process `ModbusTcpServer`; RTU over a POSIX pty
+  pair, skipped on Windows); daemon suite 56 pass / 1 skip; ruff clean.
+- **Lessons:** pymodbus 3.16 data blocks are 1-based internally (`address - 1`), so the server seeds
+  at address 1 while the client reads 0-based; sharing one read/write path between the TCP and RTU
+  subclasses means the TCP server test also exercises the RTU driver's logic, and the pty pair proves
+  the serial transport where the OS allows it.
