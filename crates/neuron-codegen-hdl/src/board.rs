@@ -58,6 +58,10 @@ const BUILTIN: &[(&str, &str)] = &[
         "ice40up5k_breakout",
         include_str!("../../../targets/fpga/ice40up5k_breakout.fpga.toml"),
     ),
+    (
+        "nexys_a7_100t",
+        include_str!("../../../targets/fpga/nexys_a7_100t.fpga.toml"),
+    ),
 ];
 
 impl FpgaBoard {

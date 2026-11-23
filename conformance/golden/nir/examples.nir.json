@@ -2946,6 +2946,675 @@
     },
     {
       "id": "m3",
+      "name": "nexys_a7_blink",
+      "file": "nexys_a7_blink.neuron",
+      "kind": "module",
+      "dialect": "hdl",
+      "items": [
+        {
+          "id": "m3.i0",
+          "span": [
+            112,
+            140
+          ],
+          "def": {
+            "item": "clock",
+            "name": "sys",
+            "freq": {
+              "span": [
+                123,
+                130
+              ],
+              "ty": {
+                "t": "num",
+                "kind": "integer",
+                "unit": {
+                  "text": "MHz",
+                  "dim": [
+                    -1,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  "scale": "1000000"
+                }
+              },
+              "e": {
+                "e": "quantity",
+                "value": {
+                  "span": [
+                    123,
+                    126
+                  ],
+                  "ty": {
+                    "t": "num",
+                    "kind": "integer"
+                  },
+                  "e": {
+                    "e": "lit",
+                    "lit": {
+                      "lit": "int",
+                      "text": "100",
+                      "v": "100"
+                    }
+                  }
+                },
+                "unit": {
+                  "text": "MHz",
+                  "factors": [
+                    {
+                      "name": "MHz",
+                      "exp": 1
+                    }
+                  ]
+                },
+                "si": "100000000"
+              }
+            },
+            "pin": {
+              "span": [
+                133,
+                140
+              ],
+              "ty": {
+                "t": "unknown"
+              },
+              "e": {
+                "e": "call",
+                "callee": {
+                  "span": [
+                    133,
+                    136
+                  ],
+                  "ty": {
+                    "t": "unknown"
+                  },
+                  "e": {
+                    "e": "global",
+                    "name": "pin"
+                  }
+                },
+                "args": [
+                  {
+                    "value": {
+                      "span": [
+                        137,
+                        139
+                      ],
+                      "ty": {
+                        "t": "unknown"
+                      },
+                      "e": {
+                        "e": "global",
+                        "name": "E3"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": "m3.i1",
+          "span": [
+            142,
+            415
+          ],
+          "def": {
+            "item": "circuit",
+            "circuit": {
+              "name": "blinker",
+              "ports": [
+                {
+                  "id": "m3.l0",
+                  "name": "led",
+                  "dir": "out",
+                  "ty": {
+                    "kind": {
+                      "t": "named",
+                      "path": "bit"
+                    },
+                    "span": [
+                      167,
+                      170
+                    ]
+                  },
+                  "pin": {
+                    "span": [
+                      173,
+                      181
+                    ],
+                    "ty": {
+                      "t": "unknown"
+                    },
+                    "e": {
+                      "e": "call",
+                      "callee": {
+                        "span": [
+                          173,
+                          176
+                        ],
+                        "ty": {
+                          "t": "unknown"
+                        },
+                        "e": {
+                          "e": "global",
+                          "name": "pin"
+                        }
+                      },
+                      "args": [
+                        {
+                          "value": {
+                            "span": [
+                              177,
+                              180
+                            ],
+                            "ty": {
+                              "t": "unknown"
+                            },
+                            "e": {
+                              "e": "global",
+                              "name": "H17"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  "span": [
+                    158,
+                    181
+                  ]
+                }
+              ],
+              "clock": "sys",
+              "members": [
+                {
+                  "span": [
+                    193,
+                    223
+                  ],
+                  "def": {
+                    "member": "const",
+                    "id": "m3.l1",
+                    "name": "half_period",
+                    "value": {
+                      "span": [
+                        213,
+                        223
+                      ],
+                      "ty": {
+                        "t": "num",
+                        "kind": "integer"
+                      },
+                      "e": {
+                        "e": "lit",
+                        "lit": {
+                          "lit": "int",
+                          "text": "50_000_000",
+                          "v": "50000000"
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "span": [
+                    226,
+                    248
+                  ],
+                  "def": {
+                    "member": "reg",
+                    "id": "m3.l2",
+                    "name": "ticks",
+                    "ty": {
+                      "kind": {
+                        "t": "named",
+                        "path": "bit",
+                        "args": [
+                          {
+                            "arg": "expr",
+                            "expr": {
+                              "span": [
+                                241,
+                                243
+                              ],
+                              "ty": {
+                                "t": "unknown"
+                              },
+                              "e": {
+                                "e": "lit",
+                                "lit": {
+                                  "lit": "int",
+                                  "text": "26",
+                                  "v": "26"
+                                }
+                              }
+                            }
+                          }
+                        ]
+                      },
+                      "span": [
+                        237,
+                        244
+                      ]
+                    },
+                    "init": {
+                      "span": [
+                        247,
+                        248
+                      ],
+                      "ty": {
+                        "t": "num",
+                        "kind": "integer"
+                      },
+                      "e": {
+                        "e": "lit",
+                        "lit": {
+                          "lit": "int",
+                          "text": "0",
+                          "v": "0"
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "span": [
+                    251,
+                    269
+                  ],
+                  "def": {
+                    "member": "reg",
+                    "id": "m3.l3",
+                    "name": "state",
+                    "ty": {
+                      "kind": {
+                        "t": "named",
+                        "path": "bit"
+                      },
+                      "span": [
+                        262,
+                        265
+                      ]
+                    },
+                    "init": {
+                      "span": [
+                        268,
+                        269
+                      ],
+                      "ty": {
+                        "t": "num",
+                        "kind": "integer"
+                      },
+                      "e": {
+                        "e": "lit",
+                        "lit": {
+                          "lit": "int",
+                          "text": "0",
+                          "v": "0"
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "span": [
+                    272,
+                    391
+                  ],
+                  "def": {
+                    "member": "on_edge",
+                    "rising": true,
+                    "clock": "sys",
+                    "body": {
+                      "stmts": [
+                        {
+                          "span": [
+                            292,
+                            391
+                          ],
+                          "s": {
+                            "s": "if",
+                            "branches": [
+                              {
+                                "cond": {
+                                  "span": [
+                                    295,
+                                    319
+                                  ],
+                                  "ty": {
+                                    "t": "bool"
+                                  },
+                                  "e": {
+                                    "e": "binary",
+                                    "op": "==",
+                                    "lhs": {
+                                      "span": [
+                                        295,
+                                        300
+                                      ],
+                                      "ty": {
+                                        "t": "bits",
+                                        "signed": false,
+                                        "width": 26
+                                      },
+                                      "e": {
+                                        "e": "local",
+                                        "id": "m3.l2",
+                                        "name": "ticks"
+                                      }
+                                    },
+                                    "rhs": {
+                                      "span": [
+                                        304,
+                                        319
+                                      ],
+                                      "ty": {
+                                        "t": "num",
+                                        "kind": "integer"
+                                      },
+                                      "e": {
+                                        "e": "binary",
+                                        "op": "-",
+                                        "lhs": {
+                                          "span": [
+                                            304,
+                                            315
+                                          ],
+                                          "ty": {
+                                            "t": "num",
+                                            "kind": "integer"
+                                          },
+                                          "e": {
+                                            "e": "local",
+                                            "id": "m3.l1",
+                                            "name": "half_period"
+                                          }
+                                        },
+                                        "rhs": {
+                                          "span": [
+                                            318,
+                                            319
+                                          ],
+                                          "ty": {
+                                            "t": "num",
+                                            "kind": "integer"
+                                          },
+                                          "e": {
+                                            "e": "lit",
+                                            "lit": {
+                                              "lit": "int",
+                                              "text": "1",
+                                              "v": "1"
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                },
+                                "body": {
+                                  "stmts": [
+                                    {
+                                      "span": [
+                                        327,
+                                        336
+                                      ],
+                                      "s": {
+                                        "s": "assign",
+                                        "place": {
+                                          "span": [
+                                            327,
+                                            332
+                                          ],
+                                          "ty": {
+                                            "t": "bits",
+                                            "signed": false,
+                                            "width": 26
+                                          },
+                                          "e": {
+                                            "e": "local",
+                                            "id": "m3.l2",
+                                            "name": "ticks"
+                                          }
+                                        },
+                                        "op": "=",
+                                        "value": {
+                                          "span": [
+                                            335,
+                                            336
+                                          ],
+                                          "ty": {
+                                            "t": "num",
+                                            "kind": "integer"
+                                          },
+                                          "e": {
+                                            "e": "lit",
+                                            "lit": {
+                                              "lit": "int",
+                                              "text": "0",
+                                              "v": "0"
+                                            }
+                                          }
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "span": [
+                                        343,
+                                        357
+                                      ],
+                                      "s": {
+                                        "s": "assign",
+                                        "place": {
+                                          "span": [
+                                            343,
+                                            348
+                                          ],
+                                          "ty": {
+                                            "t": "bits",
+                                            "signed": false,
+                                            "width": 1
+                                          },
+                                          "e": {
+                                            "e": "local",
+                                            "id": "m3.l3",
+                                            "name": "state"
+                                          }
+                                        },
+                                        "op": "=",
+                                        "value": {
+                                          "span": [
+                                            351,
+                                            357
+                                          ],
+                                          "ty": {
+                                            "t": "bits",
+                                            "signed": false,
+                                            "width": 1
+                                          },
+                                          "e": {
+                                            "e": "unary",
+                                            "op": "~",
+                                            "operand": {
+                                              "span": [
+                                                352,
+                                                357
+                                              ],
+                                              "ty": {
+                                                "t": "bits",
+                                                "signed": false,
+                                                "width": 1
+                                              },
+                                              "e": {
+                                                "e": "local",
+                                                "id": "m3.l3",
+                                                "name": "state"
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  ]
+                                }
+                              }
+                            ],
+                            "otherwise": {
+                              "stmts": [
+                                {
+                                  "span": [
+                                    374,
+                                    391
+                                  ],
+                                  "s": {
+                                    "s": "assign",
+                                    "place": {
+                                      "span": [
+                                        374,
+                                        379
+                                      ],
+                                      "ty": {
+                                        "t": "bits",
+                                        "signed": false,
+                                        "width": 26
+                                      },
+                                      "e": {
+                                        "e": "local",
+                                        "id": "m3.l2",
+                                        "name": "ticks"
+                                      }
+                                    },
+                                    "op": "=",
+                                    "value": {
+                                      "span": [
+                                        382,
+                                        391
+                                      ],
+                                      "ty": {
+                                        "t": "bits",
+                                        "signed": false,
+                                        "width": 26
+                                      },
+                                      "e": {
+                                        "e": "binary",
+                                        "op": "+",
+                                        "lhs": {
+                                          "span": [
+                                            382,
+                                            387
+                                          ],
+                                          "ty": {
+                                            "t": "bits",
+                                            "signed": false,
+                                            "width": 26
+                                          },
+                                          "e": {
+                                            "e": "local",
+                                            "id": "m3.l2",
+                                            "name": "ticks"
+                                          }
+                                        },
+                                        "rhs": {
+                                          "span": [
+                                            390,
+                                            391
+                                          ],
+                                          "ty": {
+                                            "t": "num",
+                                            "kind": "integer"
+                                          },
+                                          "e": {
+                                            "e": "lit",
+                                            "lit": {
+                                              "lit": "int",
+                                              "text": "1",
+                                              "v": "1"
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "span": [
+                    394,
+                    415
+                  ],
+                  "def": {
+                    "member": "comb",
+                    "body": {
+                      "stmts": [
+                        {
+                          "span": [
+                            404,
+                            415
+                          ],
+                          "s": {
+                            "s": "assign",
+                            "place": {
+                              "span": [
+                                404,
+                                407
+                              ],
+                              "ty": {
+                                "t": "bits",
+                                "signed": false,
+                                "width": 1
+                              },
+                              "e": {
+                                "e": "local",
+                                "id": "m3.l0",
+                                "name": "led"
+                              }
+                            },
+                            "op": "=",
+                            "value": {
+                              "span": [
+                                410,
+                                415
+                              ],
+                              "ty": {
+                                "t": "bits",
+                                "signed": false,
+                                "width": 1
+                              },
+                              "e": {
+                                "e": "local",
+                                "id": "m3.l3",
+                                "name": "state"
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "m4",
       "name": "panel",
       "file": "panel_ui.neuron",
       "kind": "module",
@@ -2953,7 +3622,7 @@
       "target": "esp32_s3_devkit",
       "items": [
         {
-          "id": "m3.i0",
+          "id": "m4.i0",
           "span": [
             77,
             144
@@ -3100,7 +3769,7 @@
           }
         },
         {
-          "id": "m3.i1",
+          "id": "m4.i1",
           "span": [
             146,
             172
@@ -3150,7 +3819,7 @@
           }
         },
         {
-          "id": "m3.i2",
+          "id": "m4.i2",
           "span": [
             174,
             383
@@ -3283,7 +3952,7 @@
                       },
                       "e": {
                         "e": "ref",
-                        "id": "m3.i1",
+                        "id": "m4.i1",
                         "name": "oven_temp"
                       }
                     }
@@ -3606,14 +4275,14 @@
       ]
     },
     {
-      "id": "m4",
+      "id": "m5",
       "name": "pick",
       "file": "pick_robot.neuron",
       "kind": "module",
       "dialect": "robot",
       "items": [
         {
-          "id": "m4.i0",
+          "id": "m5.i0",
           "span": [
             83,
             152
@@ -3894,7 +4563,7 @@
           }
         },
         {
-          "id": "m4.i1",
+          "id": "m5.i1",
           "span": [
             153,
             215
@@ -4116,7 +4785,7 @@
           }
         },
         {
-          "id": "m4.i2",
+          "id": "m5.i2",
           "span": [
             217,
             262
@@ -4317,7 +4986,7 @@
           }
         },
         {
-          "id": "m4.i3",
+          "id": "m5.i3",
           "span": [
             263,
             303
@@ -4367,7 +5036,7 @@
                           },
                           "e": {
                             "e": "ref",
-                            "id": "m4.i0",
+                            "id": "m5.i0",
                             "name": "table"
                           }
                         },
@@ -4455,7 +5124,7 @@
           }
         },
         {
-          "id": "m4.i4",
+          "id": "m5.i4",
           "span": [
             305,
             337
@@ -4538,7 +5207,7 @@
           }
         },
         {
-          "id": "m4.i5",
+          "id": "m5.i5",
           "span": [
             338,
             369
@@ -4621,7 +5290,7 @@
           }
         },
         {
-          "id": "m4.i6",
+          "id": "m5.i6",
           "span": [
             371,
             658
@@ -4632,7 +5301,7 @@
             "params": [
               {
                 "name": "dest",
-                "id": "m4.l0",
+                "id": "m5.l0",
                 "ty": {
                   "kind": {
                     "t": "named",
@@ -4667,7 +5336,7 @@
                       },
                       "e": {
                         "e": "ref",
-                        "id": "m4.i2",
+                        "id": "m5.i2",
                         "name": "home"
                       }
                     },
@@ -4776,7 +5445,7 @@
                               },
                               "e": {
                                 "e": "ref",
-                                "id": "m4.i3",
+                                "id": "m5.i3",
                                 "name": "pick_a"
                               }
                             },
@@ -4937,7 +5606,7 @@
                       },
                       "e": {
                         "e": "ref",
-                        "id": "m4.i3",
+                        "id": "m5.i3",
                         "name": "pick_a"
                       }
                     },
@@ -5049,7 +5718,7 @@
                               },
                               "e": {
                                 "e": "ref",
-                                "id": "m4.i4",
+                                "id": "m5.i4",
                                 "name": "vacuum"
                               }
                             },
@@ -5106,7 +5775,7 @@
                       },
                       "e": {
                         "e": "ref",
-                        "id": "m4.i5",
+                        "id": "m5.i5",
                         "name": "holding"
                       }
                     },
@@ -5191,7 +5860,7 @@
                       },
                       "e": {
                         "e": "local",
-                        "id": "m4.l0",
+                        "id": "m5.l0",
                         "name": "dest"
                       }
                     },
@@ -5290,7 +5959,7 @@
           }
         },
         {
-          "id": "m4.i7",
+          "id": "m5.i7",
           "span": [
             660,
             705
@@ -5345,7 +6014,7 @@
                                     },
                                     "e": {
                                       "e": "ref",
-                                      "id": "m4.i4",
+                                      "id": "m5.i4",
                                       "name": "vacuum"
                                     }
                                   },
@@ -5391,14 +6060,14 @@
       ]
     },
     {
-      "id": "m5",
+      "id": "m6",
       "name": "press_plc",
       "file": "press_plc.neuron",
       "kind": "module",
       "dialect": "plc",
       "items": [
         {
-          "id": "m5.i0",
+          "id": "m6.i0",
           "span": [
             205,
             215
@@ -5464,7 +6133,7 @@
           }
         },
         {
-          "id": "m5.i1",
+          "id": "m6.i1",
           "span": [
             216,
             255
@@ -5474,7 +6143,7 @@
             "section": "outputs",
             "vars": [
               {
-                "id": "m5.i1.v0",
+                "id": "m6.i1.v0",
                 "mutable": true,
                 "name": "press_cylinder",
                 "ty": {
@@ -5515,7 +6184,7 @@
           }
         },
         {
-          "id": "m5.i2",
+          "id": "m6.i2",
           "span": [
             257,
             305
@@ -5549,7 +6218,7 @@
                             },
                             "e": {
                               "e": "ref",
-                              "id": "m5.i1.v0",
+                              "id": "m6.i1.v0",
                               "name": "press_cylinder"
                             }
                           },
@@ -5582,14 +6251,14 @@
       ]
     },
     {
-      "id": "m6",
+      "id": "m7",
       "name": "pwm8",
       "file": "pwm_hdl.neuron",
       "kind": "module",
       "dialect": "hdl",
       "items": [
         {
-          "id": "m6.i0",
+          "id": "m7.i0",
           "span": [
             91,
             119
@@ -5698,7 +6367,7 @@
           }
         },
         {
-          "id": "m6.i1",
+          "id": "m7.i1",
           "span": [
             121,
             283
@@ -5709,7 +6378,7 @@
               "name": "pwm",
               "ports": [
                 {
-                  "id": "m6.l0",
+                  "id": "m7.l0",
                   "name": "duty",
                   "dir": "in",
                   "ty": {
@@ -5750,7 +6419,7 @@
                   ]
                 },
                 {
-                  "id": "m6.l1",
+                  "id": "m7.l1",
                   "name": "pwm_out",
                   "dir": "out",
                   "ty": {
@@ -5778,7 +6447,7 @@
                   ],
                   "def": {
                     "member": "reg",
-                    "id": "m6.l2",
+                    "id": "m7.l2",
                     "name": "counter",
                     "ty": {
                       "kind": {
@@ -5862,7 +6531,7 @@
                               },
                               "e": {
                                 "e": "local",
-                                "id": "m6.l2",
+                                "id": "m7.l2",
                                 "name": "counter"
                               }
                             },
@@ -5892,7 +6561,7 @@
                                   },
                                   "e": {
                                     "e": "local",
-                                    "id": "m6.l2",
+                                    "id": "m7.l2",
                                     "name": "counter"
                                   }
                                 },
@@ -5950,7 +6619,7 @@
                               },
                               "e": {
                                 "e": "local",
-                                "id": "m6.l1",
+                                "id": "m7.l1",
                                 "name": "pwm_out"
                               }
                             },
@@ -5978,7 +6647,7 @@
                                   },
                                   "e": {
                                     "e": "local",
-                                    "id": "m6.l2",
+                                    "id": "m7.l2",
                                     "name": "counter"
                                   }
                                 },
@@ -5994,7 +6663,7 @@
                                   },
                                   "e": {
                                     "e": "local",
-                                    "id": "m6.l0",
+                                    "id": "m7.l0",
                                     "name": "duty"
                                   }
                                 }
@@ -6013,7 +6682,7 @@
       ]
     },
     {
-      "id": "m7",
+      "id": "m8",
       "name": "thermostat",
       "file": "thermostat.neuron",
       "kind": "module",
@@ -6021,7 +6690,7 @@
       "target": "nucleo_f446re",
       "items": [
         {
-          "id": "m7.i0",
+          "id": "m8.i0",
           "span": [
             117,
             147
@@ -6039,7 +6708,7 @@
           }
         },
         {
-          "id": "m7.i1",
+          "id": "m8.i1",
           "span": [
             149,
             171
@@ -6107,7 +6776,7 @@
           }
         },
         {
-          "id": "m7.i2",
+          "id": "m8.i2",
           "span": [
             173,
             219
@@ -6220,7 +6889,7 @@
           }
         },
         {
-          "id": "m7.i3",
+          "id": "m8.i3",
           "span": [
             220,
             266
@@ -6355,7 +7024,7 @@
           }
         },
         {
-          "id": "m7.i4",
+          "id": "m8.i4",
           "span": [
             267,
             303
@@ -6405,7 +7074,7 @@
           }
         },
         {
-          "id": "m7.i5",
+          "id": "m8.i5",
           "span": [
             305,
             326
@@ -6455,7 +7124,7 @@
           }
         },
         {
-          "id": "m7.i6",
+          "id": "m8.i6",
           "span": [
             328,
             362
@@ -6463,7 +7132,7 @@
           "def": {
             "item": "var",
             "var": {
-              "id": "m7.i6",
+              "id": "m8.i6",
               "mutable": false,
               "name": "filter",
               "vty": {
@@ -6567,7 +7236,7 @@
           }
         },
         {
-          "id": "m7.i7",
+          "id": "m8.i7",
           "span": [
             363,
             427
@@ -6575,7 +7244,7 @@
           "def": {
             "item": "var",
             "var": {
-              "id": "m7.i7",
+              "id": "m8.i7",
               "mutable": true,
               "name": "ctl",
               "vty": {
@@ -6828,7 +7497,7 @@
           }
         },
         {
-          "id": "m7.i8",
+          "id": "m8.i8",
           "span": [
             429,
             536
@@ -6954,7 +7623,7 @@
                       },
                       "e": {
                         "e": "ref",
-                        "id": "m7.i5",
+                        "id": "m8.i5",
                         "name": "temp"
                       }
                     },
@@ -7011,7 +7680,7 @@
                                       },
                                       "e": {
                                         "e": "ref",
-                                        "id": "m7.i2",
+                                        "id": "m8.i2",
                                         "name": "sensor"
                                       }
                                     },
@@ -7303,7 +7972,7 @@
                                   },
                                   "e": {
                                     "e": "ref",
-                                    "id": "m7.i6",
+                                    "id": "m8.i6",
                                     "name": "filter"
                                   }
                                 },
@@ -7324,7 +7993,7 @@
           }
         },
         {
-          "id": "m7.i9",
+          "id": "m8.i9",
           "span": [
             538,
             629
@@ -7519,7 +8188,7 @@
                           },
                           "e": {
                             "e": "ref",
-                            "id": "m7.i3",
+                            "id": "m8.i3",
                             "name": "heater"
                           }
                         },
@@ -7557,7 +8226,7 @@
                               },
                               "e": {
                                 "e": "ref",
-                                "id": "m7.i7",
+                                "id": "m8.i7",
                                 "name": "ctl"
                               }
                             },
@@ -7620,7 +8289,7 @@
                                   },
                                   "e": {
                                     "e": "ref",
-                                    "id": "m7.i1",
+                                    "id": "m8.i1",
                                     "name": "target"
                                   }
                                 },
@@ -7651,7 +8320,7 @@
                                   },
                                   "e": {
                                     "e": "ref",
-                                    "id": "m7.i5",
+                                    "id": "m8.i5",
                                     "name": "temp"
                                   }
                                 }
@@ -7671,7 +8340,7 @@
           }
         },
         {
-          "id": "m7.i10",
+          "id": "m8.i10",
           "span": [
             631,
             755
@@ -7797,7 +8466,7 @@
                                 },
                                 "e": {
                                   "e": "ref",
-                                  "id": "m7.i3",
+                                  "id": "m8.i3",
                                   "name": "heater"
                                 }
                               },
@@ -7901,7 +8570,7 @@
                                     },
                                     "e": {
                                       "e": "ref",
-                                      "id": "m7.i4",
+                                      "id": "m8.i4",
                                       "name": "alarm"
                                     }
                                   },
@@ -7987,7 +8656,7 @@
                           },
                           "e": {
                             "e": "ref",
-                            "id": "m7.i5",
+                            "id": "m8.i5",
                             "name": "temp"
                           }
                         },

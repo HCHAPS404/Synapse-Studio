@@ -1353,3 +1353,17 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   runtime board). Placeholders are in each board `note`: the `uno_q` user LED pin (PA5), and
   the Serial/UART pins of all three are "to confirm on the board". Still needs the physical
   boards (session I2): flashing, LED/UART pin confirmation, and SAMD21 UART/EIC.
+
+## 2026-11-23 · Lab session: UNO Q firmware built, Nexys A7-100T added
+- **Kiro features:** steering (`docs/lab/`), the target model and HDL board registry.
+- **Produced:** `docs/lab/inventory.md` and the UNO Q row (detected COM6, firmware built
+  with arm-none-eabi-gcc 15.2.1: `app.bin` 2412 B, valid reset vector 0x08000641 and stack
+  0x200C0000, so the STM32U5 port boots); a new FPGA board `nexys_a7_100t`
+  (xc7a100tcsg324-1) in `targets/fpga` and the `neuron-codegen-hdl` registry, with
+  `examples/nexys_a7_blink.neuron` emitting Verilog + XDC (clock E3, LED0 H17, LVCMOS33).
+- **Results:** the STM32U5 and Nexys paths both produce correct artifacts; HDL, syntax,
+  NIR and sema tests pass; goldens refreshed for the new example.
+- **Lessons:** the existing `artix7_35t_board` (35T/CPG236) does not fit a 100T/CSG324
+  board — different pinout — so a new board file was needed; FPGA boards are embedded in
+  the binary, so a `.fpga.toml` must also be registered in `board.rs`. Flashing both the
+  UNO Q (SWD via the Linux side) and the Nexys (bitstream) waits for the tool install.

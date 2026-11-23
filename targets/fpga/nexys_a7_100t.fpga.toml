@@ -1,0 +1,29 @@
+schema = 1
+name = "nexys_a7_100t"
+source = "Digilent Nexys A7-100T. Pin names from the public Digilent board pinout / XDC (xc7a100t in the CSG324 package, 100 MHz oscillator on E3). No vendor files copied; names are the public package pinout."
+trust = "community"
+family = "xc7"
+part = "xc7a100tcsg324-1"
+package = "csg324"
+io_standard = "LVCMOS33"
+# openFPGALoader has a built-in profile for this exact board.
+loader_args = ["-b", "nexys_a7_100"]
+note = "Nexys A7-100T: 100 MHz clock E3; 16 LEDs H17..; 16 switches J15..; 5 buttons (BTNC N17, BTNU M18, BTNL P17, BTNR M17, BTND P18); CPU reset C12. Confirm against the board's reference XDC before flashing. The on-board FTDI exposes JTAG and a UART."
+pins = [
+  # Clock (100 MHz system oscillator).
+  "E3",
+  # 16 user LEDs LD0..LD15.
+  "H17", "K15", "J13", "N14", "R18", "V17", "U17", "U16",
+  "V16", "T15", "U14", "T16", "V15", "V14", "V12", "V11",
+  # 16 slide switches SW0..SW15.
+  "J15", "L16", "M13", "R15", "R17", "T18", "U18", "R13",
+  "T8", "U8", "R16", "T13", "H6", "U12", "U11", "V10",
+  # 5 push buttons: BTNC, BTNU, BTNL, BTNR, BTND.
+  "N17", "M18", "P17", "M17", "P18",
+  # CPU reset button (active low on this board).
+  "C12",
+  # USB-UART bridge: TX from FPGA (D4), RX to FPGA (C4).
+  "D4", "C4",
+  # Two Pmod rows (JA) as general 3.3 V I/O: JA1..JA4, JA7..JA10.
+  "C17", "D18", "E18", "G17", "D17", "E17", "F18", "G18",
+]
