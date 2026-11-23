@@ -79,8 +79,11 @@ async def test_operator_token_may_sim_start(app: FastAPI) -> None:
         ws.send_text(_hello(token=token))
         welcome = ws.receive_json()
         assert welcome["roles"] == ["operator"]
+        # The operator role may send sim_start; with no twin connected it is `not_ready`
+        # (routed to the twin only, never a real device — E4.6).
         ws.send_text(json.dumps({"v": 1, "type": "sim_start", "cell": "bottling", "id": "r-2"}))
-        assert ws.receive_json()["type"] == "ack"
+        reply = ws.receive_json()
+        assert reply["type"] == "error" and reply["code"] == "not_ready"
 
 
 async def test_daemon_token_grants_daemon_role(app: FastAPI) -> None:

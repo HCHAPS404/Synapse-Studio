@@ -17,6 +17,7 @@ from synapse_core.db.session import get_engine
 from synapse_core.relay.hub import Hub
 from synapse_core.relay.session import RelaySession, SessionTimeouts
 from synapse_core.relay.starlette import StarletteTransport
+from synapse_core.services import audit
 from synapse_core.services.pairing import record_heartbeat
 from synapse_core.settings import Settings, get_settings
 from synapse_core.telemetry.ingest import ingest_telemetry
@@ -64,6 +65,20 @@ async def relay(
                 db, frame, simulated=simulated, max_rows=settings.telemetry_max_rows
             )
 
+    async def estop_audit(key: str, role: str, cell: str, reason: str | None) -> None:
+        """Records an advisory E-STOP request (reuses E3.4 audit; never raises)."""
+        if sessions is None:
+            return
+        await audit.record(
+            sessions,
+            audit.AuditAction.ESTOP_ADVISE,
+            actor=key,
+            role=role,
+            result="forwarded",
+            target=cell,
+            detail={"reason": reason} if reason else None,
+        )
+
     session = RelaySession(
         StarletteTransport(websocket),
         get_hub(websocket),
@@ -73,5 +88,6 @@ async def relay(
         control_rate=control_rate,
         on_heartbeat=heartbeat,
         on_telemetry=telemetry,
+        on_estop_audit=estop_audit,
     )
     await session.run()

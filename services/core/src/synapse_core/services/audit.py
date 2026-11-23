@@ -44,6 +44,7 @@ class AuditAction(StrEnum):
     PAIRING_ISSUE = "pairing.issue"
     PAIRING_CLAIM = "pairing.claim"
     DAEMON_UNPAIR = "daemon.unpair"
+    ESTOP_ADVISE = "estop.advise"
 
 
 @dataclass(frozen=True)

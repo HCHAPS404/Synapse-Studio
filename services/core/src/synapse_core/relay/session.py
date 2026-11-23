@@ -61,6 +61,10 @@ HeartbeatHook = Callable[[str], Awaitable[None]]
 # the publisher is the twin (virtual devices, `True`) or a daemon (real devices, `False`).
 TelemetryHook = Callable[[dict[str, Any], bool], Awaitable[None]]
 
+# A hook the endpoint supplies to audit an advisory E-STOP request; it receives the session
+# principal key, role, the cell and the free-text reason (never a secret).
+EstopAuditHook = Callable[[str, str, str, str | None], Awaitable[None]]
+
 
 class Transport(Protocol):
     """The minimal WebSocket surface the session needs."""
@@ -133,6 +137,7 @@ class RelaySession:
         control_rate: float = 20.0,
         on_heartbeat: HeartbeatHook | None = None,
         on_telemetry: TelemetryHook | None = None,
+        on_estop_audit: EstopAuditHook | None = None,
     ) -> None:
         self._t = transport
         self._hub = hub
@@ -141,6 +146,7 @@ class RelaySession:
         self._timeouts = timeouts or SessionTimeouts()
         self._on_heartbeat = on_heartbeat
         self._on_telemetry = on_telemetry
+        self._on_estop_audit = on_estop_audit
         self._session: Session | None = None
         self._writer: asyncio.Task[None] | None = None
         # One token bucket per session: capacity = burst = the per-second limit, refilled at
@@ -349,13 +355,19 @@ class RelaySession:
         if mtype == "unsubscribe":
             self._on_unsubscribe(frame, request_id)
             return
+        if mtype == "advisory_estop_request":
+            await self._on_advisory_estop(frame, request_id)
+            return
         if mtype in _SIM_CONTROL:
-            # Routed to the cell's twin/daemon by the fan-out; acked to the sender.
-            self._fan_out(frame)
-            if request_id is not None:
-                self._enqueue(proto.ack(request_id, mtype))
+            self._on_sim_control(frame, mtype, request_id)
             return
         if mtype in _PUBLISHER:
+            cell = frame.get("cell")
+            if isinstance(cell, str):
+                if "twin" in self._session.roles:
+                    self._hub.set_twin(cell, self._session.id)
+                elif "daemon" in self._session.roles:
+                    self._hub.set_daemon(cell, self._session.id)
             if mtype == "deployment_status" and self._on_heartbeat is not None:
                 await self._on_heartbeat(self._session.key)
             if mtype == "telemetry" and self._on_telemetry is not None:
@@ -390,6 +402,81 @@ class RelaySession:
         self._hub.unsubscribe(self._session, cell, device)
         if request_id is not None:
             self._enqueue(proto.ack(request_id, "unsubscribe"))
+
+    def _on_sim_control(self, frame: dict[str, Any], mtype: str, request_id: str | None) -> None:
+        """Routes a `sim_*`/`replay_play` message to the twin only (never a real device).
+
+        The twin is the authority for virtual devices. The relay refuses with `not_ready` when
+        no twin is connected for the cell, and with `unknown_target` when the message names a
+        device that is real (daemon-managed) rather than simulated. It never forwards these to
+        a real device: the only recipient is the twin of the cell.
+        """
+        assert self._session is not None
+        cell = frame.get("cell")
+        if not isinstance(cell, str):
+            self._enqueue(proto.error(proto.RelayCode.BAD_MESSAGE, "missing cell", request_id))
+            return
+        device = frame.get("device")
+        if isinstance(device, str):
+            real = self._hub.real_devices(cell)
+            simulated = self._hub.simulated_devices(cell)
+            if device in real or (simulated is not None and device not in simulated):
+                self._enqueue(
+                    proto.error(
+                        proto.RelayCode.UNKNOWN_TARGET,
+                        f"{device} is not a simulated device of {cell}",
+                        request_id=request_id,
+                    )
+                )
+                return
+        twin = self._hub.twin_of(cell)
+        if twin is None:
+            self._enqueue(
+                proto.error(
+                    proto.RelayCode.NOT_READY,
+                    f"no twin is connected for cell {cell}",
+                    request_id=request_id,
+                )
+            )
+            return
+        twin.enqueue(frame)
+        if request_id is not None:
+            self._enqueue(proto.ack(request_id, mtype))
+
+    async def _on_advisory_estop(self, frame: dict[str, Any], request_id: str | None) -> None:
+        """Handles `advisory_estop_request`: audit it, forward to the daemon, answer `estop_state`.
+
+        ADVISORY ONLY. The hardwired E-STOP is the authority; this request neither trips nor
+        releases it and cannot disable any safety function. The relay forwards the request to
+        the daemon of the cell and the answer is always the state the daemon reports. With no
+        daemon connected, the relay answers `estop_state` carrying `unknown` — it never
+        invents `released` or `tripped`.
+        """
+        assert self._session is not None
+        cell = frame.get("cell")
+        if not isinstance(cell, str):
+            self._enqueue(proto.error(proto.RelayCode.BAD_MESSAGE, "missing cell", request_id))
+            return
+        reason = frame.get("reason") if isinstance(frame.get("reason"), str) else None
+        if self._on_estop_audit is not None:
+            role = next(iter(sorted(self._session.roles)), "")
+            await self._on_estop_audit(self._session.key, role, cell, reason)
+        daemon = self._hub.daemon_of(cell)
+        if daemon is not None:
+            daemon.enqueue(frame)
+            # The daemon's own `estop_state` is the answer; nothing is synthesised here.
+            return
+        # No daemon: answer `unknown`, never a decided state (relay.md safety rule).
+        self._enqueue(
+            {
+                "v": proto.PROTOCOL_VERSION,
+                "type": "estop_state",
+                "cell": cell,
+                "state": "unknown",
+                "t_ns": proto.now_ns(),
+                **({"id": request_id} if request_id is not None else {}),
+            }
+        )
 
     def _fan_out(self, frame: dict[str, Any]) -> None:
         """Delivers a publisher/control frame to the cell's subscribers (not the sender)."""

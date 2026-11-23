@@ -1070,3 +1070,18 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   tracking a "last processed minute" — each raw sample is aggregated exactly once. Guarding the
   task with an advisory lock keeps it correct even if the single-instance assumption ever breaks,
   and the lock is a clean no-op on the SQLite used for local tests.
+
+## 2026-11-23 · Task E4.6 (Advisory E-STOP and sim-control routing, twin/simulated only)
+- **Kiro features:** spec-driven task from `.kiro/specs/core-services/`, the relay safety rule in
+  `spec/protocols/relay.md`, the E3.4 audit writer reused for the E-STOP entry, and the E4.1–E4.5
+  relay/hub surfaces.
+- **Produced:** hub twin/daemon-per-cell tracking and `simulated_devices`/`real_devices` from the
+  cached snapshot; session `_on_sim_control` (twin-only, `not_ready`/`unknown_target`) and
+  `_on_advisory_estop` (audit, forward to the daemon, answer `unknown` when none); audit action
+  `estop.advise`; relay `on_estop_audit` hook wired in the endpoint.
+- **Results:** 7 new tests; full suite 230 pass, 4 skipped; ruff clean; drift green. The relay
+  never forwards `sim_*` to a real device and never decides an E-STOP state. E4 row complete.
+- **Lessons:** keeping the twin as the only recipient of `sim_*` makes "never reach a real
+  device" structural rather than a check that could be forgotten; the real-device refusal is an
+  extra guard driven by the cached snapshot. The advisory answer must stay `unknown` with no
+  daemon — synthesising `released`/`tripped` would violate the contract's safety rule.

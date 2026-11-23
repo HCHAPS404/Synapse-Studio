@@ -24,7 +24,7 @@ tested against simulated peers.
 | E4.3 | Daemon pairing (code, claim, token, unpair), `daemons` and `devices` tables, `deployment_status` and heartbeat timeout | E-R10 | no | done |
 | E4.4 | Telemetry ingest from relay frames, tables, indexes, storage cap | E-R11 | no | done |
 | E4.5 | Retention and 1-minute roll-up task with advisory lock; `GET /v1/telemetry`; property test of retention | E-R11 | no | done |
-| E4.6 | Advisory E-STOP path and sim control routing (twin only, simulated devices only), audit entries | E-R9, E-R15, E-R8 | no | open |
+| E4.6 | Advisory E-STOP path and sim control routing (twin only, simulated devices only), audit entries | E-R9, E-R15, E-R8 | no | done |
 | E5.1 | Daemon package: config, `Driver` protocol, simulated driver, relay client with reconnect, local LAN mode, pairing client | E-R12, E-R10 | no | open |
 | E5.2 | Signed packages: manifest, Ed25519 sign (API side) and verify (daemon), quarantine, `NE1108` | E-R13 | no | open |
 | E5.3 | Command allowlist with per-command Pydantic arguments, `NE1109`, `NE1111` for offline devices | E-R13 | no | open |
@@ -603,4 +603,33 @@ survives, every fresh sample survives, and each roll-up bucket's count and sum e
 expired samples' count and sum). Full suite 224 pass, 4 skipped locally (DB tests on SQLite with
 `--with aiosqlite`, Postgres in CI); ruff clean; OpenAPI/SDK regenerated for `GET /v1/telemetry`,
 drift green.
+
+## Results of E4.6
+Advisory E-STOP and sim-control routing, twin/simulated-only, with audit. The hub tracks the
+twin and daemon session serving each cell (`set_twin`/`set_daemon`, registered when a twin or
+daemon publishes a cell-bearing frame; cleared on disconnect) and reads the cell's simulated and
+real device ids from the cached `cell_snapshot` (`simulated_devices`/`real_devices`). Session
+routing: `sim_*`/`replay_play` (operator role only, already enforced by the role table) go to
+the twin of the cell and nowhere else — the relay never forwards them to a real device. With no
+twin connected the relay answers `not_ready`; when the message names a device that is real
+(daemon-managed) or not in the snapshot's simulated set it answers `unknown_target`; otherwise
+it forwards to the twin and acks the sender. `advisory_estop_request` (operator role, which
+maps to users holding `estop.advise`) is audited via the E3.4 `audit.record` (action
+`estop.advise`, result `forwarded`, target the cell, detail only the free-text reason — never a
+secret) and forwarded to the daemon of the cell; the answer is the daemon's own `estop_state`.
+With no daemon connected the relay answers `estop_state` carrying `unknown` and echoing the
+request id — it never invents `released` or `tripped`. New audit action `estop.advise`; new
+relay hook `on_estop_audit` and the twin/daemon registration wired in the endpoint.
+Safety wording (E-R15, E-R20): the module and handler docstrings state the advisory request is
+ADVISORY ONLY, that the hardwired E-STOP is the authority, that the request neither trips nor
+releases it nor disables any safety function, and that the relay never decides a state; nothing
+claims IEC 61508 or ISO 13849. No new `NE` code. Tests: 7 new in `tests/test_relay_estop.py`
+(advisory with no daemon answers `unknown` echoing the id; the request is audited as
+`estop.advise`/`forwarded`; with a daemon connected the request is forwarded to it and the relay
+does not answer itself; a guest is `forbidden`; sim_start reaches the twin and is acked while
+`sim_set_input` on a real device is `unknown_target` and never forwarded; sim control with no
+twin is `not_ready`); the E4.1 operator-sim_start auth test updated to expect `not_ready` with no
+twin. Full suite 230 pass, 4 skipped locally (DB tests on SQLite with `--with aiosqlite`,
+Postgres in CI); ruff clean; OpenAPI/SDK drift green (no new REST route). This completes the
+E4 relay row (E4.1–E4.6).
 

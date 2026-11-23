@@ -135,6 +135,9 @@ class Hub:
         self._counter = itertools.count(1)
         self._snapshots: dict[str, dict[str, Any]] = {}
         self._outbox_maxsize = outbox_maxsize
+        # The twin and daemon session currently publishing for each cell (E4.6 routing).
+        self._twin_of: dict[str, str] = {}
+        self._daemon_of: dict[str, str] = {}
 
     # -- sessions ------------------------------------------------------------------
 
@@ -152,6 +155,10 @@ class Hub:
         session = self._sessions.pop(session_id, None)
         if session is not None:
             session.outbox.close()
+        for mapping in (self._twin_of, self._daemon_of):
+            for cell, sid in list(mapping.items()):
+                if sid == session_id:
+                    del mapping[cell]
 
     def sessions(self) -> list[Session]:
         return list(self._sessions.values())
@@ -190,6 +197,46 @@ class Hub:
     def cached_snapshot(self, cell: str) -> dict[str, Any] | None:
         """The last `cell_snapshot` seen for a cell, if any."""
         return self._snapshots.get(cell)
+
+    # -- twin / daemon routing (E4.6) ----------------------------------------------
+
+    def set_twin(self, cell: str, session_id: str) -> None:
+        """Marks a session as the twin publishing for a cell."""
+        self._twin_of[cell] = session_id
+
+    def set_daemon(self, cell: str, session_id: str) -> None:
+        """Marks a session as the daemon publishing for a cell."""
+        self._daemon_of[cell] = session_id
+
+    def twin_of(self, cell: str) -> Session | None:
+        """The twin session of a cell, if one is connected."""
+        sid = self._twin_of.get(cell)
+        return self._sessions.get(sid) if sid else None
+
+    def daemon_of(self, cell: str) -> Session | None:
+        """The daemon session of a cell, if one is connected."""
+        sid = self._daemon_of.get(cell)
+        return self._sessions.get(sid) if sid else None
+
+    def simulated_devices(self, cell: str) -> set[str] | None:
+        """The ids of the cell's simulated devices from the cached snapshot, or `None`.
+
+        `None` means no snapshot is known, so the relay cannot tell a device's kind and must
+        rely on the twin being the only `sim_*` target (the twin owns virtual devices).
+        """
+        snapshot = self._snapshots.get(cell)
+        if snapshot is None:
+            return None
+        devices = snapshot.get("description", {}).get("devices", [])
+        return {d["id"] for d in devices if d.get("simulated") is True}
+
+    def real_devices(self, cell: str) -> set[str]:
+        """The ids of the cell's real (non-simulated) devices from the cached snapshot."""
+        snapshot = self._snapshots.get(cell)
+        if snapshot is None:
+            return set()
+        devices = snapshot.get("description", {}).get("devices", [])
+        return {d["id"] for d in devices if d.get("simulated") is False}
 
     # -- fan-out -------------------------------------------------------------------
 
