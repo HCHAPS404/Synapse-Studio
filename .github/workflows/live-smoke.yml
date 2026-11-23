@@ -1,0 +1,51 @@
+name: Live smoke
+
+# Periodically exercises the judge path against the deployed Core API (E7.3): /health, a
+# login-free guest session, a guest build of a tiny example, and the relay WebSocket. Uses
+# only the Python standard library (tools/live-smoke.py), makes no change to the service, and
+# needs no secret. It targets the public production URL.
+#
+# The script's exit code is the contract:
+#   0  pass            -> job succeeds
+#   1  real regression -> job fails (the service answered but a check failed)
+#   2  transient/network/availability -> job is neutralised (does NOT fail the build), so a
+#      flaky network or a waking service never raises a false alarm.
+
+on:
+  schedule:
+    # Every 30 minutes during the judging window. Cron is UTC. Adjust or disable after judging.
+    - cron: "*/30 * * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: live-smoke
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    name: Production smoke
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run the live smoke
+        env:
+          # Set the repository variable SYNAPSE_SMOKE_URL to override; the script defaults to the
+          # production URL when it is empty.
+          SYNAPSE_SMOKE_URL: ${{ vars.SYNAPSE_SMOKE_URL }}
+        shell: bash
+        run: |
+          set +e
+          python tools/live-smoke.py
+          code=$?
+          echo "live-smoke exit code: $code"
+          if [ "$code" -eq 2 ]; then
+            echo "::warning::Live smoke could not reach the service (transient). Not a regression."
+            exit 0
+          fi
+          exit "$code"

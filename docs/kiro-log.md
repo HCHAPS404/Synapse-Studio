@@ -1270,3 +1270,17 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
 - **Lessons:** centralising "is this deployed" in `is_deployed` keeps the secret requirement in one
   place, so a `judging` deployment inherits it without a second environment-name check; the Neon
   branch itself is a human/CLI step because the MCP key may be revoked after setup.
+## 2026-11-23 · Task E7.3 (live smoke tool and scheduled GitHub Action)
+- **Kiro features:** spec-driven task from `.kiro/specs/core-services/` (design `E7 Deployment`),
+  requirements E-R18, E-R3.
+- **Produced:** `tools/live-smoke.py` (stdlib only: urllib for HTTP, a hand-written RFC 6455 WS
+  client over a raw TLS socket) checking `/health`, a guest session, a guest `check` build and the
+  relay `hello`/`welcome`; `.github/workflows/live-smoke.yml` (cron every 30 min + manual,
+  production URL from the `SYNAPSE_SMOKE_URL` repo variable).
+- **Results:** exit 0 pass / 1 regression / 2 transient; the Action maps 2 to a `::warning::` so a
+  network blip never fails the build. Verified end to end against a local instance (PASS) and an
+  unreachable URL (SKIP, exit 2); ruff + py_compile clean.
+- **Lessons:** using `kind: check` instead of `build` makes the guest build succeed on the image
+  with no board/toolchain; separating a transient connect failure (exit 2) from a service-answered
+  check failure (exit 1) keeps the scheduled monitor from crying wolf when Render or the network
+  hiccups.

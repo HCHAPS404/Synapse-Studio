@@ -44,7 +44,7 @@ tested against simulated peers.
 | E6-HW | Measure the lab devices (I1), commit measured profiles, mark manifests `measured`, rerun the D3 budgets | E-R17 | **yes** | pending (I1) |
 | E7.1 | Alembic on deploy (`preDeployCommand`), migration round-trip CI job, secrets list in `render.yaml` | E-R18 | no | done |
 | E7.2 | Neon `dev` branch for CI and local use; per-environment settings; `docs/deploy.md` | E-R18 | no (needs Hell for the branch if MCP is revoked) | done |
-| E7.3 | `tools/live-smoke.py` and scheduled GitHub Action; production check of guest, build and relay | E-R18, E-R3 | no | open |
+| E7.3 | `tools/live-smoke.py` and scheduled GitHub Action; production check of guest, build and relay | E-R18, E-R3 | no | done |
 | E7.4 | Judge path: public URL configuration in the web app, CORS, guest flow end to end (depends on G6) | E-R3, E-R18 | no | open |
 | E7.5 | Monitoring and runbook until 2027-01-29: uptime monitor, alerts, `docs/runbook.md`, shutdown plan | E-R18 | no | open |
 | E7-H | Spending caps and alerts on Render and Neon; external uptime monitor account | E-R18 | human action (Hell) | pending |
@@ -981,3 +981,31 @@ neon branches create --project-id muddy-glade-31845276 --name dev --parent produ
 neon connection-string dev --project-id muddy-glade-31845276 --pooled
 ```
 (Reset later with `neon branches reset dev --project-id muddy-glade-31845276 --parent`.)
+
+## Results of E7.3
+`tools/live-smoke.py` (standard library only, no new dependency) exercises the judge path
+against a running Core API: (1) `GET /health` is reachable and reports `ok`/`degraded`; (2)
+`POST /v1/guest` issues a guest token (login-free, what judges use); (3) the tiny corpus module
+`h01_gateway_counter` is built through the guest flow — create project, store a version with the
+file, submit a build and poll to completion; (4) `WS /v1/relay` accepts a `hello` and answers
+`welcome`, then closes. The relay client is a minimal hand-written RFC 6455 handshake and
+text-frame reader over a raw TLS/TCP socket, so no websockets dependency is needed; it skips
+ping/pong control frames and reads the first data frame.
+The build kind is `check` (not `build`), chosen deliberately: `check` runs the full analyzer in
+the sandboxed runner and needs no board, cross compiler or toolchain, so it succeeds on the
+production image without hardware (a plain `build` of a `host` module asks for a board). The
+module mirrors `examples/corpus/host/h01_gateway_counter.neuron`.
+Exit-code contract distinguishes a regression from a blip: 0 pass; 1 a real regression (the
+service answered but a check failed — bad status, build not `succeeded`, wrong relay reply); 2
+transient (could not connect, a timeout, a reset). No secret is read or printed and the guest
+token is never logged; the base URL scheme is restricted to http/https.
+The scheduled Action `.github/workflows/live-smoke.yml` runs every 30 minutes (and on
+`workflow_dispatch`) against the production URL from the repository variable `SYNAPSE_SMOKE_URL`
+(the script defaults to the production URL when it is empty); it maps exit 2 to a GitHub
+`::warning::` and succeeds, so a transient network issue never fails the build, while exit 1 fails
+it.
+Verified: run end to end against a local instance (SQLite + the debug `neuron`) — health, guest,
+guest `check` build `succeeded`, relay `welcome` with `roles=['guest']`, PASS (exit 0); an
+unreachable URL returns exit 2 (SKIP). `py_compile` clean; ruff check and format clean (two
+`# noqa: S310` where the scheme is already restricted, one `# noqa: S324` for the RFC-mandated
+SHA-1 of the WS handshake). No new error code; no change to the service.
