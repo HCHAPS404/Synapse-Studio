@@ -226,6 +226,22 @@ that depends on it. CI gotchas this phase: gitleaks false positive on an Ed25519
 `key.sign()` (added to `.gitleaksignore` by fingerprint); Modbus-RTU-over-pty tests are
 unreliable on CI runners (now gated on `SYNAPSE_RTU_LOOPBACK`); a new `examples/` file must
 be `neuron fmt`-clean and its parser/NIR goldens refreshed (`UPDATE_GOLDEN=1`).
+## Tomorrow: hardware session (added 2026-11-23)
+
+Plan and per-board commands in `docs/lab/session-plan.md`. Inventory: UNO R3, Mega 2560,
+Pico, Pico 2 W, ESP32-S3, Nano 33 BLE Sense Rev2, Nano 33 IoT, UNO Q, Nucleo N6, RPi 5;
+maybe an Artix and a Spartan FPGA.
+
+Tonight three NEW boards were added with full chip models and bare-metal runtime ports
+(commit `eb90bca`, CI green): `nano_33_ble_sense` (nRF52840), `nano_33_iot` (SAMD21G18A),
+`uno_q` (STM32U585 MCU side). They load in the model, appear in `neuron targets`, and emit
+C per board, but the C ports have NEVER been compiled with arm-none-eabi-gcc here and never
+run on hardware — tomorrow is their first real build (expect to debug). GPIO + 1 ms tick
+are the safe bet on all three; UART/edge are best-effort (SAMD21 UART+EIC are left out on
+purpose). Unconfirmed pins are in each board `note` and in session-plan.md. Nucleo N6
+(N657) stays `described` (check only, no runtime). RPi 5 is a `host` node (session I4),
+not flashed. Spartan FPGA needs a `.fpga.toml` (give the exact part).
+
 ## Human actions still open (Hell)
 
 Protect `main`/`develop` (Martin is a collaborator; accounts done). Watch the first
