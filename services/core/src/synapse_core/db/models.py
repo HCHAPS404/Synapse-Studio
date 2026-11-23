@@ -6,9 +6,11 @@ from typing import Any
 
 from sqlalchemy import (
     JSON,
+    BigInteger,
     Boolean,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     LargeBinary,
     String,
@@ -76,6 +78,10 @@ class ProjectVersion(Base):
 
 
 Json = JSON().with_variant(JSONB(), "postgresql")
+
+# A 64-bit autoincrement primary key: BIGINT on Postgres, INTEGER on SQLite (only an
+# `INTEGER PRIMARY KEY` autoincrements on SQLite, so the local test schema works too).
+_BigId = BigInteger().with_variant(Integer, "sqlite")
 
 
 class Build(Base):
@@ -268,6 +274,57 @@ class ServiceToken(Base):
         DateTime(timezone=True), nullable=False, default=_now
     )
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class TelemetrySample(Base):
+    """One telemetry sample ingested from a relay `telemetry` frame (E4.4).
+
+    Plain Postgres (no TimescaleDB). `simulated` flags whether the sample came from the twin
+    (virtual device) or a daemon (real device), so a query can keep a guest to virtual data.
+    `t_ns` is nanoseconds since the cell epoch. The composite index
+    `(cell_id, device, tag, t_ns)` serves the range query of `GET /v1/telemetry` (E4.5).
+    Raw rows are kept 7 days (retention, E4.5).
+    """
+
+    __tablename__ = "telemetry_samples"
+    __table_args__ = (Index("ix_telemetry_samples_series", "cell_id", "device", "tag", "t_ns"),)
+
+    id: Mapped[int] = mapped_column(_BigId, primary_key=True, autoincrement=True)
+    cell_id: Mapped[str] = mapped_column(String(120), nullable=False)
+    device: Mapped[str] = mapped_column(String(120), nullable=False)
+    tag: Mapped[str] = mapped_column(String(200), nullable=False)
+    t_ns: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    value: Mapped[Any] = mapped_column(Json, nullable=False)
+    quality: Mapped[str] = mapped_column(String(8), nullable=False, default="good")
+    simulated: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+
+
+class Telemetry1m(Base):
+    """A one-minute roll-up of raw samples for a series (E4.5).
+
+    One row per `(cell_id, device, tag, minute)` with the min, max, mean and count of the raw
+    samples in that minute. Kept 30 days. Written by the roll-up task before the raw rows are
+    deleted, so a count/sum within a bucket is preserved.
+    """
+
+    __tablename__ = "telemetry_1m"
+    __table_args__ = (
+        UniqueConstraint(
+            "cell_id", "device", "tag", "minute", name="uq_telemetry_1m_series_minute"
+        ),
+        Index("ix_telemetry_1m_series", "cell_id", "device", "tag", "minute"),
+    )
+
+    id: Mapped[int] = mapped_column(_BigId, primary_key=True, autoincrement=True)
+    cell_id: Mapped[str] = mapped_column(String(120), nullable=False)
+    device: Mapped[str] = mapped_column(String(120), nullable=False)
+    tag: Mapped[str] = mapped_column(String(200), nullable=False)
+    minute: Mapped[int] = mapped_column(BigInteger, nullable=False)  # epoch minute (ns // 60e9)
+    min_value: Mapped[float] = mapped_column(nullable=False)
+    max_value: Mapped[float] = mapped_column(nullable=False)
+    mean_value: Mapped[float] = mapped_column(nullable=False)
+    count: Mapped[int] = mapped_column(Integer, nullable=False)
+    simulated: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
 
 class VersionFile(Base):

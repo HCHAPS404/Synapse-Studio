@@ -15,13 +15,25 @@ from alembic import command
 from alembic.config import Config
 from sqlalchemy import create_engine, inspect
 
-from synapse_core.db.models import Daemon, Device, PairingCode
+from synapse_core.db.models import (
+    Daemon,
+    Device,
+    PairingCode,
+    Telemetry1m,
+    TelemetrySample,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
-_TABLES = {"daemons": Daemon, "devices": Device, "pairing_codes": PairingCode}
+_TABLES = {
+    "daemons": Daemon,
+    "devices": Device,
+    "pairing_codes": PairingCode,
+    "telemetry_samples": TelemetrySample,
+    "telemetry_1m": Telemetry1m,
+}
 
 
-def test_migration_0008_columns_match_models(tmp_path: Path) -> None:
+def test_migrations_columns_match_models(tmp_path: Path) -> None:
     db_path = tmp_path / "m.db"
     url = f"sqlite:///{db_path}"
     config = Config(str(ROOT / "alembic.ini"))

@@ -25,6 +25,8 @@ from synapse_core.db.models import (
     Project,
     ProjectVersion,
     ServiceToken,
+    Telemetry1m,
+    TelemetrySample,
     User,
     VersionFile,
 )
@@ -80,6 +82,8 @@ async def app(schema: None) -> AsyncIterator[FastAPI]:
             Device,
             Daemon,
             PairingCode,
+            TelemetrySample,
+            Telemetry1m,
             ServiceToken,
             AuditLog,
             User,

@@ -67,6 +67,18 @@ class Settings(BaseSettings):
     guest_cleanup_interval_s: float = Field(
         default=600.0, gt=0, description="How often the expiry cleanup task runs"
     )
+    telemetry_max_rows: int = Field(
+        default=5_000_000, ge=1000, description="Raw telemetry rows cap; more are dropped"
+    )
+    telemetry_raw_retention_s: int = Field(
+        default=7 * 24 * 3600, ge=60, description="How long raw samples are kept"
+    )
+    telemetry_1m_retention_s: int = Field(
+        default=30 * 24 * 3600, ge=60, description="How long one-minute roll-ups are kept"
+    )
+    telemetry_rollup_interval_s: float = Field(
+        default=60.0, gt=0, description="How often the roll-up and retention task runs"
+    )
     log_level: str = Field(default="INFO", description="DEBUG | INFO | WARNING | ERROR")
     log_json: bool = Field(default=True, description="Structured JSON logs")
 

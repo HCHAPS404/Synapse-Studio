@@ -8,7 +8,7 @@ table. Authentication reuses the E3 token resolution through a session maker.
 from __future__ import annotations
 
 import uuid
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, WebSocket
 from sqlalchemy.ext.asyncio import async_sessionmaker
@@ -19,6 +19,7 @@ from synapse_core.relay.session import RelaySession, SessionTimeouts
 from synapse_core.relay.starlette import StarletteTransport
 from synapse_core.services.pairing import record_heartbeat
 from synapse_core.settings import Settings, get_settings
+from synapse_core.telemetry.ingest import ingest_telemetry
 
 router = APIRouter()
 
@@ -54,6 +55,15 @@ async def relay(
         async with sessions() as db:
             await record_heartbeat(db, token_id)
 
+    async def telemetry(frame: dict[str, Any], simulated: bool) -> None:
+        """Persists a telemetry frame into the raw table (best effort, off the fan-out path)."""
+        if sessions is None:
+            return
+        async with sessions() as db:
+            await ingest_telemetry(
+                db, frame, simulated=simulated, max_rows=settings.telemetry_max_rows
+            )
+
     session = RelaySession(
         StarletteTransport(websocket),
         get_hub(websocket),
@@ -62,5 +72,6 @@ async def relay(
         timeouts=timeouts,
         control_rate=control_rate,
         on_heartbeat=heartbeat,
+        on_telemetry=telemetry,
     )
     await session.run()

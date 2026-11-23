@@ -1043,3 +1043,17 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   writer) and a `stop` event the reader races against its receive, or the socket lingers until
   the peer disconnects. An offline SQLite migration/model column check catches drift that the
   local `create_all` schema would otherwise hide until the Postgres CI round trip.
+
+## 2026-11-23 · Task E4.4 (Telemetry ingest into plain Postgres with a storage cap)
+- **Kiro features:** spec-driven task from `.kiro/specs/core-services/`, the relay `telemetry`
+  frame shape, and the E4.1–E4.3 relay/session surfaces (the publisher-frame path and hooks).
+- **Produced:** models `TelemetrySample`/`Telemetry1m` + migration `0009`, `telemetry/ingest.py`
+  (`_rows_from_frame`, `ingest_telemetry` with the `SYNAPSE_TELEMETRY_MAX_ROWS` cap), a relay
+  `on_telemetry` hook that persists frames with `simulated` set from the publisher role, and the
+  telemetry settings (cap and the retention windows E4.5 uses).
+- **Results:** 4 new tests; full suite 219 pass, 4 skipped; ruff clean; drift green. The sample
+  `id` is split into device/tag; a dot-less id is skipped; the cap drops a whole batch.
+- **Lessons:** SQLite only autoincrements an `INTEGER PRIMARY KEY`, so a `BigInteger` PK needs a
+  `with_variant(Integer, "sqlite")` for the local bulk-insert tests to get ids while Postgres
+  keeps `BIGINT`. An out-of-enum quality cannot reach ingest (the JSON Schema rejects it at the
+  socket), so the normalisation is a defensive fallback, not a path a wire frame can take.

@@ -22,7 +22,7 @@ tested against simulated peers.
 | E4.1 | Relay core: `WS /v1/relay`, lifecycle (`hello`, `welcome`, ping, timeouts), schema validation, role table checked against `relay.md`, error codes | E-R9, E-R7 | no | done |
 | E4.2 | Subscriptions, `cell_snapshot` cache, fan-out with bounded queues and drop policy, control rate limit; round-trip property over all examples | E-R9 | no | done |
 | E4.3 | Daemon pairing (code, claim, token, unpair), `daemons` and `devices` tables, `deployment_status` and heartbeat timeout | E-R10 | no | done |
-| E4.4 | Telemetry ingest from relay frames, tables, indexes, storage cap | E-R11 | no | open |
+| E4.4 | Telemetry ingest from relay frames, tables, indexes, storage cap | E-R11 | no | done |
 | E4.5 | Retention and 1-minute roll-up task with advisory lock; `GET /v1/telemetry`; property test of retention | E-R11 | no | open |
 | E4.6 | Advisory E-STOP path and sim control routing (twin only, simulated devices only), audit entries | E-R9, E-R15, E-R8 | no | open |
 | E5.1 | Daemon package: config, `Driver` protocol, simulated driver, relay client with reconnect, local LAN mode, pairing client | E-R12, E-R10 | no | open |
@@ -544,4 +544,34 @@ one is offline; unpair revokes the token `NE1105` and is a 404 the second time; 
 `deployment_status` over the relay records its heartbeat) and `tests/test_migration_0008.py`
 (1, offline migration/model column check). Full suite 215 pass, 4 skipped locally; ruff clean;
 OpenAPI/SDK regenerated for the four REST routes, drift green.
+
+## Results of E4.4
+Telemetry ingest from relay frames into plain Postgres tables (no TimescaleDB, decision 3).
+Models `TelemetrySample` (`cell_id`, `device`, `tag`, `t_ns`, `value` JSON→JSONB, `quality`,
+`simulated`; composite index `(cell_id, device, tag, t_ns)`) and `Telemetry1m` (the one-minute
+roll-up written in E4.5; `(cell_id, device, tag, minute)` unique, min/max/mean/count); both use
+a 64-bit autoincrement PK that is `BIGINT` on Postgres and `INTEGER` on SQLite (`_BigId`
+variant) so a bulk insert gets its id on both. Migration `0009_telemetry` (reversible; covered
+by the offline migration/model column check). Service `telemetry/ingest.py`: `_rows_from_frame`
+splits each sample `id` into `<device>.<tag>` (a sample with no dot is skipped; an out-of-enum
+quality is stored as `bad` defensively — on the wire the schema already rejects it);
+`ingest_telemetry` reads the current row count and, when it is at or above
+`SYNAPSE_TELEMETRY_MAX_ROWS`, drops the whole batch with a logged counter instead of filling
+the Neon quota, otherwise inserts the batch in one `insert().values([...])` (an executemany
+under psycopg) and commits; it returns accepted/dropped counts. Relay wiring: a publisher's
+`telemetry` frame is persisted through an `on_telemetry` hook the endpoint supplies, with
+`simulated` set from the session role (twin → virtual `True`, daemon → real `False`), off the
+fan-out path. New settings: `telemetry_max_rows` (5,000,000), and the retention/roll-up
+settings used by E4.5 (`telemetry_raw_retention_s` 7 d, `telemetry_1m_retention_s` 30 d,
+`telemetry_rollup_interval_s` 60 s). Choices: `simulated` is recorded per sample so a guest
+query (E4.5) can be kept to virtual devices; the cap is a coarse guard (whole batch) not a
+precise limit, which is enough to protect the quota; ingest is best effort and does not block
+the fan-out. No new error code (ingest never surfaces one to a client). Open: the retention and
+1-minute roll-up task, `GET /v1/telemetry` and the retention property test are E4.5. Tests: 4
+new in `tests/test_telemetry_ingest.py` (frame→rows splitting device/tag and skipping a
+dot-less id; the defensive quality normalisation; a twin's telemetry over the relay persisted
+with `simulated=True` and both devices present; the storage cap dropping a batch and leaving the
+row count unchanged) plus the migration column check extended to the two telemetry tables. Full
+suite 219 pass, 4 skipped locally (DB tests on SQLite with `--with aiosqlite`, Postgres in CI);
+ruff clean; OpenAPI/SDK drift green (no new REST route).
 

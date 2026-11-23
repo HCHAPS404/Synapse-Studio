@@ -57,6 +57,10 @@ _CONTROL_SCOPE = "control"
 # it receives the session principal key (e.g. `service:<token_id>`).
 HeartbeatHook = Callable[[str], Awaitable[None]]
 
+# A hook the endpoint supplies to persist a telemetry frame; it receives the frame and whether
+# the publisher is the twin (virtual devices, `True`) or a daemon (real devices, `False`).
+TelemetryHook = Callable[[dict[str, Any], bool], Awaitable[None]]
+
 
 class Transport(Protocol):
     """The minimal WebSocket surface the session needs."""
@@ -128,6 +132,7 @@ class RelaySession:
         timeouts: SessionTimeouts | None = None,
         control_rate: float = 20.0,
         on_heartbeat: HeartbeatHook | None = None,
+        on_telemetry: TelemetryHook | None = None,
     ) -> None:
         self._t = transport
         self._hub = hub
@@ -135,6 +140,7 @@ class RelaySession:
         self._sessions = sessions
         self._timeouts = timeouts or SessionTimeouts()
         self._on_heartbeat = on_heartbeat
+        self._on_telemetry = on_telemetry
         self._session: Session | None = None
         self._writer: asyncio.Task[None] | None = None
         # One token bucket per session: capacity = burst = the per-second limit, refilled at
@@ -352,6 +358,8 @@ class RelaySession:
         if mtype in _PUBLISHER:
             if mtype == "deployment_status" and self._on_heartbeat is not None:
                 await self._on_heartbeat(self._session.key)
+            if mtype == "telemetry" and self._on_telemetry is not None:
+                await self._on_telemetry(frame, "twin" in self._session.roles)
             self._fan_out(frame)
             return
 
