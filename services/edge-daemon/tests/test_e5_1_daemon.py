@@ -1,4 +1,4 @@
-"""E5.1: config, the simulated driver, the relay client with reconnect, pairing.""""""E5.1: config, the simulated driver, the relay client with reconnect, pairing."""
+"""E5.1: config, the simulated driver, the relay client with reconnect, pairing."""
 
 from __future__ import annotations
 
