@@ -1815,6 +1815,71 @@
         "title": "ServiceTokenList",
         "type": "object"
       },
+      "TelemetryPage": {
+        "description": "A page of samples, newest first.",
+        "properties": {
+          "cell_id": {
+            "title": "Cell Id",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/TelemetrySampleOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "cell_id",
+          "limit"
+        ],
+        "title": "TelemetryPage",
+        "type": "object"
+      },
+      "TelemetrySampleOut": {
+        "description": "One telemetry sample.",
+        "properties": {
+          "device": {
+            "title": "Device",
+            "type": "string"
+          },
+          "quality": {
+            "title": "Quality",
+            "type": "string"
+          },
+          "simulated": {
+            "title": "Simulated",
+            "type": "boolean"
+          },
+          "t_ns": {
+            "title": "T Ns",
+            "type": "integer"
+          },
+          "tag": {
+            "title": "Tag",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value"
+          }
+        },
+        "required": [
+          "device",
+          "tag",
+          "t_ns",
+          "value",
+          "quality",
+          "simulated"
+        ],
+        "title": "TelemetrySampleOut",
+        "type": "object"
+      },
       "TokenOut": {
         "description": "A short-lived JWT access token. Send it as `Authorization: Bearer <token>`.",
         "properties": {
@@ -3026,6 +3091,129 @@
         "summary": "Revoke Token",
         "tags": [
           "service-tokens"
+        ]
+      }
+    },
+    "/v1/telemetry": {
+      "get": {
+        "description": "Telemetry samples for a cell, newest first. Guests see only virtual devices.",
+        "operationId": "get_telemetry_v1_telemetry_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "cell",
+            "required": true,
+            "schema": {
+              "maxLength": 120,
+              "minLength": 1,
+              "title": "Cell",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "device",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 120,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Device"
+            }
+          },
+          {
+            "in": "query",
+            "name": "tag",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tag"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from_ns",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "From Ns"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to_ns",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "To Ns"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 1000,
+              "maximum": 5000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TelemetryPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Telemetry",
+        "tags": [
+          "telemetry"
         ]
       }
     },

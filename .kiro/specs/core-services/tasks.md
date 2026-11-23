@@ -23,7 +23,7 @@ tested against simulated peers.
 | E4.2 | Subscriptions, `cell_snapshot` cache, fan-out with bounded queues and drop policy, control rate limit; round-trip property over all examples | E-R9 | no | done |
 | E4.3 | Daemon pairing (code, claim, token, unpair), `daemons` and `devices` tables, `deployment_status` and heartbeat timeout | E-R10 | no | done |
 | E4.4 | Telemetry ingest from relay frames, tables, indexes, storage cap | E-R11 | no | done |
-| E4.5 | Retention and 1-minute roll-up task with advisory lock; `GET /v1/telemetry`; property test of retention | E-R11 | no | open |
+| E4.5 | Retention and 1-minute roll-up task with advisory lock; `GET /v1/telemetry`; property test of retention | E-R11 | no | done |
 | E4.6 | Advisory E-STOP path and sim control routing (twin only, simulated devices only), audit entries | E-R9, E-R15, E-R8 | no | open |
 | E5.1 | Daemon package: config, `Driver` protocol, simulated driver, relay client with reconnect, local LAN mode, pairing client | E-R12, E-R10 | no | open |
 | E5.2 | Signed packages: manifest, Ed25519 sign (API side) and verify (daemon), quarantine, `NE1108` | E-R13 | no | open |
@@ -574,4 +574,33 @@ with `simulated=True` and both devices present; the storage cap dropping a batch
 row count unchanged) plus the migration column check extended to the two telemetry tables. Full
 suite 219 pass, 4 skipped locally (DB tests on SQLite with `--with aiosqlite`, Postgres in CI);
 ruff clean; OpenAPI/SDK drift green (no new REST route).
+
+## Results of E4.5
+Telemetry retention, the one-minute roll-up and the query route. `telemetry/retention.py`:
+`run_retention` takes a Postgres advisory lock (`pg_try_advisory_lock`, a no-op on SQLite so
+the single local process just runs; returns `locked=False` when another instance holds it),
+then per pass takes a chunk (10,000) of raw samples older than the raw-retention window, rolls
+them into `telemetry_1m` first and deletes exactly those rows, then deletes roll-up rows older
+than the roll-up window, all in one transaction, releasing the lock in `finally`. A bucket is
+`(cell, device, tag, minute)`; `_merge_bucket` combines a batch with any existing row so the
+running `count` and sum (`mean*count`) are preserved across passes and chunks; numeric values
+(numbers and booleans) are aggregated, strings are not. `telemetry/query.py`: `query_samples`
+filters by cell, optional device/tag and `[from_ns, to_ns)`, newest first, capped at
+`MAX_LIMIT=5000`, with `virtual_only` to keep a guest to `simulated` rows. Route
+`api/telemetry.py` `GET /v1/telemetry` (prefix `/v1`): a user with `telemetry.read` (viewer and
+up) reads any device; a guest reads only virtual devices; anonymous or any other principal is
+`NE1106`. The retention task runs in the lifespan on `telemetry_rollup_interval_s` (60 s),
+guarded by the advisory lock. Choices: retention rolls up only the rows it is about to delete,
+so each raw sample is rolled up exactly once (no double counting) and the roll-up is driven by
+deletion, not by a separate "complete minute" scan; the advisory lock makes the task safe even
+if more than one instance ever runs (the design's single-instance assumption is not relied on
+for correctness here). No new error code. Open: the advisory E-STOP path and sim-control
+routing are E4.6. Tests: 9 new — `tests/test_telemetry_query.py` (4, needs a DB: a user reads
+all devices newest-first, device/tag/range filtering, a guest sees only virtual devices,
+anonymous `NE1106`) and `tests/test_telemetry_retention.py` (1 Hypothesis property, 25 examples:
+over random sample ages and values, after retention no raw sample older than the window
+survives, every fresh sample survives, and each roll-up bucket's count and sum equal the
+expired samples' count and sum). Full suite 224 pass, 4 skipped locally (DB tests on SQLite with
+`--with aiosqlite`, Postgres in CI); ruff clean; OpenAPI/SDK regenerated for `GET /v1/telemetry`,
+drift green.
 

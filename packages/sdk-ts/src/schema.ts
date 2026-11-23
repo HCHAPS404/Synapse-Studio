@@ -331,6 +331,21 @@ export interface ServiceTokenList {
   "items": Array<ServiceTokenInfo>;
 }
 
+export interface TelemetryPage {
+  "items": Array<TelemetrySampleOut>;
+  "cell_id": string;
+  "limit": number;
+}
+
+export interface TelemetrySampleOut {
+  "device": string;
+  "tag": string;
+  "t_ns": number;
+  "value": unknown;
+  "quality": string;
+  "simulated": boolean;
+}
+
 export interface TokenOut {
   "access_token": string;
   "token_type"?: string;
@@ -403,6 +418,7 @@ export interface ApiPaths {
   "/v1/projects/{project_id}/versions": "GET" | "POST";
   "/v1/service-tokens": "GET" | "POST";
   "/v1/service-tokens/{token_id}": "DELETE";
+  "/v1/telemetry": "GET";
   "/v1/versions/{version_id}": "GET";
   "/v1/versions/{version_id}/builds": "GET" | "POST";
 }

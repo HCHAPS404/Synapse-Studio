@@ -22,6 +22,7 @@ from synapse_core.api.pairing import router as pairing_router
 from synapse_core.api.projects import router as projects_router
 from synapse_core.api.relay import router as relay_router
 from synapse_core.api.service_tokens import router as service_tokens_router
+from synapse_core.api.telemetry import router as telemetry_router
 from synapse_core.compile.sandbox import NetworkSandbox, detect_network_sandbox
 from synapse_core.db.session import dispose_engines, get_engine
 from synapse_core.errors import install_error_handlers
@@ -33,6 +34,7 @@ from synapse_core.ratelimit import RateLimitMiddleware
 from synapse_core.services.builds import interrupt_unfinished
 from synapse_core.services.guests import cleanup_expired
 from synapse_core.settings import Settings, get_settings
+from synapse_core.telemetry.retention import run_retention
 
 log = logging.getLogger(__name__)
 
@@ -117,6 +119,34 @@ async def _guest_cleanup_loop(interval_s: float) -> None:
             log.warning("guest cleanup failed", extra={"error": type(exc).__name__})
 
 
+async def _telemetry_retention_loop(interval_s: float) -> None:
+    """Rolls up and prunes telemetry on a timer, under a Postgres advisory lock."""
+    while True:
+        await asyncio.sleep(interval_s)
+        settings = get_settings()
+        engine = get_engine(settings)
+        if engine is None:
+            continue
+        try:
+            async with async_sessionmaker(engine)() as session:
+                result = await run_retention(
+                    session,
+                    raw_retention_s=settings.telemetry_raw_retention_s,
+                    rollup_retention_s=settings.telemetry_1m_retention_s,
+                )
+            if result.locked and (result.raw_deleted or result.rollup_deleted):
+                log.info(
+                    "telemetry retention",
+                    extra={
+                        "rolled_up": result.rolled_up,
+                        "raw_deleted": result.raw_deleted,
+                        "rollup_deleted": result.rollup_deleted,
+                    },
+                )
+        except Exception as exc:  # noqa: BLE001 - never let the loop die
+            log.warning("telemetry retention failed", extra={"error": type(exc).__name__})
+
+
 @asynccontextmanager
 async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     # Self-test of the compile sandbox; the result is reported by /health.
@@ -129,13 +159,16 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
         },
     )
     await _interrupt_unfinished_builds()
-    cleanup = asyncio.create_task(_guest_cleanup_loop(get_settings().guest_cleanup_interval_s))
+    settings = get_settings()
+    cleanup = asyncio.create_task(_guest_cleanup_loop(settings.guest_cleanup_interval_s))
+    retention = asyncio.create_task(_telemetry_retention_loop(settings.telemetry_rollup_interval_s))
     yield
-    cleanup.cancel()
-    try:
-        await cleanup
-    except asyncio.CancelledError:
-        pass
+    for task in (cleanup, retention):
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
     manager = getattr(app.state, "build_manager", None)
     if manager is not None:
         await manager.shutdown()
@@ -170,6 +203,7 @@ def create_app() -> FastAPI:
     app.include_router(service_tokens_router)
     app.include_router(audit_router)
     app.include_router(pairing_router)
+    app.include_router(telemetry_router)
     app.include_router(relay_router)
 
     @app.get("/health", response_model=HealthResponse)

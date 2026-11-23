@@ -1057,3 +1057,16 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   `with_variant(Integer, "sqlite")` for the local bulk-insert tests to get ids while Postgres
   keeps `BIGINT`. An out-of-enum quality cannot reach ingest (the JSON Schema rejects it at the
   socket), so the normalisation is a defensive fallback, not a path a wire frame can take.
+
+## 2026-11-23 · Task E4.5 (Telemetry retention, 1-minute roll-up, GET /v1/telemetry)
+- **Kiro features:** spec-driven task from `.kiro/specs/core-services/`, the E4.4 telemetry
+  tables/settings, and the E3.2 permission matrix for the guest-virtual-only read rule.
+- **Produced:** `telemetry/retention.py` (`run_retention` under a `pg_try_advisory_lock`, chunked
+  roll-up-then-delete, `_merge_bucket` preserving count/sum), `telemetry/query.py` + `api/telemetry.py`
+  (`GET /v1/telemetry`), and a retention loop in the lifespan.
+- **Results:** 9 new tests (4 query, 1 Hypothesis retention property over 25 examples); full
+  suite 224 pass, 4 skipped; ruff clean; drift green.
+- **Lessons:** rolling up only the rows about to be deleted makes the roll-up idempotent without
+  tracking a "last processed minute" — each raw sample is aggregated exactly once. Guarding the
+  task with an advisory lock keeps it correct even if the single-instance assumption ever breaks,
+  and the lock is a clean no-op on the SQLite used for local tests.
