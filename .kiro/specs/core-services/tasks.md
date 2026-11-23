@@ -27,7 +27,7 @@ tested against simulated peers.
 | E4.6 | Advisory E-STOP path and sim control routing (twin only, simulated devices only), audit entries | E-R9, E-R15, E-R8 | no | done |
 | E5.1 | Daemon package: config, `Driver` protocol, simulated driver, relay client with reconnect, local LAN mode, pairing client | E-R12, E-R10 | no | done |
 | E5.2 | Signed packages: manifest, Ed25519 sign (API side) and verify (daemon), quarantine, `NE1108` | E-R13 | no | done |
-| E5.3 | Command allowlist with per-command Pydantic arguments, `NE1109`, `NE1111` for offline devices | E-R13 | no | open |
+| E5.3 | Command allowlist with per-command Pydantic arguments, `NE1109`, `NE1111` for offline devices | E-R13 | no | done |
 | E5.4 | Deployment state machine in the API and the daemon, `NE1110`, property test over event sequences | E-R14 | no | open |
 | E5.5 | Serial driver and `Flasher` (avrdude, UF2) with fake tools and `loop://` | E-R12 | no | open |
 | E5.6 | Modbus TCP and RTU drivers against a pymodbus server and a loopback serial pair | E-R12 | no | open |
@@ -662,7 +662,7 @@ pairing success and `NE1111`). No new error code (NE1108..NE1111 already documen
 ## Results of E5.2
 Signed deployment packages. API side (`services/core/src/synapse_core/packages.py`):
 `PackageManifest`/`PackageFile` (Pydantic v2, `extra="forbid"`), `canonical_manifest_bytes`
-(JSON with sorted keys, no spaces, `created_at` ISO-8601 — the single definition of "the
+(JSON with sorted keys, no spaces, `created_at` ISO-8601 ï¿½ the single definition of "the
 bytes that are signed"), `load_signing_key`/`public_key_b64` (Ed25519 from a base64 32-byte
 seed), `build_manifest` (hashes each artifact), `sign_package` (zips `manifest.json` pretty +
 `manifest.sig` + the files; the signature is over the canonical bytes so pretty spacing cannot
@@ -682,3 +682,22 @@ daemon applying a verified package, land with the deployment state machine (E5.4
 file, no trusted keys, the canonical vector, quarantine) + 4 core (key round-trip, manifest hashing,
 sign produces a verifiable zip, the shared canonical vector). No new error code (NE1108 documented
 in E2.1).
+## Results of E5.3
+Command allowlist and dispatcher (`services/edge-daemon/src/synapse_daemon/commands.py`).
+`ALLOWED_COMMANDS` maps the five allowed names to a per-command Pydantic model
+(`extra="forbid"`): `read_tag`/`write_tag`/`flash`/`status`/`reset_driver` -> `ReadTagArgs`,
+`WriteTagArgs`, `FlashArgs`, `StatusArgs`, `ResetDriverArgs`. `CommandDispatcher.validate`
+rejects any other name and any bad or extra argument with `NE1109`; `run` validates then
+executes against the driver the `DeviceRegistry` resolves. A command for a device whose driver
+is not open (offline or not paired) is `NE1111`. `write_tag` goes through the driver, which
+still enforces the `writable` set, so a write command never bypasses it. There is no shell,
+`eval`, allowlist-edit or E-STOP command in the allowlist (asserted by a test). `flash` and
+`reset_driver` dispatch to optional `flash`/`reopen` hooks on the registry, wired to the Flasher
+(E5.5) and the runtime driver pool (E5.10). Choices: a validation failure is `NE1109` (the
+command "is not allowed" in the form it was sent) rather than a separate code, matching the
+catalogue; the dispatcher is pure and takes an injected registry so tests drive it with the
+simulated driver. Open: the relay hook that feeds `{name, args}` from a control frame into the
+dispatcher, and the real flash/reopen handlers, land with E5.5/E5.10. Tests: 9 in
+`tests/test_e5_3_commands.py` (read/write allowed; unknown command, missing arg and extra arg all
+`NE1109`; offline device `NE1111`; status for the daemon and for an offline device; the allowlist
+holds no dangerous command). No new error code (NE1109/NE1111 documented in E2.1).

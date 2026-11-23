@@ -1111,3 +1111,13 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   carry a human-readable pretty manifest while keeping one byte string under the signature; a fixed
   canonical vector asserted on both sides guarantees cross-package compatibility without importing one
   package into the other's test.
+## 2026-11-23 · Task E5.3 (Daemon command allowlist with per-command Pydantic args, NE1109/NE1111)
+- **Kiro features:** spec-driven task from `.kiro/specs/core-services/` (design "Command allowlist"),
+  requirement E-R13, the shared `NE1109`/`NE1111` catalogue entries.
+- **Produced:** `synapse_daemon.commands` -- `ALLOWED_COMMANDS` (five names -> Pydantic models),
+  `CommandDispatcher` (`validate` -> `NE1109`, offline device -> `NE1111`), writes still gated
+  by the driver's `writable` set, no shell/eval/estop/allowlist-edit command.
+- **Results:** 9 new tests; the daemon suite is 31 pass; ruff clean.
+- **Lessons:** keeping the allowlist a name->model map makes "only these commands, only these args"
+  one place to read and test; routing writes through the driver's own writability check means the
+  command layer cannot be the hole that lets a non-writable tag be written.
