@@ -39,6 +39,9 @@ have not been checked on the device by the maintainers yet.
 | `raspberry_pi_pico` | RP2040, 12 MHz crystal | runtime | `app.elf`, `app.bin`, `app.uf2` (RAM image) | UF2 drive | C build, Thumb simulator against the interpreter |
 | `raspberry_pi_pico_2w` | RP2350, 12 MHz crystal | runtime | `app.elf`, `app.bin`, `app.uf2` | UF2 drive | C build (not simulated) |
 | `nucleo_f446re` | STM32F446, 16 MHz HSI | runtime | `app.elf`, `app.bin` (flash image) | probe-rs, OpenOCD or st-flash | C build (not simulated) |
+| `nano_33_ble_sense` | nRF52840, 64 MHz HFINT | runtime | `app.elf`, `app.bin`, `app.uf2` (flash image above the UF2 bootloader) | UF2 drive (NANO33BLE) | model loads; C not compiled here (no arm-gcc). GPIO + tick + UARTE0 TX + GPIOTE edge interrupts; ADC/PWM left out. Serial1 pins to confirm on the board |
+| `nano_33_iot` | SAMD21G18A, 8 MHz OSC8M | runtime | `app.elf`, `app.bin` (flash image above the SAM-BA bootloader) | bossac | model loads; C not compiled here. GPIO + tick only; UART TX and EIC edge interrupts left out (SERCOM/EIC need GCLK, deferred); ADC/PWM left out. LED (PA17) and TX (PA22) pins to confirm |
+| `uno_q` | STM32U585 (MCU side), 16 MHz HSI | runtime | `app.elf`, `app.bin` (flash image) | probe-rs, OpenOCD or st-flash (SWD) | model loads; C not compiled here. GPIO + tick + USART1 TX + EXTI edge interrupts; ADC/PWM left out. Linux side out of scope. User LED pin is a placeholder (PA5), to confirm on the board |
 | `esp32_s3_devkit` | ESP32-S3 | sdk | an `idf.py` project, built when ESP-IDF is installed | esptool | project generation |
 | `xiao_esp32s3` | ESP32-S3 | sdk | an `idf.py` project | esptool | project generation |
 | `nucleo_n657x0_q` | STM32N657 | described | — | — | pins and clocks only (placeholder) |
@@ -56,6 +59,16 @@ models the RP2040 behavior the port depends on; the RP2350, STM32 and ESP32-S3 i
 built but not executed. The RAM UF2 start (the boot ROM taking SP and PC from the vector
 table at `0x20000000`) and the RP2350 image definition block need confirmation on the boards.
 
+The three Arduino ports added for the nRF52840 (`nano_33_ble_sense`), SAMD21G18A
+(`nano_33_iot`) and STM32U585 (`uno_q`) were written against the public reference manuals and
+checked by the target model and the code generator, but the C was **not compiled** on the
+machine that added them (no `arm-none-eabi-gcc` there) and no image has run on the boards. On
+the SAMD21 the UART TX and the EIC edge interrupts are left out on purpose (SERCOM and the EIC
+both need GCLK routing that is risky to get right without the board); a program that only uses
+GPIO and the tick runs, one that needs UART output or an edge interrupt builds but those do
+nothing. The `uno_q` on-board user LED pin is a placeholder (PA5); the real pin is to confirm
+on the board.
+
 ## Runtime ports (`runtime/neuron-rt/port/`)
 
 | Port | GPIO | Edge interrupts | Tick | UART TX | PWM / ADC | Display bus |
@@ -63,6 +76,9 @@ table at `0x20000000`) and the RP2350 image definition block need confirmation o
 | `avr` | ✔ | INT0–INT7 | timer 0 CTC | UART0, ring buffer | timers 1/2, ADC | TWI, SPI |
 | `rp` (RP2040, RP2350) | SIO | IO_BANK0 | SysTick | UART0 on GP0 | not yet (`NE0610`) | not yet |
 | `stm32f4` | ✔ | EXTI | SysTick | USART2 on PA2 | not yet (`NE0610`) | not yet |
+| `stm32u5` (STM32U585) | ✔ | EXTI | SysTick | USART1 on PA9 | not yet (`NE0610`) | not yet |
+| `nrf52` (nRF52840) | ✔ (P0, P1) | GPIOTE | SysTick | UARTE0 (EasyDMA, 1 byte) | not yet (`NE0610`) | not yet |
+| `samd21` (SAMD21G18A) | ✔ (PA, PB) | not yet (deferred) | SysTick | not yet (deferred) | not yet (`NE0610`) | not yet |
 | `esp_idf` | gpio driver | GPIO ISR service | esp_timer | uart driver | not yet | I2C, SPI drivers |
 | `host` | simulated | from the scenario | simulated time | traced | traced | traced (`BUS` lines) |
 

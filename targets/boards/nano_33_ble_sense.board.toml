@@ -1,0 +1,26 @@
+schema = 1
+name = "nano_33_ble_sense"
+source = "Own description. Pin names are the labels printed on the board; the mapping is public board documentation."
+trust = "community"
+tier = "runtime"
+chip = "nrf52840"
+runtime = "baremetal-nrf52"
+crystal_hz = 64000000
+sysclk_hz = 64000000
+voltage_mv = 3300
+note = "Arduino Nano 33 BLE Sense Rev2 (nRF52840). Bare-metal port on the 64 MHz internal oscillator; application linked above the Adafruit UF2 bootloader (0x00026000), flashed as a UF2 to the NANO33BLE drive after a double-tap of RESET. Works: GPIO in/out, input pull-up, 1 ms tick, UARTE0 TX, GPIOTE edge interrupts. Left out: ADC and PWM (the build refuses them). Serial1 TX/RX pins (P1.03/P1.10) are to confirm on the board. Built, not yet run on hardware; validate in the lab session."
+
+[pins]
+D13 = "P0.13"
+LEDR = "P0.24"
+LEDG = "P0.16"
+LEDB = "P0.06"
+TX1 = "P1.03"
+RX1 = "P1.10"
+
+[leds]
+# User LED on P0.13; the RGB LED (P0.24/P0.16/P0.06) is active-low.
+LED = "P0.13"
+
+[programmer]
+tool = "uf2"

@@ -1,0 +1,22 @@
+schema = 1
+name = "nano_33_iot"
+source = "Own description. Pin names are the labels printed on the board; the mapping is public board documentation."
+trust = "community"
+tier = "runtime"
+chip = "samd21g18"
+runtime = "baremetal-samd21"
+crystal_hz = 8000000
+sysclk_hz = 8000000
+voltage_mv = 3300
+note = "Arduino Nano 33 IoT (SAMD21G18A). Bare-metal port on the 8 MHz internal oscillator (OSC8M); application linked above the SAM-BA bootloader (0x00002000), flashed with bossac over the serial port (offset 0x2000). Works: GPIO in/out, input pull-up, 1 ms tick. Left out in this version: UART TX and EIC edge interrupts (SERCOM/EIC need GCLK routing, deferred to the lab session); ADC and PWM (as the F4 port). The user LED pin (PA17 = D13/SCK) and Serial1 TX pin (PA22) are to confirm on the board. The 48 MHz DFLL is a later improvement. Built, not yet run on hardware; validate in the lab session."
+
+[pins]
+D13 = "PA17"
+TX1 = "PA22"
+RX1 = "PA23"
+
+[leds]
+LED = "PA17"
+
+[programmer]
+tool = "bossac"

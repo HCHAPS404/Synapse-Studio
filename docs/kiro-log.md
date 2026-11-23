@@ -1322,3 +1322,34 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
 - **Lessons:** Docker is not installed here, so the image first builds on Render. The
   change is reversible to the previous `runtime: python` if the Rust build times out; the
   compile runner already works without the binary, so a fallback image is safe.
+## 2026-11-23 · New boards: Nano 33 BLE Sense, Nano 33 IoT, UNO Q (chips, runtime ports, flashing)
+- **Kiro features:** agentic session following a prepared spec (`out/new-boards-spec.md`,
+  public register/memory data only), the STM32F4 port read as the template, steering
+  (`tech`, `structure`, `rust-style`, `conventions`) enforcing English, `thiserror`, no
+  `unwrap`/`expect` outside tests, and `cargo clippy -D warnings`.
+- **Produced:** three Cortex-M boards wired end to end for `neuron check` and `neuron build`.
+  Chips `targets/chips/{nrf52840,samd21g18,stm32u585}.chip.toml`; runtimes
+  `targets/runtimes/baremetal-{nrf52,samd21,stm32u5}.runtime.toml`; boards
+  `targets/boards/{nano_33_ble_sense,nano_33_iot,uno_q}.board.toml`; bare-metal ports
+  `runtime/neuron-rt/port/{nrf52,samd21,stm32u5}/` (`.h`, `.c`, linker script each) plus the
+  new `NRT_PORT_*` includes in `nrt.h`. Wired `neuron-codegen-c`: new `Port` variants,
+  `define()`, `for_target()`, `include_str!` consts, `runtime_files()`, `arm_profile()` (cpu
+  flags, ld, load address, UF2 family), the nRF Adafruit UF2 family `0xADA52840` in `uf2.rs`,
+  a new `flash_bossac` driver and a `("bossac", Built::Arm)` arm in the CLI flash dispatch.
+  Registered the three of each in the `neuron-target` `BUILTIN` list and updated the tier test.
+- **Results:** `cargo test -p neuron-target -p neuron-codegen-c` green (b1 16, b2 15, b5 8,
+  doc-tests 3). `neuron targets` lists all three. A blink that uses only GPIO + a tick checks
+  clean (exit 0) on each board, and `emit-c --board` writes the right port files with correct
+  pin masks (nRF P0.13 → 13, SAMD PA17 → 17). `cargo fmt` and `clippy -D warnings` clean.
+  Honest capability per port: **GPIO in/out + input pull-up + 1 ms SysTick tick work on all
+  three.** nRF52840 (`nano_33_ble_sense`): also UARTE0 TX (1-byte EasyDMA) and GPIOTE edge
+  interrupts; ADC/PWM left out. STM32U585 (`uno_q`): also USART1 TX and EXTI edge interrupts;
+  ADC/PWM left out; Linux side out of scope. SAMD21 (`nano_33_iot`): UART TX and EIC edge
+  interrupts **left out** (SERCOM/EIC need GCLK routing, too risky without the board); ADC/PWM
+  left out. The C ports were **not compiled** (this machine has no `arm-none-eabi-gcc`); they
+  were made compile-clean by inspection against `nrt.h`, matching the F4 port's HAL signatures.
+- **Lessons:** the registry embeds targets with an explicit `include_str!` `BUILTIN` list, so
+  adding a TOML file is not enough — each must be added there (and the tier test lists every
+  runtime board). Placeholders are in each board `note`: the `uno_q` user LED pin (PA5), and
+  the Serial/UART pins of all three are "to confirm on the board". Still needs the physical
+  boards (session I2): flashing, LED/UART pin confirmation, and SAMD21 UART/EIC.

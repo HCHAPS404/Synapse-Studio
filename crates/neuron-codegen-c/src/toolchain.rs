@@ -238,6 +238,24 @@ fn arm_profile(port: Port) -> Option<(&'static [&'static str], &'static str, u32
             0x0800_0000,
             None,
         )),
+        Port::Stm32u5 => Some((
+            &["-mcpu=cortex-m33", "-mthumb", "-mfloat-abi=soft"],
+            "stm32u585.ld",
+            0x0800_0000,
+            None,
+        )),
+        Port::Nrf52 => Some((
+            &["-mcpu=cortex-m4", "-mthumb", "-mfloat-abi=soft"],
+            "nrf52840.ld",
+            0x0002_6000,
+            Some(crate::uf2::FAMILY_NRF52840),
+        )),
+        Port::Samd21 => Some((
+            &["-mcpu=cortex-m0plus", "-mthumb"],
+            "samd21g18.ld",
+            0x0000_2000,
+            None,
+        )),
         _ => None,
     }
 }
@@ -375,6 +393,22 @@ pub fn flash_stm32(elf: &Path, bin: &Path, chip: &str) -> Result<String, BuildEr
         tool: "probe-rs, openocd or st-flash".into(),
         env: "NEURON_PROBE_RS",
     })
+}
+
+/// Writes a raw binary to a SAM-BA board (Arduino Nano 33 IoT) with `bossac` over the serial
+/// port. The application lives at flash offset 0x2000, above the bootloader; `bossac`
+/// auto-detects the board's bootloader port.
+pub fn flash_bossac(bin: &Path) -> Result<String, BuildError> {
+    let bossac = find_tool("NEURON_BOSSAC", &["bossac"]).ok_or(BuildError::ToolMissing {
+        tool: "bossac".into(),
+        env: "NEURON_BOSSAC",
+    })?;
+    run(
+        "bossac",
+        Command::new(bossac)
+            .args(["-i", "-d", "-U", "-e", "-w", "-v", "-R", "--offset=0x2000"])
+            .arg(bin),
+    )
 }
 
 /// The files of an ESP-IDF project that builds the program: `(relative path, text)`.

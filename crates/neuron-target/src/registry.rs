@@ -99,6 +99,18 @@ const BUILTIN: &[(&str, &str)] = &[
         include_str!("../../../targets/chips/stm32n657.chip.toml"),
     ),
     (
+        "nrf52840.chip.toml",
+        include_str!("../../../targets/chips/nrf52840.chip.toml"),
+    ),
+    (
+        "samd21g18.chip.toml",
+        include_str!("../../../targets/chips/samd21g18.chip.toml"),
+    ),
+    (
+        "stm32u585.chip.toml",
+        include_str!("../../../targets/chips/stm32u585.chip.toml"),
+    ),
+    (
         "arduino_uno_r3.board.toml",
         include_str!("../../../targets/boards/arduino_uno_r3.board.toml"),
     ),
@@ -131,6 +143,18 @@ const BUILTIN: &[(&str, &str)] = &[
         include_str!("../../../targets/boards/nucleo_n657x0_q.board.toml"),
     ),
     (
+        "nano_33_ble_sense.board.toml",
+        include_str!("../../../targets/boards/nano_33_ble_sense.board.toml"),
+    ),
+    (
+        "nano_33_iot.board.toml",
+        include_str!("../../../targets/boards/nano_33_iot.board.toml"),
+    ),
+    (
+        "uno_q.board.toml",
+        include_str!("../../../targets/boards/uno_q.board.toml"),
+    ),
+    (
         "baremetal-avr.runtime.toml",
         include_str!("../../../targets/runtimes/baremetal-avr.runtime.toml"),
     ),
@@ -141,6 +165,18 @@ const BUILTIN: &[(&str, &str)] = &[
     (
         "baremetal-stm32.runtime.toml",
         include_str!("../../../targets/runtimes/baremetal-stm32.runtime.toml"),
+    ),
+    (
+        "baremetal-nrf52.runtime.toml",
+        include_str!("../../../targets/runtimes/baremetal-nrf52.runtime.toml"),
+    ),
+    (
+        "baremetal-samd21.runtime.toml",
+        include_str!("../../../targets/runtimes/baremetal-samd21.runtime.toml"),
+    ),
+    (
+        "baremetal-stm32u5.runtime.toml",
+        include_str!("../../../targets/runtimes/baremetal-stm32u5.runtime.toml"),
     ),
     (
         "esp-idf.runtime.toml",

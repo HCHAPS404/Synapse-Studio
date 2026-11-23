@@ -22,6 +22,12 @@ pub enum Port {
     Rp2350,
     /// STM32F4 (Cortex-M4), bare metal, image in flash.
     Stm32f4,
+    /// STM32U5 (Cortex-M33), bare metal, image in flash.
+    Stm32u5,
+    /// nRF52840 (Cortex-M4), bare metal, image in flash above the UF2 bootloader.
+    Nrf52,
+    /// SAMD21 (Cortex-M0+), bare metal, image in flash above the SAM-BA bootloader.
+    Samd21,
     /// ESP32-S3 on ESP-IDF.
     EspIdf,
 }
@@ -34,6 +40,9 @@ impl Port {
             ("rp", "rp2040") => Some(Port::Rp2040),
             ("rp", "rp2350") => Some(Port::Rp2350),
             ("stm32", c) if c.starts_with("stm32f4") => Some(Port::Stm32f4),
+            ("stm32u5", _) => Some(Port::Stm32u5),
+            ("nrf52", _) => Some(Port::Nrf52),
+            ("samd21", _) => Some(Port::Samd21),
             ("esp-idf", _) => Some(Port::EspIdf),
             _ => None,
         }
@@ -47,6 +56,9 @@ impl Port {
             Port::Rp2040 => "NRT_PORT_RP2040",
             Port::Rp2350 => "NRT_PORT_RP2350",
             Port::Stm32f4 => "NRT_PORT_STM32F4",
+            Port::Stm32u5 => "NRT_PORT_STM32U5",
+            Port::Nrf52 => "NRT_PORT_NRF52",
+            Port::Samd21 => "NRT_PORT_SAMD21",
             Port::EspIdf => "NRT_PORT_ESP_IDF",
         }
     }
@@ -64,6 +76,15 @@ const RP_LD: &str = include_str!("../../../runtime/neuron-rt/port/rp/rp_ram.ld")
 const ST_H: &str = include_str!("../../../runtime/neuron-rt/port/stm32f4/nrt_port_stm32f4.h");
 const ST_C: &str = include_str!("../../../runtime/neuron-rt/port/stm32f4/nrt_port_stm32f4.c");
 const ST_LD: &str = include_str!("../../../runtime/neuron-rt/port/stm32f4/stm32f446.ld");
+const U5_H: &str = include_str!("../../../runtime/neuron-rt/port/stm32u5/nrt_port_stm32u5.h");
+const U5_C: &str = include_str!("../../../runtime/neuron-rt/port/stm32u5/nrt_port_stm32u5.c");
+const U5_LD: &str = include_str!("../../../runtime/neuron-rt/port/stm32u5/stm32u585.ld");
+const NRF_H: &str = include_str!("../../../runtime/neuron-rt/port/nrf52/nrt_port_nrf52.h");
+const NRF_C: &str = include_str!("../../../runtime/neuron-rt/port/nrf52/nrt_port_nrf52.c");
+const NRF_LD: &str = include_str!("../../../runtime/neuron-rt/port/nrf52/nrf52840.ld");
+const SAMD_H: &str = include_str!("../../../runtime/neuron-rt/port/samd21/nrt_port_samd21.h");
+const SAMD_C: &str = include_str!("../../../runtime/neuron-rt/port/samd21/nrt_port_samd21.c");
+const SAMD_LD: &str = include_str!("../../../runtime/neuron-rt/port/samd21/samd21g18.ld");
 const ESP_H: &str = include_str!("../../../runtime/neuron-rt/port/esp_idf/nrt_port_esp_idf.h");
 const ESP_C: &str = include_str!("../../../runtime/neuron-rt/port/esp_idf/nrt_port_esp_idf.c");
 const UI_H: &str = include_str!("../../../runtime/neuron-rt/ui/nrt_ui.h");
@@ -80,7 +101,12 @@ pub fn ui_files(port: Port) -> Option<Vec<RuntimeFile>> {
         Port::Host => f("nrt_bus_host.c", BUS_HOST),
         Port::Avr => f("nrt_bus_avr.c", BUS_AVR),
         Port::EspIdf => f("nrt_bus_esp_idf.c", BUS_ESP),
-        Port::Rp2040 | Port::Rp2350 | Port::Stm32f4 => return None,
+        Port::Rp2040
+        | Port::Rp2350
+        | Port::Stm32f4
+        | Port::Stm32u5
+        | Port::Nrf52
+        | Port::Samd21 => return None,
     };
     Some(vec![f("nrt_ui.h", UI_H), f("nrt_ui.c", UI_C), bus])
 }
@@ -101,6 +127,21 @@ pub fn runtime_files(port: Port) -> Vec<RuntimeFile> {
             f("nrt_port_stm32f4.h", ST_H),
             f("nrt_port_stm32f4.c", ST_C),
             f("stm32f446.ld", ST_LD),
+        ]),
+        Port::Stm32u5 => v.extend([
+            f("nrt_port_stm32u5.h", U5_H),
+            f("nrt_port_stm32u5.c", U5_C),
+            f("stm32u585.ld", U5_LD),
+        ]),
+        Port::Nrf52 => v.extend([
+            f("nrt_port_nrf52.h", NRF_H),
+            f("nrt_port_nrf52.c", NRF_C),
+            f("nrf52840.ld", NRF_LD),
+        ]),
+        Port::Samd21 => v.extend([
+            f("nrt_port_samd21.h", SAMD_H),
+            f("nrt_port_samd21.c", SAMD_C),
+            f("samd21g18.ld", SAMD_LD),
         ]),
         Port::EspIdf => v.extend([
             f("nrt_port_esp_idf.h", ESP_H),

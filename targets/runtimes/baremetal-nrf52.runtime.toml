@@ -1,0 +1,9 @@
+schema = 1
+name = "baremetal-nrf52"
+source = "runtime/neuron-rt/port/nrf52: bare-metal port for the nRF52840 (Cortex-M4). Registers from the public nRF52840 product specification."
+trust = "community"
+kind = "baremetal"
+port = "nrf52"
+tick_hz = 1000
+reserves = ["systick"]
+cflags = ["-Os", "-ffunction-sections", "-fdata-sections"]

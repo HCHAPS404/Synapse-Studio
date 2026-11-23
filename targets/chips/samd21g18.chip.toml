@@ -1,0 +1,54 @@
+schema = 1
+name = "samd21g18"
+source = "Own description. Register and pin facts from the public SAM D21 family datasheet (subset)."
+trust = "community"
+arch = "thumbv6m"
+mcu = "samd21g18a"
+flash_bytes = 262144
+ram_bytes = 32768
+voltage_mv = 3300
+
+peripherals = [
+  { name = "sercom3", kind = "uart", aliases = ["uart0", "serial1"], index = 3, pins = { tx = "PA22", rx = "PA23" } },
+  { name = "adc1", kind = "adc", bits = 12 },
+]
+
+# SAMD21 has one PORT peripheral with two groups: group 0 = PA (pins 0..31), group 1 = PB.
+# The port letter is the group; the runtime keeps `group * 32 + pin` in `mask`. A subset:
+# the user LED (PA17 = D13/SCK), and the Serial1 TX/RX (PA22/PA23, SERCOM3).
+pins = [
+  { name = "PA02", port = "A", bit = 2, functions = ["gpio", "int:2", "adc1.in0"] },
+  { name = "PA04", port = "A", bit = 4, functions = ["gpio", "int:4", "adc1.in4"] },
+  { name = "PA05", port = "A", bit = 5, functions = ["gpio", "int:5", "adc1.in5"] },
+  { name = "PA06", port = "A", bit = 6, functions = ["gpio", "int:6", "adc1.in6"] },
+  { name = "PA07", port = "A", bit = 7, functions = ["gpio", "int:7", "adc1.in7"] },
+  { name = "PA08", port = "A", bit = 8, functions = ["gpio", "int:8"] },
+  { name = "PA09", port = "A", bit = 9, functions = ["gpio", "int:9"] },
+  { name = "PA10", port = "A", bit = 10, functions = ["gpio", "int:10"] },
+  { name = "PA11", port = "A", bit = 11, functions = ["gpio", "int:11"] },
+  { name = "PA14", port = "A", bit = 14, functions = ["gpio", "int:14"] },
+  { name = "PA15", port = "A", bit = 15, functions = ["gpio", "int:15"] },
+  { name = "PA16", port = "A", bit = 16, functions = ["gpio", "int:0"] },
+  { name = "PA17", port = "A", bit = 17, functions = ["gpio", "int:1"] },
+  { name = "PA18", port = "A", bit = 18, functions = ["gpio", "int:2"] },
+  { name = "PA19", port = "A", bit = 19, functions = ["gpio", "int:3"] },
+  { name = "PA20", port = "A", bit = 20, functions = ["gpio", "int:4"] },
+  { name = "PA21", port = "A", bit = 21, functions = ["gpio", "int:5"] },
+  { name = "PA22", port = "A", bit = 22, functions = ["gpio", "int:6", "sercom3.tx"] },
+  { name = "PA23", port = "A", bit = 23, functions = ["gpio", "int:7", "sercom3.rx"] },
+  { name = "PB02", port = "B", bit = 2, functions = ["gpio", "int:2", "adc1.in10"] },
+  { name = "PB03", port = "B", bit = 3, functions = ["gpio", "int:3", "adc1.in11"] },
+  { name = "PB08", port = "B", bit = 8, functions = ["gpio", "int:8", "adc1.in2"] },
+  { name = "PB09", port = "B", bit = 9, functions = ["gpio", "int:9", "adc1.in3"] },
+  { name = "PB10", port = "B", bit = 10, functions = ["gpio", "int:10"] },
+  { name = "PB11", port = "B", bit = 11, functions = ["gpio", "int:11"] },
+]
+
+[clock]
+# Honest port runs on the 8 MHz internal oscillator (OSC8M, no PLL); the Arduino core's
+# 48 MHz DFLL is a later improvement.
+max_hz = 48000000
+post_dividers = [1]
+sources = [
+  { name = "osc8m", min_hz = 8000000, max_hz = 8000000 },
+]

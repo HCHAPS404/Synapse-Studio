@@ -1,0 +1,9 @@
+schema = 1
+name = "baremetal-stm32u5"
+source = "runtime/neuron-rt/port/stm32u5: bare-metal port for the STM32U5 family (Cortex-M33). Registers from the public STM32U585 reference manual."
+trust = "community"
+kind = "baremetal"
+port = "stm32u5"
+tick_hz = 1000
+reserves = ["systick"]
+cflags = ["-Os", "-ffunction-sections", "-fdata-sections"]

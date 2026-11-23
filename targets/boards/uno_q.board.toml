@@ -1,0 +1,23 @@
+schema = 1
+name = "uno_q"
+source = "Own description. Pin names are the labels printed on the board; the mapping is public board documentation."
+trust = "community"
+tier = "runtime"
+chip = "stm32u585"
+runtime = "baremetal-stm32u5"
+crystal_hz = 16000000
+sysclk_hz = 16000000
+voltage_mv = 3300
+note = "Arduino UNO Q, the STM32U585 (real-time) side only; the Qualcomm Dragonwing Linux side is a separate host node and is out of scope for this runtime. Bare-metal port on the 16 MHz internal oscillator (HSI16); image in flash at 0x08000000, flashed over SWD with probe-rs/OpenOCD/st-flash. Works: GPIO in/out, input pull-up, 1 ms tick, USART1 TX, EXTI edge interrupts. Left out: ADC and PWM (the build refuses them). The on-board user LED pin is NOT confirmed for this variant: PA5 is a placeholder (to confirm on the board) and the USART1 TX pin PA9 is also to confirm. Built, not yet run on hardware; validate in the lab session."
+
+[pins]
+D13 = "PA5"
+TX1 = "PA9"
+RX1 = "PA10"
+
+[leds]
+# Placeholder: the real UNO Q user LED pin is to confirm on the board.
+LED = "PA5"
+
+[programmer]
+tool = "swd"

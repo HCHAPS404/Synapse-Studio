@@ -1,0 +1,60 @@
+schema = 1
+name = "stm32u585"
+source = "Own description. Register and pin facts from the public STM32U585 reference manual and datasheet (subset)."
+trust = "community"
+arch = "thumbv8m"
+mcu = "stm32u585"
+flash_bytes = 2097152
+ram_bytes = 786432
+voltage_mv = 3300
+
+peripherals = [
+  { name = "usart1", kind = "uart", aliases = ["uart1"], index = 1, pins = { tx = "PA9", rx = "PA10" } },
+  { name = "adc1", kind = "adc", bits = 14 },
+]
+
+# STM32U5 GPIO is the modern STM32 layout (ports A..H, 16 bits each); the runtime keeps
+# `port * 16 + bit` in `mask`, exactly like the STM32F4 port.
+pins = [
+  { name = "PA0", port = "A", bit = 0, functions = ["gpio", "int:0", "adc1.in0"] },
+  { name = "PA1", port = "A", bit = 1, functions = ["gpio", "int:1", "adc1.in1"] },
+  { name = "PA2", port = "A", bit = 2, functions = ["gpio", "int:2"] },
+  { name = "PA3", port = "A", bit = 3, functions = ["gpio", "int:3"] },
+  { name = "PA4", port = "A", bit = 4, functions = ["gpio", "int:4"] },
+  { name = "PA5", port = "A", bit = 5, functions = ["gpio", "int:5"] },
+  { name = "PA6", port = "A", bit = 6, functions = ["gpio", "int:6"] },
+  { name = "PA7", port = "A", bit = 7, functions = ["gpio", "int:7"] },
+  { name = "PA8", port = "A", bit = 8, functions = ["gpio", "int:8"] },
+  { name = "PA9", port = "A", bit = 9, functions = ["gpio", "int:9", "usart1.tx"] },
+  { name = "PA10", port = "A", bit = 10, functions = ["gpio", "int:10", "usart1.rx"] },
+  { name = "PA11", port = "A", bit = 11, functions = ["gpio", "int:11"] },
+  { name = "PA12", port = "A", bit = 12, functions = ["gpio", "int:12"] },
+  { name = "PA13", port = "A", bit = 13, functions = ["gpio", "int:13"] },
+  { name = "PA14", port = "A", bit = 14, functions = ["gpio", "int:14"] },
+  { name = "PA15", port = "A", bit = 15, functions = ["gpio", "int:15"] },
+  { name = "PB0", port = "B", bit = 0, functions = ["gpio", "int:0"] },
+  { name = "PB1", port = "B", bit = 1, functions = ["gpio", "int:1"] },
+  { name = "PB2", port = "B", bit = 2, functions = ["gpio", "int:2"] },
+  { name = "PB3", port = "B", bit = 3, functions = ["gpio", "int:3"] },
+  { name = "PB4", port = "B", bit = 4, functions = ["gpio", "int:4"] },
+  { name = "PB5", port = "B", bit = 5, functions = ["gpio", "int:5"] },
+  { name = "PB6", port = "B", bit = 6, functions = ["gpio", "int:6"] },
+  { name = "PB7", port = "B", bit = 7, functions = ["gpio", "int:7"] },
+  { name = "PB8", port = "B", bit = 8, functions = ["gpio", "int:8"] },
+  { name = "PB9", port = "B", bit = 9, functions = ["gpio", "int:9"] },
+  { name = "PB10", port = "B", bit = 10, functions = ["gpio", "int:10"] },
+  { name = "PB11", port = "B", bit = 11, functions = ["gpio", "int:11"] },
+  { name = "PB12", port = "B", bit = 12, functions = ["gpio", "int:12"] },
+  { name = "PB13", port = "B", bit = 13, functions = ["gpio", "int:13"] },
+  { name = "PB14", port = "B", bit = 14, functions = ["gpio", "int:14"] },
+  { name = "PB15", port = "B", bit = 15, functions = ["gpio", "int:15"] },
+  { name = "PC13", port = "C", bit = 13, functions = ["gpio", "int:13"] },
+]
+
+[clock]
+# Honest port runs on the 16 MHz internal oscillator (HSI), like the STM32F4 port; PLL later.
+max_hz = 160000000
+post_dividers = [1]
+sources = [
+  { name = "hsi", min_hz = 16000000, max_hz = 16000000 },
+]

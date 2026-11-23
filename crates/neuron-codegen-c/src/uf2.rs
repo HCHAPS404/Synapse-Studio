@@ -7,6 +7,8 @@
 pub const FAMILY_RP2040: u32 = 0xe48b_ff56;
 /// Family id of the RP2350 running Arm code in secure mode.
 pub const FAMILY_RP2350_ARM_S: u32 = 0xe48b_ff59;
+/// Family id of the Adafruit nRF52840 UF2 bootloader (Arduino Nano 33 BLE).
+pub const FAMILY_NRF52840: u32 = 0xada5_2840;
 
 const MAGIC0: u32 = 0x0a32_4655;
 const MAGIC1: u32 = 0x9e5d_5157;

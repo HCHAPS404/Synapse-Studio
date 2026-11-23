@@ -1,0 +1,9 @@
+schema = 1
+name = "baremetal-samd21"
+source = "runtime/neuron-rt/port/samd21: bare-metal port for the SAMD21 (Cortex-M0+). Registers from the public SAM D21 datasheet."
+trust = "community"
+kind = "baremetal"
+port = "samd21"
+tick_hz = 1000
+reserves = ["systick"]
+cflags = ["-Os", "-ffunction-sections", "-fdata-sections"]

@@ -68,9 +68,12 @@ fn every_board_has_its_support_tier() {
         [
             "arduino_mega_2560",
             "arduino_uno_r3",
+            "nano_33_ble_sense",
+            "nano_33_iot",
             "nucleo_f446re",
             "raspberry_pi_pico",
-            "raspberry_pi_pico_2w"
+            "raspberry_pi_pico_2w",
+            "uno_q"
         ]
     );
     assert_eq!(of(Tier::Sdk), ["esp32_s3_devkit", "xiao_esp32s3"]);

@@ -1,0 +1,48 @@
+schema = 1
+name = "nrf52840"
+source = "Own description. Register and pin facts from the public nRF52840 product specification (subset)."
+trust = "community"
+arch = "thumbv7em"
+mcu = "nrf52840"
+flash_bytes = 1048576
+ram_bytes = 262144
+voltage_mv = 3300
+
+peripherals = [
+  { name = "uarte0", kind = "uart", aliases = ["uart0", "serial1"], index = 0, pins = { tx = "P1.03", rx = "P1.10" } },
+  { name = "adc1", kind = "adc", bits = 12 },
+]
+
+# nRF52840 has two GPIO ports: P0 (pins 0..31) and P1 (pins 0..15). The port letter is the
+# port number; the runtime keeps `port * 32 + bit` in `mask`. A representative subset: the
+# user LED (P0.13), the RGB LED (P0.24/P0.16/P0.06), and the default Serial1 pins (P1.03/P1.10).
+pins = [
+  { name = "P0.02", port = "0", bit = 2, functions = ["gpio", "int:0", "adc1.in0"] },
+  { name = "P0.03", port = "0", bit = 3, functions = ["gpio", "int:1", "adc1.in1"] },
+  { name = "P0.04", port = "0", bit = 4, functions = ["gpio", "int:2", "adc1.in2"] },
+  { name = "P0.05", port = "0", bit = 5, functions = ["gpio", "int:3", "adc1.in3"] },
+  { name = "P0.06", port = "0", bit = 6, functions = ["gpio", "int:4"] },
+  { name = "P0.13", port = "0", bit = 13, functions = ["gpio", "int:5"] },
+  { name = "P0.16", port = "0", bit = 16, functions = ["gpio", "int:6"] },
+  { name = "P0.24", port = "0", bit = 24, functions = ["gpio", "int:7"] },
+  { name = "P0.27", port = "0", bit = 27, functions = ["gpio", "int:8"] },
+  { name = "P0.28", port = "0", bit = 28, functions = ["gpio", "int:9", "adc1.in4"] },
+  { name = "P0.29", port = "0", bit = 29, functions = ["gpio", "int:10", "adc1.in5"] },
+  { name = "P0.30", port = "0", bit = 30, functions = ["gpio", "int:11", "adc1.in6"] },
+  { name = "P0.31", port = "0", bit = 31, functions = ["gpio", "int:12", "adc1.in7"] },
+  { name = "P1.03", port = "1", bit = 3, functions = ["gpio", "int:13", "uarte0.tx"] },
+  { name = "P1.10", port = "1", bit = 10, functions = ["gpio", "int:14", "uarte0.rx"] },
+  { name = "P1.11", port = "1", bit = 11, functions = ["gpio", "int:15"] },
+  { name = "P1.12", port = "1", bit = 12, functions = ["gpio", "int:16"] },
+  { name = "P1.13", port = "1", bit = 13, functions = ["gpio", "int:17"] },
+  { name = "P1.14", port = "1", bit = 14, functions = ["gpio", "int:18"] },
+  { name = "P1.15", port = "1", bit = 15, functions = ["gpio", "int:19"] },
+]
+
+[clock]
+# Runs on the 64 MHz high-frequency internal oscillator (HFINT), the reset clock.
+max_hz = 64000000
+post_dividers = [1]
+sources = [
+  { name = "hfint", min_hz = 64000000, max_hz = 64000000 },
+]
