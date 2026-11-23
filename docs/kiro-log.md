@@ -960,3 +960,18 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   criteria (user-chain monotonicity + guest device-isolation). Resolving the principal
   without a DB session when there is no token keeps public routes working with no database
   and avoids a 503 masking a 403.
+
+## 2026-11-23 · Task E3.3 (Service tokens: hashed at rest, revocable, engineer-only issue)
+- **Kiro features:** spec-driven task from `.kiro/specs/core-services/`, workspace rules,
+  E3.1/E3.2 "Results of" for the principal resolver.
+- **Produced:** model `ServiceToken`, migration `0006_service_tokens`,
+  `services/service_tokens.py`, `schemas/service_tokens.py`, `api/service_tokens.py`
+  (`POST`/`GET`/`DELETE /v1/service-tokens`, engineer-only), a third branch in the principal
+  resolver, regenerated OpenAPI/SDK.
+- **Results:** 7 new tests; full suite 170 pass, 4 skipped; ruff clean; drift green. The
+  token is a 256-bit `svc_` secret shown once; only its SHA-256 is stored; revoked/unknown
+  tokens are `NE1105`; a daemon token is cell-bound, a twin token is not.
+- **Lessons:** a plaintext prefix (`svc_`, no dot) is a cheap, reliable way to route three
+  token kinds through one resolver without trial-decoding each. Storing only the hash keeps
+  the "shown once" guarantee honest; the issue route being `user.manage` stops a service
+  principal from minting more tokens.

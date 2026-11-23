@@ -17,7 +17,7 @@ tested against simulated peers.
 | E2.10 | Docker image (Rust stage plus Python), `render.yaml` to `runtime: docker`, local `docker compose` for the API and Postgres | E-R2, E-R18 | no | open |
 | E3.1 | Users, argon2 hashes, login, JWT access tokens, first-engineer CLI, `NE1105` | E-R6 | no | done |
 | E3.2 | Permission matrix, route dependencies, role checks, `NE1106`; monotonicity and guest-isolation properties | E-R7, E-R3 | no | done |
-| E3.3 | Service tokens (hashed, revocable) and their issue route | E-R6, E-R10 | no | open |
+| E3.3 | Service tokens (hashed, revocable) and their issue route | E-R6, E-R10 | no | done |
 | E3.4 | Audit log table with `INSERT`/`SELECT` grants, audit writes on every sensitive action, read route for engineers | E-R8 | no | open |
 | E4.1 | Relay core: `WS /v1/relay`, lifecycle (`hello`, `welcome`, ping, timeouts), schema validation, role table checked against `relay.md`, error codes | E-R9, E-R7 | no | open |
 | E4.2 | Subscriptions, `cell_snapshot` cache, fan-out with bounded queues and drop policy, control rate limit; round-trip property over all examples | E-R9 | no | open |
@@ -367,3 +367,32 @@ token stops working). Existing E2.4/E2.5 route tests now authenticate through a 
 `engineer_client` conftest fixture; the E2.8 guest build test passes the guest token to its
 build poll. Full suite 163 pass, 4 skipped locally; ruff clean; OpenAPI/SDK regenerated and
 the drift check passes. No new error code (`NE1106` already documented in E2.1).
+
+## Results of E3.3
+Service tokens for the `daemon` and `twin` principals. New: model `ServiceToken`
+(`role`, `cell_id`, `token_hash` unique, `label`, `created_at`, `revoked_at`) and migration
+`0006_service_tokens`; `services/service_tokens.py` (`issue_service_token` returns the row
+and the plaintext once; `principal_from_service_token`; `revoke_service_token`;
+`list_service_tokens`; `hash_token`; `looks_like_service_token`; `ServicePrincipal`);
+`schemas/service_tokens.py`; `api/service_tokens.py` with `POST /v1/service-tokens`,
+`GET /v1/service-tokens` and `DELETE /v1/service-tokens/{id}`, all gated by
+`require_permission(user.manage)` (engineer only). The principal resolver now recognises a
+third token kind: a service token starts with `svc_` and has no dot, so it is told apart
+from a user JWT (three dots) and a guest token (one dot); `Principal` is now
+`AuthenticatedUser | ServicePrincipal | GuestPrincipal`.
+Choices: the token is `svc_` + `secrets.token_urlsafe(32)` (256 bits); only its SHA-256 is
+stored, so a database read cannot recover a usable token; resolution is a lookup by the
+stored hash (never a plaintext comparison in SQL). A daemon token must carry a `cell_id`
+(bound to one cell); a twin token must not. A revoked or unknown token is `NE1105` (the same
+opaque code as a bad login); the engineer-only issue route is `user.manage`, so a daemon or
+twin token cannot mint more tokens. Revoke is idempotent at the service layer (`False` the
+second time) and the route maps that to a 404; a bad body (daemon without a cell) is `NE1101`
+from the route before anything is stored. The pairing code flow that hands a daemon one of
+these tokens is E4.3; this task builds the primitive and the engineer-only route.
+Tests: 7 in `tests/test_service_tokens.py` (hash shape and the `svc_` discriminator; issue
+stores only the hash and verifies; wrong and revoked tokens rejected `NE1105`, idempotent
+revoke; role/cell binding rules; engineer-only issue denied to viewer/operator/anonymous
+`NE1106`; engineer issues/lists/revokes and the issued token then authenticates and stops
+working after revoke; a daemon token without a cell is `NE1101`). Full suite 170 pass, 4
+skipped locally; ruff clean; OpenAPI/SDK regenerated for the three routes, drift check green.
+No new error code.

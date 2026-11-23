@@ -165,6 +165,28 @@ class User(Base):
     )
 
 
+class ServiceToken(Base):
+    """A long-lived token for a service principal (`daemon` or `twin`), E3.3.
+
+    The token value is a random 256-bit secret shown once at issue; only its SHA-256 is
+    stored here, so a database read cannot recover a usable token. `cell_id` binds a daemon
+    token to one cell (null for the twin). A revoked token has `revoked_at` set and is
+    rejected from then on.
+    """
+
+    __tablename__ = "service_tokens"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    role: Mapped[str] = mapped_column(String(16), nullable=False)
+    cell_id: Mapped[str | None] = mapped_column(String(120), nullable=True, index=True)
+    token_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    label: Mapped[str] = mapped_column(String(120), nullable=False, default="")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_now
+    )
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
 class VersionFile(Base):
     """One file of a version (UTF-8 text)."""
 

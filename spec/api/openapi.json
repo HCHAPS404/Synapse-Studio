@@ -1290,6 +1290,179 @@
         "title": "SandboxStatus",
         "type": "object"
       },
+      "ServiceTokenCreate": {
+        "additionalProperties": false,
+        "description": "Body of `POST /v1/service-tokens`. A daemon token needs a `cell_id`; a twin token\nmust not have one.",
+        "properties": {
+          "cell_id": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cell Id"
+          },
+          "label": {
+            "default": "",
+            "maxLength": 120,
+            "title": "Label",
+            "type": "string"
+          },
+          "role": {
+            "enum": [
+              "daemon",
+              "twin"
+            ],
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "role"
+        ],
+        "title": "ServiceTokenCreate",
+        "type": "object"
+      },
+      "ServiceTokenInfo": {
+        "description": "A service token's metadata (never its secret).",
+        "properties": {
+          "cell_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cell Id"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "revoked_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoked At"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "role",
+          "cell_id",
+          "label",
+          "created_at",
+          "revoked_at"
+        ],
+        "title": "ServiceTokenInfo",
+        "type": "object"
+      },
+      "ServiceTokenIssued": {
+        "description": "The response of issuing a token; `token` is shown once and never stored in clear.",
+        "properties": {
+          "cell_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cell Id"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "revoked_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoked At"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          },
+          "token": {
+            "description": "The secret, shown only now; store it, it cannot be recovered",
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "role",
+          "cell_id",
+          "label",
+          "created_at",
+          "revoked_at",
+          "token"
+        ],
+        "title": "ServiceTokenIssued",
+        "type": "object"
+      },
+      "ServiceTokenList": {
+        "description": "Every service token's metadata.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ServiceTokenInfo"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "ServiceTokenList",
+        "type": "object"
+      },
       "TokenOut": {
         "description": "A short-lived JWT access token. Send it as `Authorization: Bearer <token>`.",
         "properties": {
@@ -2141,6 +2314,105 @@
         "summary": "Create Version",
         "tags": [
           "projects"
+        ]
+      }
+    },
+    "/v1/service-tokens": {
+      "get": {
+        "description": "Lists every service token's metadata (never a secret), newest first.",
+        "operationId": "list_tokens_v1_service_tokens_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceTokenList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Tokens",
+        "tags": [
+          "service-tokens"
+        ]
+      },
+      "post": {
+        "description": "Issues a service token. The secret is returned once and never stored in clear.",
+        "operationId": "issue_token_v1_service_tokens_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ServiceTokenCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceTokenIssued"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Issue Token",
+        "tags": [
+          "service-tokens"
+        ]
+      }
+    },
+    "/v1/service-tokens/{token_id}": {
+      "delete": {
+        "description": "Revokes a token; a missing or already-revoked token is a 404.",
+        "operationId": "revoke_token_v1_service_tokens__token_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Token Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Revoke Token",
+        "tags": [
+          "service-tokens"
         ]
       }
     },

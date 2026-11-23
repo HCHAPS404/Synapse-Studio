@@ -20,6 +20,7 @@ from synapse_core.db.models import (
     GuestSandbox,
     Project,
     ProjectVersion,
+    ServiceToken,
     User,
     VersionFile,
 )
@@ -72,6 +73,7 @@ async def app(schema: None) -> AsyncIterator[FastAPI]:
             ProjectVersion,
             Project,
             GuestSandbox,
+            ServiceToken,
             User,
         ):
             conn.execute(delete(model))

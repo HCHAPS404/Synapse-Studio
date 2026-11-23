@@ -233,6 +233,35 @@ export interface SandboxStatus {
   "network": "isolated" | "unverified";
 }
 
+export interface ServiceTokenCreate {
+  "role": "daemon" | "twin";
+  "cell_id"?: string | null;
+  "label"?: string;
+}
+
+export interface ServiceTokenInfo {
+  "id": string;
+  "role": string;
+  "cell_id": string | null;
+  "label": string;
+  "created_at": string;
+  "revoked_at": string | null;
+}
+
+export interface ServiceTokenIssued {
+  "id": string;
+  "role": string;
+  "cell_id": string | null;
+  "label": string;
+  "created_at": string;
+  "revoked_at": string | null;
+  "token": string;
+}
+
+export interface ServiceTokenList {
+  "items": Array<ServiceTokenInfo>;
+}
+
 export interface TokenOut {
   "access_token": string;
   "token_type"?: string;
@@ -298,6 +327,8 @@ export interface ApiPaths {
   "/v1/projects": "GET" | "POST";
   "/v1/projects/{project_id}": "GET" | "PUT";
   "/v1/projects/{project_id}/versions": "GET" | "POST";
+  "/v1/service-tokens": "GET" | "POST";
+  "/v1/service-tokens/{token_id}": "DELETE";
   "/v1/versions/{version_id}": "GET";
   "/v1/versions/{version_id}/builds": "GET" | "POST";
 }

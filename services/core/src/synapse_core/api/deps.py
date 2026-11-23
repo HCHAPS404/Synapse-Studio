@@ -13,11 +13,17 @@ from synapse_core.db.session import get_engine
 from synapse_core.errors import ErrorCode, ServiceError
 from synapse_core.services.builds import BuildManager
 from synapse_core.services.guests import GuestPrincipal, principal_from_token
+from synapse_core.services.service_tokens import (
+    ServicePrincipal,
+    looks_like_service_token,
+    principal_from_service_token,
+)
 from synapse_core.services.users import AuthenticatedUser, principal_from_access_token
 from synapse_core.settings import Settings, get_settings
 
-# A principal is a logged-in user or a guest sandbox; anonymous requests have none.
-Principal = AuthenticatedUser | GuestPrincipal
+# A principal is a logged-in user, a service (daemon/twin), or a guest sandbox; anonymous
+# requests have none.
+Principal = AuthenticatedUser | ServicePrincipal | GuestPrincipal
 
 
 def _bearer_token(request: Request) -> str | None:
@@ -55,7 +61,9 @@ async def optional_principal(
     maker = async_sessionmaker(engine, expire_on_commit=False)
     async with maker() as session:
         principal: Principal
-        if _looks_like_jwt(token):
+        if looks_like_service_token(token):
+            principal = await principal_from_service_token(session, token)
+        elif _looks_like_jwt(token):
             principal = await principal_from_access_token(session, token, settings)
         else:
             principal = await principal_from_token(session, token, settings)
