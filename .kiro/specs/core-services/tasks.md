@@ -45,7 +45,7 @@ tested against simulated peers.
 | E7.1 | Alembic on deploy (`preDeployCommand`), migration round-trip CI job, secrets list in `render.yaml` | E-R18 | no | done |
 | E7.2 | Neon `dev` branch for CI and local use; per-environment settings; `docs/deploy.md` | E-R18 | no (needs Hell for the branch if MCP is revoked) | done |
 | E7.3 | `tools/live-smoke.py` and scheduled GitHub Action; production check of guest, build and relay | E-R18, E-R3 | no | done |
-| E7.4 | Judge path: public URL configuration in the web app, CORS, guest flow end to end (depends on G6) | E-R3, E-R18 | no | open |
+| E7.4 | Judge path: public URL configuration in the web app, CORS, guest flow end to end (depends on G6) | E-R3, E-R18 | no | done |
 | E7.5 | Monitoring and runbook until 2027-01-29: uptime monitor, alerts, `docs/runbook.md`, shutdown plan | E-R18 | no | open |
 | E7-H | Spending caps and alerts on Render and Neon; external uptime monitor account | E-R18 | human action (Hell) | pending |
 Ordering note. E2.1 to E2.3 unblock everything else; E2.2 touches `neuron-cli` (Rust) and
@@ -1009,3 +1009,26 @@ guest `check` build `succeeded`, relay `welcome` with `roles=['guest']`, PASS (e
 unreachable URL returns exit 2 (SKIP). `py_compile` clean; ruff check and format clean (two
 `# noqa: S310` where the scheme is already restricted, one `# noqa: S324` for the RFC-mandated
 SHA-1 of the WS handshake). No new error code; no change to the service.
+
+## Results of E7.4
+The judge path from the web app, within scope (the full judge UI is Martin's G6). Public URL:
+`apps/web` already resolves the Core API base URL from `NEXT_PUBLIC_API_URL` (`src/lib/config.ts`,
+error not silent default in production); E7.4 documents it and the CORS requirement in
+`apps/web/README.md`. CORS: the API already applies `SYNAPSE_CORS_ORIGINS` through FastAPI's
+`CORSMiddleware` and `render.yaml` sets it to the Vercel origins — the README now explains how to
+add a new origin and that `localhost:3000` is allowed in development, so no code change was
+needed on the API. Guest flow: `apps/web/src/lib/guest.ts` (`startGuestSession`) calls
+`POST /v1/guest` and validates the shape (never throws), the reusable primitive G6 builds on; the
+placeholder page now shows whether a login-free guest session can be created, proving the public
+path from the browser, with a line that the full guest lab is G6. The README documents the whole
+guest flow end to end (guest token, project, version, build with `kind: check`, poll, optional
+relay) and points at `tools/live-smoke.py` and `packages/sdk-ts` (`SynapseClient.startGuestSession`)
+for the typed version.
+Choices: `guest.ts` follows the established `health.ts` pattern (a documented temporary local type)
+rather than wiring the `packages/sdk-ts` workspace package into this self-contained app, which has
+its own `pnpm-lock.yaml` — adding a workspace dependency is out of scope and risky; the comment
+marks it for replacement by the generated `GuestSessionOut`. The full judge-facing UI stays
+dependent on G6.
+Verified: `pnpm install`, `pnpm lint`, `pnpm typecheck` and `pnpm build` all green in `apps/web`
+(route `/` stays dynamic; the API calls are request-time and never fail the build). No API code
+or error code changed.

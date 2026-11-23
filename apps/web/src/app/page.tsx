@@ -1,6 +1,7 @@
 import { fetchHealth, type HealthAnswer, type HealthResult } from "@/lib/health";
+import { startGuestSession } from "@/lib/guest";
 
-// The health call runs per request; it must not run (or fail) at build time.
+// The health and guest calls run per request; they must not run (or fail) at build time.
 export const dynamic = "force-dynamic";
 
 function isAnswer(result: HealthResult): result is HealthAnswer {
@@ -11,6 +12,8 @@ export default async function Home() {
   const result = await fetchHealth();
   const answer = isAnswer(result) ? result : null;
   const healthy = result.kind === "ok";
+  // Prove the login-free judge path reaches the API. The full guest UI is Martin's G6.
+  const guest = await startGuestSession();
 
   return (
     <main style={{ maxWidth: 640, margin: "0 auto", padding: "4rem 1.5rem" }}>
@@ -42,6 +45,17 @@ export default async function Home() {
           </dd>
         </dl>
       )}
+
+      <h2>Guest access</h2>
+      <p role="status">
+        {guest.kind === "ok"
+          ? "A login-free guest session can be created. Judges need no account."
+          : `Guest session unavailable: ${guest.message}`}
+      </p>
+      <p style={{ opacity: 0.7 }}>
+        The full guest-driven virtual lab is in progress (G6). This page only confirms the
+        public API path.
+      </p>
     </main>
   );
 }

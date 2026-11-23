@@ -1284,3 +1284,15 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   with no board/toolchain; separating a transient connect failure (exit 2) from a service-answered
   check failure (exit 1) keeps the scheduled monitor from crying wolf when Render or the network
   hiccups.
+## 2026-11-23 · Task E7.4 (judge path: web public URL, CORS, guest flow)
+- **Kiro features:** spec-driven task from `.kiro/specs/core-services/` (design `E7 Deployment`),
+  requirements E-R3, E-R18.
+- **Produced:** `apps/web/src/lib/guest.ts` (`startGuestSession`, calls `POST /v1/guest`, shape-
+  validated, never throws); a guest-access section on the placeholder page proving the login-free
+  path; `apps/web/README.md` expanded with the public-URL config, the CORS requirement and the
+  end-to-end guest flow (token → project → version → build `check` → poll → relay).
+- **Results:** `pnpm install`/`lint`/`typecheck`/`build` all green; route `/` stays dynamic. No
+  API change — CORS is already applied from `SYNAPSE_CORS_ORIGINS`; the full guest UI is G6.
+- **Lessons:** following the local `health.ts` temporary-type pattern for `guest.ts` keeps the
+  self-contained `apps/web` build untouched (no workspace dependency on `packages/sdk-ts`), while a
+  comment marks the generated `GuestSessionOut` as the eventual source of truth.
