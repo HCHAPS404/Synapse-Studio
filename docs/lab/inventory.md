@@ -20,6 +20,8 @@ Status legend: ✅ done · ⏳ pending (this session) · ⚠️ blocked, see not
 
 | TI EK-TM4C123GXL (Tiva C LaunchPad) | COM11 (USB, VID 1CBE / PID 00FD; on-board ICDI debugger) | `ek_tm4c123gxl` / TM4C123GH6PM | ✅ | ✅ `app.elf`+`app.bin`, 2168 B, reset vector 0x0000061d (flash at 0x00000000, Thumb bit set), stack 0x20008000 — the TM4C123 Cortex-M4F port compiles and boots cleanly with arm-none-eabi-gcc | ⏳ | Flash with lm4flash over the on-board ICDI (`NEURON_LM4FLASH`), or OpenOCD `board/ek-tm4c123gxl.cfg`; lm4flash not installed yet. Works: GPIO + input pull-up + 1 ms SysTick tick. UART0 TX and per-port edge interrupts LEFT OUT until the board session (TM4C GPIO interrupt is per-port, not per-line); ADC/PWM left out. LED PF1 (red). Runs at 16 MHz PIOSC (80 MHz PLL later). |
 
+| Arduino Nano (classic, CH340 clone) | USB CH340 (VID 1A86 / PID 7523), no COM yet (driver missing) | `arduino_nano` / ATmega328P (new board, same chip as the UNO R3) | ✅ (model) | ✅ C backend with avr-gcc 7.3: `app.hex` 2952 B (9% flash); native backend: 642 B — the native backend now accepts any ATmega328P board, not only the UNO R3 | ⏳ | **Install the CH340 driver first** so a COM port appears; then flash with avrdude at **57600 baud** (the old Nano bootloader, set in the board file). A6/A7 are analog-only. This is the easiest board to flash once the driver is in (avrdude already installed). |
+
 ## Pending test batch (end of session)
 
 - Install a flasher: `probe-rs` (`cargo install probe-rs-tools`) and/or st-flash/OpenOCD.

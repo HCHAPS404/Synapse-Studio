@@ -123,6 +123,10 @@ const BUILTIN: &[(&str, &str)] = &[
         include_str!("../../../targets/boards/arduino_mega_2560.board.toml"),
     ),
     (
+        "arduino_nano.board.toml",
+        include_str!("../../../targets/boards/arduino_nano.board.toml"),
+    ),
+    (
         "raspberry_pi_pico.board.toml",
         include_str!("../../../targets/boards/raspberry_pi_pico.board.toml"),
     ),

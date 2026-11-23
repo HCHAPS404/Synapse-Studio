@@ -67,6 +67,7 @@ fn every_board_has_its_support_tier() {
         of(Tier::Runtime),
         [
             "arduino_mega_2560",
+            "arduino_nano",
             "arduino_uno_r3",
             "ek_tm4c123gxl",
             "nano_33_ble_sense",

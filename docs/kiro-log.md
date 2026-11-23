@@ -1404,3 +1404,15 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   and `not` for bool; the Verilog backend takes `wire` in a `comb:` block but not a local
   `var`, so the colour logic uses wires. A multi-bit port needs one pin per bit in
   `@ pin(...)`. Synthesis and the bitstream still need an FPGA toolchain (lab batch).
+
+## 2026-11-23 · New board: classic Arduino Nano (ATmega328P)
+- **Kiro features:** the target model (a board reusing an existing chip), steering
+  (honest notes: the CH340 driver and the 57600-baud old bootloader).
+- **Produced:** `targets/boards/arduino_nano.board.toml` (ATmega328P, 16 MHz, avrdude at
+  57600), registered in `neuron-target`; the native AVR backend now accepts any
+  ATmega328P board (UNO R3 and Nano) instead of the UNO by name.
+- **Results:** `neuron targets` lists it; C backend builds `app.hex` (2952 B) with
+  avr-gcc, native backend builds 642 B; target and native tests pass; fmt and clippy clean.
+- **Lessons:** the connected clone uses a CH340 (VID 1A86 / PID 7523) and showed no COM
+  port until its driver is installed — a hardware prerequisite, not a tool gap. The
+  native backend gated on the board name, not the chip; fixed to gate on the chip.

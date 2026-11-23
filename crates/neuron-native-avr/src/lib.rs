@@ -34,12 +34,16 @@ pub struct Native {
 
 /// Compiles a program for the ATmega328P (Arduino UNO R3).
 pub fn compile(p: &Program) -> Result<Native, Vec<Diag>> {
+    // The native backend targets the ATmega328P. Every board that carries that chip is
+    // accepted (the UNO R3 and the classic Nano share it); other chips use the C backend.
+    const ATMEGA328P_BOARDS: &[&str] = &["arduino_uno_r3", "arduino_nano"];
     if let Some(b) = &p.board {
-        if b != "arduino_uno_r3" {
+        if !ATMEGA328P_BOARDS.contains(&b.as_str()) {
             return Err(vec![Diag {
                 code: "NE0610",
                 message: format!(
-                    "the native backend supports the ATmega328P (arduino_uno_r3) only, not `{b}`"
+                    "the native backend supports the ATmega328P ({}) only, not `{b}`",
+                    ATMEGA328P_BOARDS.join(", ")
                 ),
                 help: Some("use the C backend for this board".into()),
                 file: p.files.first().cloned().unwrap_or_default(),
