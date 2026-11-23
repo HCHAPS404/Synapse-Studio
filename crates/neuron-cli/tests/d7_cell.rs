@@ -271,6 +271,60 @@ fn neuron_check_also_checks_the_cells_of_a_package() {
     assert!(t.contains("left out of the cell checks"), "{t}");
 }
 
+// ---- check --profile (E6.3) -------------------------------------------------------------
+
+// Two NUCLEO boards over `zero_hop`: default worst case 150 us. A fast profile cuts it to
+// 124 us, a slow one raises it, so the same `within` flips.
+const ZERO_HOP_130: &str =
+    "cell C\n  device a: nucleo_f446re @ usb\n  device b: nucleo_f446re @ usb\n  link a.x -> b.y via zero_hop within 130 us\n";
+
+fn profile_file(name: &str, body: &str) -> PathBuf {
+    let dir = scratch(name);
+    let p = dir.join("profile.toml");
+    std::fs::write(&p, body).unwrap();
+    p
+}
+
+#[test]
+fn a_profile_flips_an_ne0701_result() {
+    let dir = package("prof-flip", &[("c.neuron", ZERO_HOP_130)]);
+    // No profile: over budget.
+    let t = fails(&["cell", "check", &s(&dir)], 1);
+    assert!(t.contains("error[NE0701]"), "{t}");
+
+    // A measured profile with fast device timing brings it under budget.
+    let fast = profile_file(
+        "prof-fast",
+        "[profile]\ndevice = \"nucleo_f446re\"\nmedium = \"zero_hop\"\ntrust = \"measured\"\nsamples = 2000\ntransport = \"1 us\"\njitter = \"1 us\"\n",
+    );
+    let t = ok(&["cell", "check", &s(&dir), "--profile", &s(&fast)]);
+    assert!(t.contains("applying 1 calibration profile"), "{t}");
+    assert!(t.contains("no cell error"), "{t}");
+}
+
+#[test]
+fn an_invalid_profile_is_ne1112() {
+    let dir = package("prof-bad", &[("c.neuron", ZERO_HOP_130)]);
+    let bad = profile_file(
+        "prof-badunit",
+        "[profile]\ndevice = \"nucleo_f446re\"\nmedium = \"zero_hop\"\ntrust = \"measured\"\nsamples = 2000\ntransport = \"2 furlongs\"\njitter = \"1 us\"\n",
+    );
+    let t = fails(&["cell", "check", &s(&dir), "--profile", &s(&bad)], 1);
+    assert!(t.contains("error[NE1112]"), "{t}");
+    assert!(t.contains("profile error(s)"), "{t}");
+}
+
+#[test]
+fn a_profile_with_too_few_measured_samples_is_ne1112() {
+    let dir = package("prof-thin-pkg", &[("c.neuron", ZERO_HOP_130)]);
+    let thin = profile_file(
+        "prof-thin-file",
+        "[profile]\ndevice = \"nucleo_f446re\"\nmedium = \"zero_hop\"\ntrust = \"measured\"\nsamples = 5\ntransport = \"1 us\"\njitter = \"1 us\"\n",
+    );
+    let t = fails(&["cell", "check", &s(&dir), "--profile", &s(&thin)], 1);
+    assert!(t.contains("error[NE1112]") && t.contains("samples"), "{t}");
+}
+
 // ---- build ------------------------------------------------------------------------------
 
 #[test]

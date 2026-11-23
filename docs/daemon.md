@@ -101,3 +101,29 @@ The daemon sends `deployment_status` for its cell every 5 seconds (the API marks
 after 15 seconds). It reads the E-STOP input and publishes `estop_state`. On relay loss, a
 `tripped` read, or an advisory request, it drives the outputs it controls to their declared
 safe state. See the safety section above.
+
+## Black box
+
+The daemon keeps a ring buffer of the last `SYNAPSE_DAEMON_BLACKBOX_WINDOW_S` seconds
+(default 30) of tag samples and trace events. A fault freezes a window of
+`SYNAPSE_DAEMON_BLACKBOX_PRE_S` seconds before and `SYNAPSE_DAEMON_BLACKBOX_POST_S` seconds
+after (default 10 and 5) into a record: a header (cell, device, fault kind and code, instant,
+versions, package hash) and the samples and events of the window. The record is validated
+against `spec/schemas/blackbox.schema.json` and written to a local SQLite file
+(`SYNAPSE_DAEMON_BLACKBOX_DB`, default `<work>/blackbox.db`) first, so it survives a restart
+and a cloud outage. It is then uploaded to the Core API (`POST /v1/blackbox`) with the daemon
+service token; a record is marked uploaded only on success, so a crash or an outage leaves it
+pending and the daemon retries it on the next flush, including after a restart. The upload is
+idempotent, so a retry never duplicates a record. A record converts to the twin replay format
+(`spec/schemas/replay.schema.json`) so the twin can play the window back. A black box is a
+diagnostic record only; it reads and decides no safety state.
+
+## Calibration
+
+The calibration pipeline turns measured round trips into a timing profile for the device
+manifests. It reduces the samples to `transport` (the p99.9 round trip minus the clock-offset
+estimate) and `jitter` (p99.9 minus the median) and writes a profile file in the manifest
+`[timing]` shape (`[profile]` table with `device`, `medium`, `trust`, `samples`, `transport`,
+`jitter`). `neuron cell check --profile file.toml` applies it (see `docs/cells.md`). An
+invalid profile is `NE1112`. The numbers are generic placeholders until the lab session (I1)
+measures real devices; a real profile is a data-only commit to `devices/**`.

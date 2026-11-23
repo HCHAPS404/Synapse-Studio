@@ -40,7 +40,7 @@ tested against simulated peers.
 | E5-HW | Daemon flashes the UNO and talks to a PLC and a robot controller in the lab; Python `host` node on the Pi 5 | E-R12, E-R14 | **yes** | pending (I4 to I7) |
 | E6.1 | Black box: ring buffer, fault window, local SQLite store, record JSON Schema | E-R16 | no | done |
 | E6.2 | Upload route and table, retry on restart, conversion to the replay format | E-R16 | no | done |
-| E6.3 | Calibration pipeline and profile TOML; `neuron cell check --profile`; a synthetic profile changes an `NE0701` result; `NE1112` | E-R17 | no (generic and synthetic numbers) | open |
+| E6.3 | Calibration pipeline and profile TOML; `neuron cell check --profile`; a synthetic profile changes an `NE0701` result; `NE1112` | E-R17 | no (generic and synthetic numbers) | done |
 | E6-HW | Measure the lab devices (I1), commit measured profiles, mark manifests `measured`, rerun the D3 budgets | E-R17 | **yes** | pending (I1) |
 | E7.1 | Alembic on deploy (`preDeployCommand`), migration round-trip CI job, secrets list in `render.yaml` | E-R18 | no | open |
 | E7.2 | Neon `dev` branch for CI and local use; per-environment settings; `docs/deploy.md` | E-R18 | no (needs Hell for the branch if MCP is revoked) | open |
@@ -891,3 +891,37 @@ retry; flush marks uploaded, stops at a failure, and resumes after a restart); t
 added to the offline migration/model check. Core suite 244 pass, 4 skip, 1 deselected locally (the
 Postgres-only round trip runs in CI); daemon suite 106 pass, 1 skip; ruff clean; OpenAPI/SDK
 regenerated for `POST /v1/blackbox`, drift green. No new error code.
+
+## Results of E6.3
+Calibration profiles, the timing overlay, `neuron cell check --profile` and `NE1112`.
+Rust (`crates/neuron-cell/src/profile.rs`): `TimingProfile::parse` reads a profile TOML in the
+manifest `[timing]` shape (`[profile]` with `device`, `medium`, `trust`, `samples`, `transport`,
+`jitter`, optional `measured_at`/`tool`, `deny_unknown_fields`) and validates it, raising a
+`CellDiag` with `NE1112` for malformed TOML, an unknown field, an empty device/medium, a
+non-positive or wrong-unit transport/jitter, or a `measured`/`confirmed` profile below
+`MIN_MEASURED_SAMPLES` (30). `TimingOverlay` keys profiles by `(device manifest name, medium)`.
+`links.rs` gained `latency_with_overlay` and `link_table_with(overlay)` (public): the budget
+looks the overlay up first for each end's timing and falls back to the manifest, so an empty
+overlay reproduces `latency_with`/`link_table` byte for byte (a test asserts it); a link costed
+from a profile reports that end's trust, and the link's overall trust stays the lowest of every
+number used (so it is still `generic` while the medium is generic — honest, since a profile only
+measures the device's timing on the medium, not the medium's own worst case). CLI: `neuron cell
+check` takes `--profile file.toml` (repeatable), reads the files into an overlay (a read or parse
+failure is `NE1112` with the file in the location), prints a note, and runs the checks with the
+overlay via `check_cells_with`. Daemon (`synapse_daemon.calibrate`): `reduce_round_trips` turns
+measured round trips into a `CalibrationProfile` — `transport` = p99.9 minus the clock-offset
+estimate (never below zero), `jitter` = p99.9 minus the median, with the sample count — and
+`to_toml` writes the profile in the manifest shape. Docs: `docs/cells.md` gains a "Calibration
+profiles" subsection; `docs/daemon.md` gains "Black box" and "Calibration" sections; the
+`NE1112` text in `docs/errors/services.md` now names both surfaces. NE1112 was already in
+chapter 10, `services.md` and `explain.rs` (verified; the catalogue and explain tests pass).
+Acceptance proven: a synthetic profile flips an `NE0701` result both ways (two NUCLEO boards
+over `zero_hop within 130 us`: default 150 us fails, a fast measured profile -> 124 us passes;
+a roomy budget a default meets fails under a slow profile). Real numbers come from session I1
+(E6-HW, still pending); profiles and the measured manifests are a later data-only commit.
+Tests: 9 in `crates/neuron-cell/tests/e6_profile.rs`, 3 CLI tests in
+`crates/neuron-cli/tests/d7_cell.rs` (flip to pass, `NE1112` bad unit, `NE1112` too few samples),
+7 daemon tests in `tests/test_e6_3_calibrate.py` (reduction, clock offset, floor at zero, valid
+TOML table, whole-unit formatting, empty and negative errors). `cargo fmt`/`clippy -D warnings`
+clean on `neuron-cell` and `neuron-cli`; both crates' suites green; daemon suite 113 pass, 1 skip,
+ruff clean. This completes the E6 software row (E6.1–E6.3); E6-HW stays pending for session I1.

@@ -13,7 +13,9 @@
 //!
 //! Every number carries the lowest trust level of the files it comes from, so a budget
 //! made of `generic` numbers says so.
-use crate::{duration_ns, CellDiag, CellPlan, Library, Manifest, Medium, Trust};
+use crate::{
+    duration_ns, CellDiag, CellPlan, Library, Manifest, Medium, MediumTiming, TimingOverlay, Trust,
+};
 use neuron_nir::{Expr, ExprKind, ItemDef, Lit, ModuleKind, Nir};
 use serde::Serialize;
 
@@ -175,8 +177,30 @@ pub fn latency_with(
     every_ns: Option<u64>,
     shape: Shape,
 ) -> Option<Latency> {
-    let st = s.timing.get(&m.name)?;
-    let rt = r.timing.get(&m.name)?;
+    latency_with_overlay(s, r, m, every_ns, shape, &TimingOverlay::new())
+}
+
+/// The effective timing of a device on a medium: a calibration profile from `overlay` when it
+/// has one for this device manifest and medium, otherwise the manifest's own `[timing]`.
+fn effective_timing(man: &Manifest, m: &Medium, overlay: &TimingOverlay) -> Option<MediumTiming> {
+    if let Some(p) = overlay.get(&man.name, &m.name) {
+        return Some(p.timing());
+    }
+    man.timing.get(&m.name).copied()
+}
+
+/// [`latency_with`], but a calibration profile in `overlay` overrides the manifest timing of a
+/// device on this medium (task E6.3). An empty overlay reproduces [`latency_with`] exactly.
+pub fn latency_with_overlay(
+    s: &Manifest,
+    r: &Manifest,
+    m: &Medium,
+    every_ns: Option<u64>,
+    shape: Shape,
+    overlay: &TimingOverlay,
+) -> Option<Latency> {
+    let st = effective_timing(s, m, overlay)?;
+    let rt = effective_timing(r, m, overlay)?;
     let bytes = u64::from(m.frame_overhead_bytes) + shape.value_bytes;
     let serialize_ns = m
         .bitrate_bd
@@ -215,6 +239,7 @@ fn alternatives(
     within: u64,
     now: &Latency,
     shape: Shape,
+    overlay: &TimingOverlay,
 ) -> Vec<Alternative> {
     let (s, r, current, every_ns) = (p.s, p.r, p.m, p.every_ns);
     let mut out = Vec::new();
@@ -245,7 +270,7 @@ fn alternatives(
             ));
         }
         for (change, every) in variants {
-            if let Some(l) = latency_with(s, r, m, every, shape) {
+            if let Some(l) = latency_with_overlay(s, r, m, every, shape, overlay) {
                 if l.total_ns <= within {
                     out.push(Alternative {
                         change,
@@ -430,6 +455,30 @@ pub fn link_table(
     plan: &CellPlan,
     lib: &Library,
 ) -> Result<Vec<LinkReport>, Vec<CellDiag>> {
+    link_table_with(nir, plan, lib, &TimingOverlay::new())
+}
+
+/// The trust of one end's timing on a medium: the profile's trust when `overlay` supplies it,
+/// otherwise the manifest's own trust.
+fn end_trust(man: &Manifest, m: &Medium, overlay: &TimingOverlay) -> Trust {
+    overlay
+        .get(&man.name, &m.name)
+        .map_or(man.trust, |p| p.trust)
+}
+
+/// [`link_table`], but a calibration profile in `overlay` overrides the manifest timing of a
+/// device on a medium (task E6.3); each link's trust is the lowest of the numbers actually used,
+/// so a link costed from a `measured` profile reports `measured`. An empty overlay reproduces
+/// [`link_table`] exactly.
+///
+/// # Errors
+/// The same diagnostics as [`link_table`].
+pub fn link_table_with(
+    nir: &Nir,
+    plan: &CellPlan,
+    lib: &Library,
+    overlay: &TimingOverlay,
+) -> Result<Vec<LinkReport>, Vec<CellDiag>> {
     let (parsed, mut diags) = parse_links(nir, plan, lib);
     let file = plan.file.as_str();
     let mut rows = Vec::new();
@@ -439,10 +488,12 @@ pub fn link_table(
         let span = Some(p.span);
         let (every_ns, within_ns) = (p.every_ns, p.within_ns);
         let shape = crate::endpoints::shape_of(nir, plan, &p);
-        let Some(lat) = latency_with(s, r, m, every_ns, shape) else {
+        let Some(lat) = latency_with_overlay(s, r, m, every_ns, shape, overlay) else {
             continue;
         };
-        let trust = s.trust.min(r.trust).min(m.trust);
+        let trust = end_trust(s, m, overlay)
+            .min(end_trust(r, m, overlay))
+            .min(m.trust);
         let mut row = LinkReport {
             from: from_s.clone(),
             to: to_s.clone(),
@@ -459,7 +510,7 @@ pub fn link_table(
         };
         if let Some(w) = within_ns {
             if lat.total_ns > w {
-                row.alternatives = alternatives(lib, &p, w, &lat, shape);
+                row.alternatives = alternatives(lib, &p, w, &lat, shape, overlay);
                 let mut d = CellDiag::new(
                     "NE0701",
                     file,

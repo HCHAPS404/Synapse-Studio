@@ -5,8 +5,9 @@
 use crate::{load, USAGE};
 use neuron_cell::{
     build, check_electrical, check_tags, cosimulate, dossier, duration_ns, fmt_ns, link_plans,
-    link_table, partition, verify_cell, zone_plans, CellDiag, CellPlan, CellVerdict, Cut,
+    link_table_with, partition, verify_cell, zone_plans, CellDiag, CellPlan, CellVerdict, Cut,
     DossierOptions, Drive, DriveValue, Library, LinkPlan, LinkReport, Replay, SimOptions,
+    TimingOverlay,
 };
 use neuron_nir::{ModuleKind, Nir};
 use neuron_sema::{analyze, SemaOptions, SourceFile};
@@ -57,6 +58,17 @@ pub fn check_cells(
     nir: &Nir,
     lib: &Library,
 ) -> (Vec<CellReport>, Vec<CellDiag>) {
+    check_cells_with(sources, nir, lib, &TimingOverlay::new())
+}
+
+/// [`check_cells`], but a calibration timing overlay (from `neuron cell check --profile`)
+/// overrides the manifest timing used by the link budget (task E6.3).
+pub fn check_cells_with(
+    sources: &[SourceFile],
+    nir: &Nir,
+    lib: &Library,
+    overlay: &TimingOverlay,
+) -> (Vec<CellReport>, Vec<CellDiag>) {
     let plans = match partition(nir, lib) {
         Ok(p) => p,
         Err(d) => return (Vec::new(), d),
@@ -64,7 +76,7 @@ pub fn check_cells(
     let mut diags: Vec<CellDiag> = Vec::new();
     let mut reports = Vec::new();
     for plan in plans {
-        let rows = match link_table(nir, &plan, lib) {
+        let rows = match link_table_with(nir, &plan, lib, overlay) {
             Ok(r) => r,
             Err(d) => {
                 diags.extend(d);
@@ -216,6 +228,7 @@ struct Args {
     end_ns: Option<u64>,
     cuts: Vec<String>,
     drives: Vec<String>,
+    profiles: Vec<String>,
 }
 
 fn parse(cmd: &str, args: &[String], allowed: &[&str]) -> Result<Args, ExitCode> {
@@ -242,6 +255,7 @@ fn parse(cmd: &str, args: &[String], allowed: &[&str]) -> Result<Args, ExitCode>
                 "--replay" => a.replay = Some(v.clone()),
                 "--cut" => a.cuts.push(v.clone()),
                 "--drive" => a.drives.push(v.clone()),
+                "--profile" => a.profiles.push(v.clone()),
                 _ => match duration_ns(v) {
                     Ok(ns) => a.end_ns = Some(ns),
                     Err(e) => {
@@ -264,7 +278,9 @@ fn parse(cmd: &str, args: &[String], allowed: &[&str]) -> Result<Args, ExitCode>
 /// `neuron cell <check|build|sim|dossier> ...`
 pub fn cmd_cell(args: &[String]) -> ExitCode {
     let result = match args.first().map(String::as_str) {
-        Some("check") => parse("check", &args[1..], &["--devices"]).and_then(|a| check(&a)),
+        Some("check") => {
+            parse("check", &args[1..], &["--devices", "--profile"]).and_then(|a| check(&a))
+        }
         Some("build") => {
             parse("build", &args[1..], &["-o", "--cell", "--devices"]).and_then(|a| build_cmd(&a))
         }
@@ -369,10 +385,50 @@ fn print_summary(r: &CellReport) {
     }
 }
 
-/// `neuron cell check <file|dir>... [--devices dir]`
+/// Reads the `--profile` files into a timing overlay; a bad profile is `NE1112`.
+fn load_overlay(a: &Args) -> Result<TimingOverlay, Vec<CellDiag>> {
+    let mut overlay = TimingOverlay::new();
+    let mut diags = Vec::new();
+    for path in &a.profiles {
+        match std::fs::read_to_string(path) {
+            Ok(text) => {
+                if let Err(d) = overlay.load(path, &text) {
+                    diags.push(d);
+                }
+            }
+            Err(e) => diags.push(CellDiag::new(
+                neuron_cell::PROFILE_INVALID,
+                path,
+                None,
+                format!("cannot read profile `{path}`: {e}"),
+            )),
+        }
+    }
+    if diags.is_empty() {
+        Ok(overlay)
+    } else {
+        Err(diags)
+    }
+}
+
+/// `neuron cell check <file|dir>... [--devices dir] [--profile file.toml]...`
 fn check(a: &Args) -> Result<(), ExitCode> {
     let ctx = load_ctx(a)?;
-    let (reports, diags) = check_cells(&ctx.sources, &ctx.nir, &ctx.lib);
+    let overlay = match load_overlay(a) {
+        Ok(o) => o,
+        Err(diags) => {
+            print_diags(&ctx, &diags);
+            eprintln!("error: {} profile error(s)", diags.len());
+            return Err(ExitCode::from(1));
+        }
+    };
+    if !overlay.is_empty() {
+        eprintln!(
+            "note: applying {} calibration profile(s); affected links report `measured`",
+            a.profiles.len()
+        );
+    }
+    let (reports, diags) = check_cells_with(&ctx.sources, &ctx.nir, &ctx.lib, &overlay);
     print_diags(&ctx, &diags);
     for r in &reports {
         print_summary(r);

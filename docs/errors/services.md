@@ -80,4 +80,6 @@ heartbeat for 15 seconds. Pair it again or check the daemon.
 ### NE1112 timing profile invalid
 
 A calibration profile has fewer samples than the minimum, a non-positive value, or an unknown
-unit. Profiles with `trust = "measured"` need the samples that justify them.
+unit. Profiles with `trust = "measured"` need the samples that justify them (at least 30). The
+code is raised both by `neuron cell check --profile <file>` when it reads a profile and, on the
+Edge Daemon side, by the calibration pipeline that writes one.

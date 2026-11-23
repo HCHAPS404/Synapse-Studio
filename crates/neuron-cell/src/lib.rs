@@ -21,6 +21,7 @@ mod library;
 mod links;
 mod manifest;
 mod partition;
+mod profile;
 mod replay;
 mod tags;
 mod units;
@@ -45,12 +46,16 @@ pub use endpoints::{
 };
 pub use library::{CellManifests, Library, ManifestError, ResolvedDevice, ResolvedMedium};
 pub use links::{
-    fmt_ns, latency, latency_with, link_table, Alternative, Latency, LinkReport, Shape,
+    fmt_ns, latency, latency_with, latency_with_overlay, link_table, link_table_with, Alternative,
+    Latency, LinkReport, Shape,
 };
 pub use manifest::{
     Backend, Family, IoFamily, Kind, Manifest, Medium, MediumTiming, Trust, DIALECTS,
 };
 pub use partition::{partition, CellPlan, DevicePlan, How, Placed};
+pub use profile::{
+    ProfileTrust, TimingOverlay, TimingProfile, MIN_MEASURED_SAMPLES, PROFILE_INVALID,
+};
 pub use replay::{
     replay_schema_json, Replay, ReplayDevice, ReplayEvent, ReplayEventKind, ReplayKind, ReplayLink,
     CELL_DEVICE, REPLAY_VERSION,

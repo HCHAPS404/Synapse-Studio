@@ -38,7 +38,7 @@ cell TwoDevices
 ## Commands
 
 ```text
-neuron cell check   <file|dir>... [--devices dir]
+neuron cell check   <file|dir>... [--devices dir] [--profile file.toml]...
 neuron cell build   <file|dir>... [--cell name] [-o dir] [--devices dir]
 neuron cell sim     <file|dir>... [--cell name] [--for T] [--cut link@T]...
                     [--drive device.name=value@T]... [--replay out.json] [--devices dir]
@@ -204,6 +204,33 @@ latency = serialize + transport + receiver phase + polling
 When the total exceeds `within`, the error is `NE0701`. It lists the four terms and the
 changes that would meet the budget: a shorter `every`, another medium both devices speak,
 or the event-driven form. A medium one end does not speak is `NE0607`.
+
+### Calibration profiles (`--profile`)
+
+The numbers in the shipped manifests are `generic` placeholders. Once a device is measured
+in the lab (session I1), the Edge Daemon's calibration pipeline turns the measured round
+trips into a small profile file in the manifest `[timing]` shape, one per device and medium:
+
+```toml
+[profile]
+device = "generic_s7_1200"   # the device manifest name
+medium = "modbus_tcp"
+trust = "measured"           # "generic" for placeholder numbers
+samples = 2000
+transport = "2 ms"
+jitter = "1 ms"
+measured_at = "2026-11-24"
+tool = "synapse-daemon 0.1.0"
+```
+
+`neuron cell check --profile file.toml` (repeat the flag for several files) overrides the
+manifest timing of that device on that medium when the link budget is computed, so you can
+re-check the cell against measured numbers before any manifest is edited. A link whose
+device timing comes from a profile reports the profile's trust; the link's overall trust is
+still the lowest of every number used, so it stays `generic` until the medium is measured
+too. An invalid profile (fewer than 30 samples for a `measured` profile, a non-positive
+value, or an unknown unit) is `NE1112`. The profiles and the real numbers in
+`devices/**/*.toml` land in a data-only commit after session I1.
 
 ## Endpoints, register maps and Neuron Wire
 

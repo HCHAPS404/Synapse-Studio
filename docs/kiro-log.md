@@ -1229,3 +1229,17 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
 - **Lessons:** keying idempotency on the fault identity `(cell, device, at_ns)` lets a restarted
   daemon retry without tracking server ids; storing the record JSON verbatim means the twin replay
   (F9) needs no lossy server-side mapping, only the pure `blackbox_to_replay` conversion.
+## 2026-11-23 · Task E6.3 (Calibration pipeline, profile TOML, `neuron cell check --profile`, NE1112)
+- **Kiro features:** spec-driven task from `.kiro/specs/core-services/` (design `E6 Black box and
+  calibration`), requirement E-R17; the Rust diagnostics catalogue (chapter 10 + `docs/errors`).
+- **Produced:** `crates/neuron-cell/src/profile.rs` (`TimingProfile`, `TimingOverlay`, `NE1112`),
+  `latency_with_overlay`/`link_table_with` in `links.rs`, `--profile` in `neuron cell check`
+  (`check_cells_with`), daemon `synapse_daemon.calibrate.reduce_round_trips`/`CalibrationProfile`,
+  and the `docs/cells.md`/`docs/daemon.md` sections.
+- **Results:** 9 cell + 3 CLI + 7 daemon tests; a synthetic profile flips an `NE0701` result both
+  ways. `cargo fmt`/`clippy -D warnings` clean on neuron-cell and neuron-cli; both suites green;
+  daemon 113 pass / 1 skip; ruff clean. E6 software row (E6.1–E6.3) complete.
+- **Lessons:** applying the profile as an overlay keyed on `(device, medium)` and falling back to
+  the manifest keeps the no-profile path byte-identical (a test asserts it), so the feature adds no
+  risk to existing budgets; a profile only measures the device's timing, so the link's overall
+  trust honestly stays `generic` until the medium is measured too — not forced to `measured`.
