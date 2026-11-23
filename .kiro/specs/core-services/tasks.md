@@ -19,7 +19,7 @@ tested against simulated peers.
 | E3.2 | Permission matrix, route dependencies, role checks, `NE1106`; monotonicity and guest-isolation properties | E-R7, E-R3 | no | done |
 | E3.3 | Service tokens (hashed, revocable) and their issue route | E-R6, E-R10 | no | done |
 | E3.4 | Audit log table with `INSERT`/`SELECT` grants, audit writes on every sensitive action, read route for engineers | E-R8 | no | done |
-| E4.1 | Relay core: `WS /v1/relay`, lifecycle (`hello`, `welcome`, ping, timeouts), schema validation, role table checked against `relay.md`, error codes | E-R9, E-R7 | no | open |
+| E4.1 | Relay core: `WS /v1/relay`, lifecycle (`hello`, `welcome`, ping, timeouts), schema validation, role table checked against `relay.md`, error codes | E-R9, E-R7 | no | done |
 | E4.2 | Subscriptions, `cell_snapshot` cache, fan-out with bounded queues and drop policy, control rate limit; round-trip property over all examples | E-R9 | no | open |
 | E4.3 | Daemon pairing (code, claim, token, unpair), `daemons` and `devices` tables, `deployment_status` and heartbeat timeout | E-R10 | no | open |
 | E4.4 | Telemetry ingest from relay frames, tables, indexes, storage cap | E-R11 | no | open |
@@ -426,3 +426,48 @@ issue+revoke audited with no secret in the detail; engineer-only read, viewer an
 `NE1106`; no POST/PUT/PATCH/DELETE route on `/v1/audit`; actor filter and `X-Request-ID`
 correlation). Full suite 180 pass, 4 skipped locally; ruff clean; OpenAPI/SDK regenerated for
 the read route, drift check green. No new error code. This completes the E3 row.
+
+## Results of E4.1
+Relay core: a WebSocket endpoint `WS /v1/relay` inside the same FastAPI service (one Render
+service, decision 4). New package `services/core/src/synapse_core/relay/`: `validate.py`
+(loads `spec/schemas/relay/message.schema.json` with `jsonschema`'s `Draft202012Validator`,
+cached; `validate_frame` decodes a text frame to a JSON object and validates it; a wrong `v`
+is a `VersionError`, any other schema failure a `FrameError`; the schema dir is resolved
+relative to the package, `parents[5]`, like the device catalog); `roles.py` (`ROLE_MESSAGES`,
+the "Roles and what each may send" table of `relay.md`, with `may_send` over the union of a
+session's roles); `protocol.py` (builders for the server frames `welcome`, `error`, `ack`,
+`pong`, server `ping`; `RelayCode` enum of the eight relay error codes; `FATAL_CODES`);
+`auth.py` (`identify` resolves `hello.token` to protocol roles, reusing E3's service-token,
+user-JWT and guest-token resolution — no token is `guest`, an invalid token is
+`unauthenticated` with no guest fallback, a user `operator`/`engineer` maps to the protocol
+`operator` role); `hub.py` (one in-memory `Hub` per process, session registry and session
+ids; subscriptions/fan-out are E4.2); `session.py` (`RelaySession` drives the lifecycle over
+a transport-agnostic `Transport` protocol with injectable `SessionTimeouts`); `starlette.py`
+(adapts a Starlette `WebSocket`, turning a disconnect into `TransportClosed`). Route
+`api/relay.py` (`WS /v1/relay`, settings and DB session injected through `Depends` so test
+overrides apply). Registered in `main.py`.
+Lifecycle per `relay.md`: the first frame must be a schema-valid `hello` within 10 s, else a
+fatal `bad_message`; a wrong protocol version is a fatal `unsupported_version`; a bad token is
+a fatal `unauthenticated`; the server answers `welcome` with the granted roles; it pings after
+15 s idle and closes after 45 s of silence; after `welcome`, a bad frame is a non-fatal
+`bad_message` and the session stays open; a message the role may not send is `forbidden`
+(echoing the request `id`); `ping` is answered with `pong`. Choices: E4.1 acks `subscribe`,
+`unsubscribe` and the `sim_*`/`replay_play` requests that carry an `id` but does not yet route
+or fan out — subscriptions, the `cell_snapshot` cache, fan-out with bounded queues, the drop
+policy and the per-session control-message rate limit are E4.2, and telemetry ingest is E4.4.
+The relay `error` codes are the protocol's own (`bad_message` … `internal`), distinct from the
+REST `NE11xx` catalogue, so no new `NE` code. The `BaseHTTPMiddleware` rate limiter does not
+run on WebSocket scopes, so the relay is not throttled per HTTP request; its control-message
+rate limit (E-R4) lands in E4.2. Dependency added to `services/core`: `jsonschema>=4.22`.
+Open: everything in the E4.2–E4.6 rows. Tests: 15 new — `tests/test_relay_core.py` (10,
+DB-free guest path via Starlette's in-process `TestClient`: welcome+guest role, first frame
+must be hello, bad JSON fatal, unsupported version fatal, invalid token unauthenticated with
+no fallback, ping→pong, guest `sim_start` forbidden, subscribe acked, post-welcome bad frame
+non-fatal with the session surviving, idle ping then silent close), `tests/test_relay_roles.py`
+(2, parses the `relay.md` role table and asserts it equals `ROLE_MESSAGES`; common messages in
+every role), `tests/test_relay_auth.py` (3, needs a DB: an operator JWT may `sim_start`, a
+daemon service token grants `daemon` and may not `sim_start`, a revoked service token is
+`unauthenticated`). Full suite 195 pass, 4 skipped locally (the Postgres-only migration-grant
+test deselected; relay DB tests ran on SQLite with `--with aiosqlite`, and on Postgres in CI);
+ruff clean; OpenAPI/SDK drift check green (WebSocket routes do not appear in the OpenAPI doc).
+

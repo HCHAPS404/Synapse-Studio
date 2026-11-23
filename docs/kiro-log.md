@@ -990,3 +990,24 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   the critical path of the audited action. A Postgres table owner bypasses its own grants,
   so the append-only grant is honest only with a non-owner app role (noted for E7); the
   code-level guarantee (no UPDATE/DELETE path) is what holds today.
+
+## 2026-11-23 · Task E4.1 (Relay core: WebSocket endpoint, lifecycle, validation, roles)
+- **Kiro features:** spec-driven task from `.kiro/specs/core-services/`, the EXISTING relay
+  contract (`spec/protocols/relay.md`, schemas in `spec/schemas/relay/`, examples in
+  `spec/protocols/examples/`), workspace rules, and the E2/E3 "Results of" paragraphs for the
+  principal, token and session surfaces that E4.1 reuses.
+- **Produced:** package `synapse_core/relay/` (`validate.py` schema validation with
+  `jsonschema`; `roles.py` `ROLE_MESSAGES` from `relay.md`; `protocol.py` server-frame
+  builders and `RelayCode`; `auth.py` token→roles reusing E3; `hub.py` session registry;
+  `session.py` `RelaySession` lifecycle; `starlette.py` transport adapter), route
+  `api/relay.py` (`WS /v1/relay`), registered in `main.py`; `jsonschema` dependency.
+- **Results:** 15 new tests; full suite 195 pass, 4 skipped locally; ruff clean; OpenAPI/SDK
+  drift green. Handshake (`hello`→`welcome`), schema validation of every frame, the role table
+  checked against `relay.md`, fatal vs non-fatal error codes, ping/`pong` and idle-ping/silent
+  close all covered. No new `NE` code (relay uses its own protocol error codes).
+- **Lessons:** a WebSocket endpoint must inject settings via `Depends(get_settings)`, not call
+  the cached singleton, or test dependency overrides (and the per-test database) are ignored.
+  Making the session transport-agnostic with injectable timeouts let the lifecycle be tested
+  in-process with Starlette's `TestClient` and short timeouts, no network and no real clock
+  wait. `BaseHTTPMiddleware` skips WebSocket scopes, so the relay's control-message rate limit
+  belongs inside the session (E4.2), not in the HTTP limiter.
