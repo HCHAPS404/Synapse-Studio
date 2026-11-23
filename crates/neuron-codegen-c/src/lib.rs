@@ -18,6 +18,6 @@ pub use emit::{emit_c, emit_c_ui, Emitted};
 pub use runtime::{runtime_files, ui_files, Port, RuntimeFile};
 pub use toolchain::{
     avr_chip_name, build_arm, build_avr, build_esp_idf, build_host, esp_idf_project, find_tool,
-    flash_avr, flash_bossac, flash_esptool, flash_stm32, flash_uf2, ArmBuild, AvrBuild, BuildError,
-    FlashOptions,
+    flash_avr, flash_bossac, flash_esptool, flash_lm4flash, flash_stm32, flash_uf2, ArmBuild,
+    AvrBuild, BuildError, FlashOptions,
 };

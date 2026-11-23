@@ -1367,3 +1367,26 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   board — different pinout — so a new board file was needed; FPGA boards are embedded in
   the binary, so a `.fpga.toml` must also be registered in `board.rs`. Flashing both the
   UNO Q (SWD via the Linux side) and the Nexys (bitstream) waits for the tool install.
+
+## 2026-11-23 · New board: EK-TM4C123GXL (Tiva C, TM4C123GH6PM runtime port)
+- **Kiro features:** the target model (`neuron-target`) and the C backend/runtime
+  (`neuron-codegen-c`, `neuron-rt`); a verified public register sheet (`out/tm4c-spec.md`,
+  TM4C123GH6PM datasheet SPMS376) was used as the single source of addresses, with a strict
+  "do not invent addresses" rule.
+- **Produced:** chip `tm4c123gh6pm.chip.toml`, runtime `baremetal-tm4c.runtime.toml`, board
+  `ek_tm4c123gxl.board.toml`; a new runtime port `runtime/neuron-rt/port/tm4c/`
+  (`nrt_port_tm4c.{h,c}`, `tm4c123gh6pm.ld`); wired `NRT_PORT_TM4C` into `nrt.h`, `Port::Tm4c`
+  into `runtime.rs` (define, `for_target`, `include_str!`, `runtime_files`), `arm_profile` and
+  a `flash_lm4flash` helper (`NEURON_LM4FLASH`) into `toolchain.rs`, and the `("lmflash",
+  Built::Arm)` arm into the CLI flash dispatch. Board `[programmer] tool = "lmflash"`.
+- **Results:** `cargo test -p neuron-target -p neuron-codegen-c` green (b1_targets 16,
+  b2_codegen 15, b5_ports 8, plus doc-tests); the board list test updated to 9 runtime boards.
+  `neuron targets ek_tm4c123gxl` shows it; `emit-c` writes the tm4c port; `neuron build` with
+  arm-none-eabi-gcc compiles clean — `app.bin` 2168 B, stack top 0x20008000, reset vector
+  0x0000061d (flash at 0x00000000 with the Thumb bit). `cargo clippy ... -D warnings` clean.
+- **Lessons:** TM4C GPIO is not the STM32 layout — each port's clock must be enabled through
+  SYSCTL RCGCGPIO and awaited on PRGPIO, the per-port bases are not a linear stride (a static
+  base table, E/F at 0x40024000/0x40025000), and the data register is written address-masked.
+  UART0 TX and the per-port edge interrupts were left out on purpose (the GPIO interrupt is
+  per-port, not per-line like STM32 EXTI, risky to wire without the board), the same honesty
+  rule the other ports apply to ADC/PWM. Not run on hardware yet; lm4flash not installed.

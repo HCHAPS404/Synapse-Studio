@@ -1,0 +1,27 @@
+schema = 1
+name = "ek_tm4c123gxl"
+source = "Own description. Pin names are the labels printed on the board; the LED/button mapping is public board documentation (TI EK-TM4C123GXL user guide SPMU296)."
+trust = "community"
+tier = "runtime"
+chip = "tm4c123gh6pm"
+runtime = "baremetal-tm4c"
+crystal_hz = 16000000
+sysclk_hz = 16000000
+voltage_mv = 3300
+note = "TI EK-TM4C123GXL (Tiva C LaunchPad), TM4C123GH6PM, Cortex-M4F. Bare-metal port on the 16 MHz precision internal oscillator (PIOSC, no PLL); image in flash at 0x00000000, flashed over the on-board ICDI debugger with lm4flash (or OpenOCD board/ek-tm4c123gxl.cfg). Works: GPIO in/out, input pull-up and the 1 ms SysTick tick. Left out on purpose until the board session: UART0 TX and per-port edge interrupts (TM4C GPIO interrupts are per-port, not per-line; the build refuses `on interrupt`), and ADC and PWM (the build refuses them). LED is PF1 (the on-board red LED). Built and compiled clean here; not yet run on hardware."
+
+[pins]
+# D13 maps to the on-board red LED (PF1) so the common blink example binds here too.
+D13 = "PF1"
+LED = "PF1"
+D0 = "PA0"
+D1 = "PA1"
+TX0 = "PA1"
+RX0 = "PA0"
+
+[leds]
+# On-board LEDs are on port F: PF1 red, PF2 blue, PF3 green. The single `LED` is PF1 (red).
+LED = "PF1"
+
+[programmer]
+tool = "lmflash"

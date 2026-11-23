@@ -111,6 +111,10 @@ const BUILTIN: &[(&str, &str)] = &[
         include_str!("../../../targets/chips/stm32u585.chip.toml"),
     ),
     (
+        "tm4c123gh6pm.chip.toml",
+        include_str!("../../../targets/chips/tm4c123gh6pm.chip.toml"),
+    ),
+    (
         "arduino_uno_r3.board.toml",
         include_str!("../../../targets/boards/arduino_uno_r3.board.toml"),
     ),
@@ -155,6 +159,10 @@ const BUILTIN: &[(&str, &str)] = &[
         include_str!("../../../targets/boards/uno_q.board.toml"),
     ),
     (
+        "ek_tm4c123gxl.board.toml",
+        include_str!("../../../targets/boards/ek_tm4c123gxl.board.toml"),
+    ),
+    (
         "baremetal-avr.runtime.toml",
         include_str!("../../../targets/runtimes/baremetal-avr.runtime.toml"),
     ),
@@ -177,6 +185,10 @@ const BUILTIN: &[(&str, &str)] = &[
     (
         "baremetal-stm32u5.runtime.toml",
         include_str!("../../../targets/runtimes/baremetal-stm32u5.runtime.toml"),
+    ),
+    (
+        "baremetal-tm4c.runtime.toml",
+        include_str!("../../../targets/runtimes/baremetal-tm4c.runtime.toml"),
     ),
     (
         "esp-idf.runtime.toml",

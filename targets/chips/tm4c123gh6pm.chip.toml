@@ -1,0 +1,45 @@
+schema = 1
+name = "tm4c123gh6pm"
+source = "Own description. Register and pin facts from the public TM4C123GH6PM datasheet (document SPMS376), subset."
+trust = "community"
+arch = "thumbv7em"
+mcu = "tm4c123gh6pm"
+flash_bytes = 262144
+ram_bytes = 32768
+voltage_mv = 3300
+
+peripherals = [
+  { name = "uart0", kind = "uart", aliases = ["uart0"], index = 0, pins = { tx = "PA1", rx = "PA0" } },
+]
+
+# TM4C123 GPIO has ports A..F; the runtime keeps `port * 16 + bit` in `mask` (A=0..F=5),
+# like the STM32 ports. Pins are 0..7 per port, but PF has bits 0..4. The port base
+# addresses are NOT a linear stride, so the runtime uses a static base table.
+pins = [
+  { name = "PA0", port = "A", bit = 0, functions = ["gpio", "uart0.rx"] },
+  { name = "PA1", port = "A", bit = 1, functions = ["gpio", "uart0.tx"] },
+  { name = "PA2", port = "A", bit = 2, functions = ["gpio"] },
+  { name = "PA3", port = "A", bit = 3, functions = ["gpio"] },
+  { name = "PB0", port = "B", bit = 0, functions = ["gpio"] },
+  { name = "PB1", port = "B", bit = 1, functions = ["gpio"] },
+  { name = "PB2", port = "B", bit = 2, functions = ["gpio"] },
+  { name = "PB3", port = "B", bit = 3, functions = ["gpio"] },
+  { name = "PE0", port = "E", bit = 0, functions = ["gpio"] },
+  { name = "PE1", port = "E", bit = 1, functions = ["gpio"] },
+  { name = "PE2", port = "E", bit = 2, functions = ["gpio"] },
+  { name = "PE3", port = "E", bit = 3, functions = ["gpio"] },
+  { name = "PF0", port = "F", bit = 0, functions = ["gpio"] },
+  { name = "PF1", port = "F", bit = 1, functions = ["gpio"] },
+  { name = "PF2", port = "F", bit = 2, functions = ["gpio"] },
+  { name = "PF3", port = "F", bit = 3, functions = ["gpio"] },
+  { name = "PF4", port = "F", bit = 4, functions = ["gpio"] },
+]
+
+[clock]
+# Honest port runs on the 16 MHz precision internal oscillator (PIOSC), no PLL. The chip
+# can reach 80 MHz through the PLL; that is a later improvement.
+max_hz = 80000000
+post_dividers = [1]
+sources = [
+  { name = "piosc", min_hz = 16000000, max_hz = 16000000 },
+]

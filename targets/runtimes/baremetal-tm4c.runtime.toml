@@ -1,0 +1,9 @@
+schema = 1
+name = "baremetal-tm4c"
+source = "runtime/neuron-rt/port/tm4c: bare-metal port for the TM4C123 family (Cortex-M4F). Registers from the public TM4C123GH6PM datasheet (SPMS376)."
+trust = "community"
+kind = "baremetal"
+port = "tm4c"
+tick_hz = 1000
+reserves = ["systick"]
+cflags = ["-Os", "-ffunction-sections", "-fdata-sections"]

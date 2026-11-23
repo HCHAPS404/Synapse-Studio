@@ -256,6 +256,12 @@ fn arm_profile(port: Port) -> Option<(&'static [&'static str], &'static str, u32
             0x0000_2000,
             None,
         )),
+        Port::Tm4c => Some((
+            &["-mcpu=cortex-m4", "-mthumb", "-mfloat-abi=soft"],
+            "tm4c123gh6pm.ld",
+            0x0000_0000,
+            None,
+        )),
         _ => None,
     }
 }
@@ -409,6 +415,16 @@ pub fn flash_bossac(bin: &Path) -> Result<String, BuildError> {
             .args(["-i", "-d", "-U", "-e", "-w", "-v", "-R", "--offset=0x2000"])
             .arg(bin),
     )
+}
+
+/// Writes a raw binary to a TM4C board (EK-TM4C123GXL) with `lm4flash` over the on-board
+/// ICDI debugger. The image loads at flash 0x00000000; `lm4flash` finds the ICDI device.
+pub fn flash_lm4flash(bin: &Path) -> Result<String, BuildError> {
+    let lm4flash = find_tool("NEURON_LM4FLASH", &["lm4flash"]).ok_or(BuildError::ToolMissing {
+        tool: "lm4flash".into(),
+        env: "NEURON_LM4FLASH",
+    })?;
+    run("lm4flash", Command::new(lm4flash).arg(bin))
 }
 
 /// The files of an ESP-IDF project that builds the program: `(relative path, text)`.

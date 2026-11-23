@@ -42,6 +42,7 @@ have not been checked on the device by the maintainers yet.
 | `nano_33_ble_sense` | nRF52840, 64 MHz HFINT | runtime | `app.elf`, `app.bin`, `app.uf2` (flash image above the UF2 bootloader) | UF2 drive (NANO33BLE) | model loads; C not compiled here (no arm-gcc). GPIO + tick + UARTE0 TX + GPIOTE edge interrupts; ADC/PWM left out. Serial1 pins to confirm on the board |
 | `nano_33_iot` | SAMD21G18A, 8 MHz OSC8M | runtime | `app.elf`, `app.bin` (flash image above the SAM-BA bootloader) | bossac | model loads; C not compiled here. GPIO + tick only; UART TX and EIC edge interrupts left out (SERCOM/EIC need GCLK, deferred); ADC/PWM left out. LED (PA17) and TX (PA22) pins to confirm |
 | `uno_q` | STM32U585 (MCU side), 16 MHz HSI | runtime | `app.elf`, `app.bin` (flash image) | probe-rs, OpenOCD or st-flash (SWD) | model loads; C not compiled here. GPIO + tick + USART1 TX + EXTI edge interrupts; ADC/PWM left out. Linux side out of scope. User LED pin is a placeholder (PA5), to confirm on the board |
+| `ek_tm4c123gxl` | TM4C123GH6PM (Tiva C), 16 MHz PIOSC | runtime | `app.elf`, `app.bin` (flash image at 0x00000000) | lm4flash (on-board ICDI) | C **compiled clean** with arm-none-eabi-gcc (app.bin 2168 B, stack top 0x20008000, reset vector in flash with the Thumb bit). GPIO + tick only; UART0 TX and per-port edge interrupts left out on purpose, ADC/PWM left out. LED is PF1 (red). Not run on hardware |
 | `esp32_s3_devkit` | ESP32-S3 | sdk | an `idf.py` project, built when ESP-IDF is installed | esptool | project generation |
 | `xiao_esp32s3` | ESP32-S3 | sdk | an `idf.py` project | esptool | project generation |
 | `nucleo_n657x0_q` | STM32N657 | described | — | — | pins and clocks only (placeholder) |
@@ -69,6 +70,17 @@ GPIO and the tick runs, one that needs UART output or an edge interrupt builds b
 nothing. The `uno_q` on-board user LED pin is a placeholder (PA5); the real pin is to confirm
 on the board.
 
+The TM4C123GH6PM port (`ek_tm4c123gxl`) was written against the public datasheet (SPMS376)
+and its C **was** compiled with `arm-none-eabi-gcc` on the machine that added it (unlike the
+three Arduino ports above): `app.bin` is 2168 bytes, the vector table carries the stack top
+0x20008000 and the reset vector in flash with the Thumb bit. It has not run on hardware yet.
+The TM4C GPIO is not the STM32 layout (per-port clock enable through SYSCTL RCGCGPIO, a
+non-linear per-port base table, address-masked data writes), so only GPIO in/out, input
+pull-up and the 1 ms SysTick tick are implemented. UART0 TX and the per-port edge interrupts
+are left out on purpose until the board session (the GPIO interrupt is per-port, not per-line
+like STM32 EXTI, and is risky to wire blind); a program that only uses GPIO and the tick runs,
+one that needs UART output or an edge interrupt builds but those do nothing.
+
 ## Runtime ports (`runtime/neuron-rt/port/`)
 
 | Port | GPIO | Edge interrupts | Tick | UART TX | PWM / ADC | Display bus |
@@ -79,6 +91,7 @@ on the board.
 | `stm32u5` (STM32U585) | ✔ | EXTI | SysTick | USART1 on PA9 | not yet (`NE0610`) | not yet |
 | `nrf52` (nRF52840) | ✔ (P0, P1) | GPIOTE | SysTick | UARTE0 (EasyDMA, 1 byte) | not yet (`NE0610`) | not yet |
 | `samd21` (SAMD21G18A) | ✔ (PA, PB) | not yet (deferred) | SysTick | not yet (deferred) | not yet (`NE0610`) | not yet |
+| `tm4c` (TM4C123GH6PM) | ✔ (A–F, RCGCGPIO + base table, masked writes) | not yet (deferred) | SysTick | not yet (deferred) | not yet (`NE0610`) | not yet |
 | `esp_idf` | gpio driver | GPIO ISR service | esp_timer | uart driver | not yet | I2C, SPI drivers |
 | `host` | simulated | from the scenario | simulated time | traced | traced | traced (`BUS` lines) |
 

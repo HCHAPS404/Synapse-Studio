@@ -18,13 +18,16 @@ Status legend: ✅ done · ⏳ pending (this session) · ⚠️ blocked, see not
 
 | Arduino Nano 33 BLE Sense Rev2 | COM10 (USB, Arduino VID 2341 / PID 805A; direct) | `nano_33_ble_sense` / nRF52840 | ✅ | ✅ `app.elf`+`app.bin`+**`app.uf2`**, 2024 B, reset vector 0x000264b9 (above the UF2 bootloader at 0x26000), stack 0x20040000, UF2 family 0xADA52840 — the nRF52840 Cortex-M4F port compiles and boots cleanly | ⏳ | **Easiest of the three new boards to flash: no tool needed.** Double-tap RESET → the NANO33BLE drive appears → copy `app.uf2`. Works: GPIO, 1 ms tick, UARTE0 TX, GPIOTE edge. LED P0.13. Serial1 pins P1.03/P1.10 to confirm. |
 
+| TI EK-TM4C123GXL (Tiva C LaunchPad) | COM11 (USB, VID 1CBE / PID 00FD; on-board ICDI debugger) | `ek_tm4c123gxl` / TM4C123GH6PM | ✅ | ✅ `app.elf`+`app.bin`, 2168 B, reset vector 0x0000061d (flash at 0x00000000, Thumb bit set), stack 0x20008000 — the TM4C123 Cortex-M4F port compiles and boots cleanly with arm-none-eabi-gcc | ⏳ | Flash with lm4flash over the on-board ICDI (`NEURON_LM4FLASH`), or OpenOCD `board/ek-tm4c123gxl.cfg`; lm4flash not installed yet. Works: GPIO + input pull-up + 1 ms SysTick tick. UART0 TX and per-port edge interrupts LEFT OUT until the board session (TM4C GPIO interrupt is per-port, not per-line); ADC/PWM left out. LED PF1 (red). Runs at 16 MHz PIOSC (80 MHz PLL later). |
+
 ## Pending test batch (end of session)
 
 - Install a flasher: `probe-rs` (`cargo install probe-rs-tools`) and/or st-flash/OpenOCD.
 - UNO Q: resolve the STM32U585 flash route (likely via the board's Linux side).
 - Flash the Tier 1 boards (UNO R3, Mega, Pico, Pico 2 W) and watch the LED.
 - Confirm the placeholder LED/UART pins on each new board.
-- Pending CLIs / toolchains: ESP-IDF for the ESP32-S3; bossac for the Nano 33 IoT.
+- Pending CLIs / toolchains: ESP-IDF for the ESP32-S3; bossac for the Nano 33 IoT;
+  lm4flash (or OpenOCD) for the EK-TM4C123GXL.
 
 ## Measurements to take (replace the generic numbers in Phases D/E)
 

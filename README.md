@@ -670,7 +670,7 @@ accounts, forms, recordings and posts.
 | Reference interpreter: simulated time, LET signals, safe state, `test` blocks | ✅ (`neuron run`, `neuron test`) |
 | Conformance vectors | 🚧 golden files for parser, NIR, C and Verilog in `conformance/golden` |
 | Target model: architectures, chips, boards, pin and clock solvers | ✅ (`neuron targets`, hardware checks in `neuron check`) |
-| C backend and runtime (`neuron-rt`): host, AVR (UNO, Mega), RP2040, RP2350, STM32F4, ESP-IDF | ✅🔌 (`neuron emit-c`, `neuron build`, `neuron flash`) |
+| C backend and runtime (`neuron-rt`): host, AVR (UNO, Mega), RP2040, RP2350, STM32F4, STM32U585, nRF52840, SAMD21, TM4C123 (Tiva C), ESP-IDF | ✅🔌 (`neuron emit-c`, `neuron build`, `neuron flash`) |
 | Native AVR backend (own assembler, Intel HEX, no external compiler) | ✅🔌 (`neuron build --native`); RV32IMC, Thumb-2, MSP430 and LLVM IR 📋 |
 | ISA simulators: AVR (ATmega328P) and ARMv6-M (RP2040) running the real firmware | ✅ (match the interpreter); debugger 📋 |
 | `hdl` dialect to Verilog-2005 with CDC checks and XDC/PCF constraints | ✅🔌 (`neuron emit-verilog`) |
