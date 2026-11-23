@@ -16,6 +16,7 @@ from alembic.config import Config
 from sqlalchemy import create_engine, inspect
 
 from synapse_core.db.models import (
+    BlackBoxRecord,
     Daemon,
     Device,
     PairingCode,
@@ -30,6 +31,7 @@ _TABLES = {
     "pairing_codes": PairingCode,
     "telemetry_samples": TelemetrySample,
     "telemetry_1m": Telemetry1m,
+    "blackbox_records": BlackBoxRecord,
 }
 
 

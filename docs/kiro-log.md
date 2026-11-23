@@ -1217,3 +1217,15 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
 - **Lessons:** keeping an uploaded record in the store instead of deleting it lets a restart re-read
   the unuploaded rows and retry, which is exactly what E6.2 needs; generating the schema from the
   Pydantic model with a drift test keeps the committed JSON Schema from going stale.
+## 2026-11-23 · Task E6.2 (Black box upload route and table, retry on restart, replay conversion)
+- **Kiro features:** spec-driven task from `.kiro/specs/core-services/` (design `E6 Black box and
+  calibration`), requirement E-R16.
+- **Produced:** Core API migration `0010_blackbox`, model `BlackBoxRecord`, `schemas/blackbox.py`,
+  `services/blackbox.store_record` (idempotent), `api/blackbox.py` `POST /v1/blackbox` (daemon
+  token, `deployment.report`); daemon `blackbox.blackbox_to_replay` (to `replay.schema.json`) and
+  `blackbox_upload.py` (`upload_record`, `flush_pending` restart-safe retry).
+- **Results:** 6 core + 5 daemon new tests; core suite 244 pass / 4 skip / 1 deselected (Postgres-
+  only round trip, CI), daemon suite 106 pass / 1 skip; ruff clean; OpenAPI/SDK drift green.
+- **Lessons:** keying idempotency on the fault identity `(cell, device, at_ns)` lets a restarted
+  daemon retry without tracking server ids; storing the record JSON verbatim means the twin replay
+  (F9) needs no lossy server-side mapping, only the pure `blackbox_to_replay` conversion.

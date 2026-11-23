@@ -112,6 +112,87 @@ def canonical_schema_text() -> str:
     return json.dumps(record_schema(), indent=2, sort_keys=True) + "\n"
 
 
+# The replay format of the twin (D6.2, `spec/schemas/replay.schema.json`). The daemon converts
+# a frozen record into a replay document so the twin can play it (F9). The replay event `kind`
+# field is a fixed snake_case set; a black box trace kind is mapped onto it, and a tag sample
+# becomes a `signal` event.
+REPLAY_VERSION = "1"
+_REPLAY_KINDS = frozenset(
+    {
+        "signal",
+        "output",
+        "fault",
+        "reset",
+        "event",
+        "state",
+        "log",
+        "motion",
+        "send",
+        "deliver",
+        "cut",
+        "drop",
+        "violation",
+    }
+)
+
+
+def _replay_kind(trace_kind: str) -> str:
+    """Map a black box trace kind onto a replay event kind; unknown kinds become `signal`."""
+    k = trace_kind.strip().lower()
+    return k if k in _REPLAY_KINDS else "signal"
+
+
+def _value_text(value: Value | None) -> str:
+    """Render a tag value as the replay's text value (empty when there is none)."""
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    return str(value)
+
+
+def blackbox_to_replay(record: BlackBoxRecord) -> dict[str, object]:
+    """Convert a black box record to a twin replay document (`spec/schemas/replay.schema.json`).
+
+    A `cosimulation`-kind replay for the one faulted device: each tag sample becomes a `signal`
+    event and each trace event is mapped onto a replay event kind. `end_ns` is the last event
+    time, so the twin plays the whole frozen window. The result validates against
+    `replay.schema.json`; the daemon writes exactly this JSON.
+    """
+    events: list[dict[str, object]] = []
+    for s in record.samples:
+        events.append(
+            {
+                "t_ns": s.t_ns,
+                "device": record.device,
+                "kind": "signal",
+                "name": s.tag,
+                "value": _value_text(s.value),
+            }
+        )
+    for e in record.events:
+        events.append(
+            {
+                "t_ns": e.t_ns,
+                "device": e.device,
+                "kind": _replay_kind(e.kind),
+                "name": e.name,
+                "value": e.value,
+            }
+        )
+    events.sort(key=lambda ev: int(ev["t_ns"]))  # type: ignore[call-overload]
+    end_ns = max((int(ev["t_ns"]) for ev in events), default=record.at_ns)
+    return {
+        "replay_version": REPLAY_VERSION,
+        "kind": "cosimulation",
+        "cell": record.cell,
+        "end_ns": end_ns,
+        "devices": [{"name": record.device, "manifest": "", "modules": []}],
+        "links": [],
+        "events": events,
+    }
+
+
 class RingBuffer:
     """A time-bounded ring buffer of samples and events, used to freeze a fault window.
 

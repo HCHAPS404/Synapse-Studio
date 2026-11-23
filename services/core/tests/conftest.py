@@ -16,6 +16,7 @@ from sqlalchemy import create_engine, delete
 from synapse_core.db.base import Base
 from synapse_core.db.models import (
     AuditLog,
+    BlackBoxRecord,
     Build,
     BuildArtifact,
     Daemon,
@@ -73,6 +74,7 @@ async def app(schema: None) -> AsyncIterator[FastAPI]:
     engine = create_engine(sqlalchemy_url(TEST_URL).replace("+aiosqlite", ""))
     with engine.begin() as conn:
         for model in (
+            BlackBoxRecord,
             BuildArtifact,
             Build,
             VersionFile,

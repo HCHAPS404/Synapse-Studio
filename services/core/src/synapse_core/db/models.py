@@ -327,6 +327,31 @@ class Telemetry1m(Base):
     simulated: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
 
+class BlackBoxRecord(Base):
+    """A fault record uploaded by a daemon's black box (E6.2).
+
+    The daemon freezes a window around a fault (E6.1) and uploads it here. `record` is the
+    whole record JSON (validated by the route against the daemon's `blackbox.schema.json`), so
+    the record is stored verbatim and can be replayed in the twin without a lossy mapping. The
+    columns `cell_id`, `device`, `fault_code` and `at_ns` are denormalised from the record for
+    querying. Records are kept 90 days (design table).
+    """
+
+    __tablename__ = "blackbox_records"
+    __table_args__ = (Index("ix_blackbox_records_cell_at", "cell_id", "at_ns"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    cell_id: Mapped[str] = mapped_column(String(120), nullable=False)
+    device: Mapped[str] = mapped_column(String(120), nullable=False)
+    fault_kind: Mapped[str] = mapped_column(String(16), nullable=False)
+    fault_code: Mapped[str] = mapped_column(String(120), nullable=False, default="")
+    at_ns: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    record: Mapped[dict[str, Any]] = mapped_column(Json, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_now
+    )
+
+
 class VersionFile(Base):
     """One file of a version (UTF-8 text)."""
 

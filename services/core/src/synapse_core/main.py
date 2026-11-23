@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 from synapse_core import __version__
 from synapse_core.api.audit import router as audit_router
 from synapse_core.api.auth import router as auth_router
+from synapse_core.api.blackbox import router as blackbox_router
 from synapse_core.api.builds import router as builds_router
 from synapse_core.api.devices import router as devices_router
 from synapse_core.api.guests import router as guests_router
@@ -204,6 +205,7 @@ def create_app() -> FastAPI:
     app.include_router(audit_router)
     app.include_router(pairing_router)
     app.include_router(telemetry_router)
+    app.include_router(blackbox_router)
     app.include_router(relay_router)
 
     @app.get("/health", response_model=HealthResponse)

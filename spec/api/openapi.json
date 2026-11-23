@@ -143,6 +143,184 @@
         "title": "Backend",
         "type": "string"
       },
+      "BlackBoxEvent": {
+        "additionalProperties": false,
+        "description": "One trace event in the record.",
+        "properties": {
+          "device": {
+            "title": "Device",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "default": "",
+            "title": "Name",
+            "type": "string"
+          },
+          "t_ns": {
+            "minimum": 0.0,
+            "title": "T Ns",
+            "type": "integer"
+          },
+          "value": {
+            "default": "",
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "t_ns",
+          "device",
+          "kind"
+        ],
+        "title": "BlackBoxEvent",
+        "type": "object"
+      },
+      "BlackBoxRecordIn": {
+        "additionalProperties": false,
+        "description": "A fault record uploaded by a daemon (the body of `POST /v1/blackbox`).",
+        "properties": {
+          "at_ns": {
+            "minimum": 0.0,
+            "title": "At Ns",
+            "type": "integer"
+          },
+          "cell": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Cell",
+            "type": "string"
+          },
+          "daemon_version": {
+            "default": "",
+            "title": "Daemon Version",
+            "type": "string"
+          },
+          "device": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Device",
+            "type": "string"
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/BlackBoxEvent"
+            },
+            "title": "Events",
+            "type": "array"
+          },
+          "fault_code": {
+            "default": "",
+            "maxLength": 120,
+            "title": "Fault Code",
+            "type": "string"
+          },
+          "fault_kind": {
+            "$ref": "#/components/schemas/FaultKind"
+          },
+          "package_hash": {
+            "default": "",
+            "title": "Package Hash",
+            "type": "string"
+          },
+          "post_ns": {
+            "minimum": 0.0,
+            "title": "Post Ns",
+            "type": "integer"
+          },
+          "pre_ns": {
+            "minimum": 0.0,
+            "title": "Pre Ns",
+            "type": "integer"
+          },
+          "record_version": {
+            "title": "Record Version",
+            "type": "string"
+          },
+          "samples": {
+            "items": {
+              "$ref": "#/components/schemas/BlackBoxSample"
+            },
+            "title": "Samples",
+            "type": "array"
+          }
+        },
+        "required": [
+          "record_version",
+          "cell",
+          "device",
+          "fault_kind",
+          "at_ns",
+          "pre_ns",
+          "post_ns"
+        ],
+        "title": "BlackBoxRecordIn",
+        "type": "object"
+      },
+      "BlackBoxSample": {
+        "additionalProperties": false,
+        "description": "One tag reading in the record.",
+        "properties": {
+          "quality": {
+            "$ref": "#/components/schemas/Quality"
+          },
+          "t_ns": {
+            "minimum": 0.0,
+            "title": "T Ns",
+            "type": "integer"
+          },
+          "tag": {
+            "title": "Tag",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Value"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "tag",
+          "quality",
+          "t_ns"
+        ],
+        "title": "BlackBoxSample",
+        "type": "object"
+      },
+      "BlackBoxUploaded": {
+        "description": "The id of a stored record. An idempotent re-upload returns the same id.",
+        "properties": {
+          "cell_id": {
+            "title": "Cell Id",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "cell_id",
+          "created_at"
+        ],
+        "title": "BlackBoxUploaded",
+        "type": "object"
+      },
       "BuildOut": {
         "description": "A build. While `status` is `queued` or `running`, the result fields are empty.",
         "properties": {
@@ -1055,6 +1233,17 @@
         "title": "Family",
         "type": "string"
       },
+      "FaultKind": {
+        "description": "What froze the window (daemon E6.1).",
+        "enum": [
+          "fault",
+          "estop",
+          "driver_loss",
+          "watchdog"
+        ],
+        "title": "FaultKind",
+        "type": "string"
+      },
       "FileOut": {
         "description": "One file of a version.",
         "properties": {
@@ -1572,6 +1761,16 @@
         "title": "ProjectUpdate",
         "type": "object"
       },
+      "Quality": {
+        "description": "Sample quality (relay.md).",
+        "enum": [
+          "good",
+          "stale",
+          "bad"
+        ],
+        "title": "Quality",
+        "type": "string"
+      },
       "RobotLimits": {
         "additionalProperties": false,
         "description": "The `[robot]` table (robots only). Mirrors `neuron_emit::robot::Robot`.",
@@ -1960,6 +2159,22 @@
         "title": "ValidationError",
         "type": "object"
       },
+      "Value": {
+        "anyOf": [
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "integer"
+          },
+          {
+            "type": "number"
+          },
+          {
+            "type": "string"
+          }
+        ]
+      },
       "VersionCreate": {
         "additionalProperties": false,
         "description": "Body of `POST /v1/projects/{id}/versions`: the complete file set of the snapshot.\n\nPaths and sizes are checked by the same rules as compile jobs (`NE1101`).",
@@ -2284,6 +2499,48 @@
         "summary": "Login",
         "tags": [
           "auth"
+        ]
+      }
+    },
+    "/v1/blackbox": {
+      "post": {
+        "description": "Store a fault record from a daemon. Idempotent on `(cell, device, fault instant)`.",
+        "operationId": "upload_blackbox_v1_blackbox_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BlackBoxRecordIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BlackBoxUploaded"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Upload Blackbox",
+        "tags": [
+          "blackbox"
         ]
       }
     },

@@ -39,7 +39,7 @@ tested against simulated peers.
 | E5.12 | OPC UA driver against an in-process `asyncua` server (stretch, after E5.1 to E5.11) | E-R12 | no | open |
 | E5-HW | Daemon flashes the UNO and talks to a PLC and a robot controller in the lab; Python `host` node on the Pi 5 | E-R12, E-R14 | **yes** | pending (I4 to I7) |
 | E6.1 | Black box: ring buffer, fault window, local SQLite store, record JSON Schema | E-R16 | no | done |
-| E6.2 | Upload route and table, retry on restart, conversion to the replay format | E-R16 | no | open |
+| E6.2 | Upload route and table, retry on restart, conversion to the replay format | E-R16 | no | done |
 | E6.3 | Calibration pipeline and profile TOML; `neuron cell check --profile`; a synthetic profile changes an `NE0701` result; `NE1112` | E-R17 | no (generic and synthetic numbers) | open |
 | E6-HW | Measure the lab devices (I1), commit measured profiles, mark manifests `measured`, rerun the D3 budgets | E-R17 | **yes** | pending (I1) |
 | E7.1 | Alembic on deploy (`preDeployCommand`), migration round-trip CI job, secrets list in `render.yaml` | E-R18 | no | open |
@@ -859,3 +859,35 @@ record validates against it; the ring buffer prunes outside the window; freeze k
 pre/post window; a synthetic fault yields both windows; store round trip and a restart keeps a
 record pending until `mark_uploaded`; settings defaults; a malformed record is rejected). Daemon
 suite: 101 pass, 1 skipped; ruff clean and formatted. No new error code (NE1112 is E6.3).
+
+## Results of E6.2
+Upload route, table and the conversion to the replay format. Core API: migration `0010_blackbox`
+(continues after E5's `0009`) adds `blackbox_records` (`id`, `cell_id`, `device`, `fault_kind`,
+`fault_code`, `at_ns`, `record` JSON->JSONB, `created_at`; index `(cell_id, at_ns)`), model
+`BlackBoxRecord`, `schemas/blackbox.py` (`BlackBoxRecordIn` mirroring the daemon record with
+`extra="forbid"`, so an unknown field is `NE1101`/422), `services/blackbox.store_record`
+(idempotent on `(cell_id, device, at_ns)`) and `api/blackbox.py` `POST /v1/blackbox`, registered
+in `main.py`. The daemon authenticates with its service token; the route requires
+`deployment.report` (held by the `daemon` role) and binds the record to the token's `cell_id`,
+so a daemon cannot write records for another cell. The whole record is stored verbatim in
+`record` so the twin can replay it without a lossy mapping. Daemon side: `blackbox_to_replay`
+(in `blackbox.py`) converts a record to a `cosimulation` replay document for the one faulted
+device — each tag sample becomes a `signal` event, each trace event is mapped onto a replay
+kind (unknown kinds -> `signal`), events are time-ordered and `end_ns` is the last one; a test
+validates the output against `spec/schemas/replay.schema.json` (the D6.2 format, reused as asked).
+`blackbox_upload.py` (`upload_record`, `flush_pending`) POSTs pending records oldest-first with a
+bearer token through an injectable `HttpClient`, marks each uploaded only on a 2xx, stops at the
+first failure, and treats a transport error as a retry (never a crash); because the SQLite store
+(E6.1) keeps the unuploaded rows, a restart resumes them — `flush_pending` over a fresh store on
+the same file retries, proven by a test. Choices: idempotency by the fault identity, not a
+server id, so the daemon needs no extra state to retry safely; the upload client is a protocol so
+CI stays network-free. Open: wiring `flush_pending` into the daemon run loop on reconnect (runtime,
+alongside E5's loop) and the twin playing a converted record (F9) are downstream. Tests: 6 core in
+`tests/test_blackbox.py` (daemon uploads; idempotent retry returns the same id and a new instant is
+a new row; the record is bound to the daemon's cell; an engineer JWT is `NE1106`; an unknown field
+is rejected) and 5 daemon in `tests/test_e6_2_blackbox_upload.py` (replay conversion validates
+against the schema and orders events; unknown kind -> signal; upload success/failure/transport
+retry; flush marks uploaded, stops at a failure, and resumes after a restart); the 0010 columns are
+added to the offline migration/model check. Core suite 244 pass, 4 skip, 1 deselected locally (the
+Postgres-only round trip runs in CI); daemon suite 106 pass, 1 skip; ruff clean; OpenAPI/SDK
+regenerated for `POST /v1/blackbox`, drift green. No new error code.

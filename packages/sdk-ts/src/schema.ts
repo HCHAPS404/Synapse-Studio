@@ -30,6 +30,42 @@ export interface AuditPage {
 
 export type Backend = "st" | "scl" | "plcopen" | "spel" | "python" | "c" | "native" | "verilog";
 
+export interface BlackBoxEvent {
+  "t_ns": number;
+  "device": string;
+  "kind": string;
+  "name"?: string;
+  "value"?: string;
+}
+
+export interface BlackBoxRecordIn {
+  "record_version": string;
+  "cell": string;
+  "device": string;
+  "fault_kind": FaultKind;
+  "fault_code"?: string;
+  "at_ns": number;
+  "pre_ns": number;
+  "post_ns": number;
+  "daemon_version"?: string;
+  "package_hash"?: string;
+  "samples"?: Array<BlackBoxSample>;
+  "events"?: Array<BlackBoxEvent>;
+}
+
+export interface BlackBoxSample {
+  "tag": string;
+  "value"?: Value | null;
+  "quality": Quality;
+  "t_ns": number;
+}
+
+export interface BlackBoxUploaded {
+  "id": string;
+  "cell_id": string;
+  "created_at": string;
+}
+
 export interface BuildOut {
   "id": string;
   "version_id": string;
@@ -182,6 +218,8 @@ export interface ErrorBody {
 
 export type Family = "register" | "frame" | "pubsub" | "zero_hop";
 
+export type FaultKind = "fault" | "estop" | "driver_loss" | "watchdog";
+
 export interface FileOut {
   "path": string;
   "content": string;
@@ -288,6 +326,8 @@ export interface ProjectUpdate {
   "row_version": number;
 }
 
+export type Quality = "good" | "stale" | "bad";
+
 export interface RobotLimits {
   "name": string;
   "kind": string;
@@ -363,6 +403,8 @@ export interface ValidationError {
   "ctx"?: Record<string, unknown>;
 }
 
+export type Value = boolean | number | string;
+
 export interface VersionCreate {
   "files": Record<string, string>;
   "message"?: string;
@@ -402,6 +444,7 @@ export interface ApiPaths {
   "/health": "GET";
   "/v1/audit": "GET";
   "/v1/auth/login": "POST";
+  "/v1/blackbox": "POST";
   "/v1/builds/{build_id}": "GET";
   "/v1/builds/{build_id}/artifacts/{name}": "GET";
   "/v1/capabilities": "GET";
