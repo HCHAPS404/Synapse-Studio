@@ -1163,3 +1163,14 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
 - **Lessons:** an injectable client factory lets the same driver run against the real native server
   when the wheel's library loads and against a dict-backed mock otherwise, so the suite is green on
   any machine without pretending the native path was exercised when it was not.
+## 2026-11-23 · Task E5.8 (TCP socket driver and MQTT driver)
+- **Kiro features:** spec-driven task from `.kiro/specs/core-services/` (design driver table),
+  requirement E-R12.
+- **Produced:** `synapse_daemon.drivers.socket_tcp.TcpSocketDriver` (newline-framed ASCII over
+  asyncio streams) and `synapse_daemon.drivers.mqtt.MqttDriver` (aiomqtt, subscribe + cache +
+  publish, injectable mock client).
+- **Results:** 8 new tests (echo server + mock broker); daemon suite 70 pass / 1 skip; ruff clean.
+- **Lessons:** MQTT's publish/subscribe shape does not match a request/response `read`, so the driver
+  keeps a per-topic cache filled by a reader task and a read returns the latest value or `bad` -- it
+  never blocks waiting or invents a value; a shared mock broker that fans a publish to subscribers lets
+  two mock clients model a real pub/sub exchange with no broker process.

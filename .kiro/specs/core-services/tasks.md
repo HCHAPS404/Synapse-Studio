@@ -32,7 +32,7 @@ tested against simulated peers.
 | E5.5 | Serial driver and `Flasher` (avrdude, UF2) with fake tools and `loop://` | E-R12 | no | done |
 | E5.6 | Modbus TCP and RTU drivers against a pymodbus server and a loopback serial pair | E-R12 | no | done |
 | E5.7 | S7 driver against the snap7 server or a mock | E-R12 | no | done |
-| E5.8 | TCP socket and MQTT drivers against a local server and an in-process broker | E-R12 | no | open |
+| E5.8 | TCP socket and MQTT drivers against a local server and an in-process broker | E-R12 | no | done |
 | E5.9 | CAN driver on the python-can virtual bus | E-R12 | no | open |
 | E5.10 | Heartbeat, local E-STOP input (read-only), `estop_state`, advisory request handling, safe state outputs | E-R15 | no (simulated input) | open |
 | E5.11 | Serve the PWA on the LAN and offline operation; `docs/daemon.md` with the safety wording | E-R12, E-R20 | no | open |
@@ -767,3 +767,17 @@ test injects a mock when the native snap7 library is absent (the design's fallba
 port with a registered DB area (skipped only if the native library cannot load), plus always-running
 mock-client tests (int/real/bool round trip, non-writable refused, unmapped read bad, read before
 open bad, connect failure raises). No new error code; no hardware, no network beyond localhost.
+## Results of E5.8
+TCP socket and MQTT drivers. `drivers/socket_tcp.py` (`TcpSocketDriver`) speaks a newline-framed
+ASCII protocol over asyncio streams: a write sends `TAG=VALUE\n`, a read sends `TAG?\n` and parses
+the `TAG=VALUE\n` answer; connect/read/write failures give a `bad`-quality sample or a `DriverError`,
+non-writable tags are refused, no value is guessed. `drivers/mqtt.py` (`MqttDriver`) over `aiomqtt`:
+on open it enters the client context, subscribes to every mapped topic and starts a reader task that
+caches the last payload per topic; a write publishes, a read returns the cached payload or `bad` when
+none has arrived; an injectable `client_factory` lets tests use a mock broker (the design's fallback).
+Tag maps: TCP uses the tag name directly; MQTT uses `{"topic": str}`. Tests (`tests/test_e5_8_socket_mqtt.py`,
+8): the TCP driver against a local asyncio echo-and-remember server (write/read, unknown-tag bad,
+non-writable refused, connect failure), and the MQTT driver against a shared in-process mock broker
+(a publisher's message is read back, a write to a self-subscribed topic reads back, an unseen tag is
+bad, a non-writable tag is refused). Also removed an unused helper in the serial driver. No new error
+code; no hardware, no network beyond localhost, no real broker.

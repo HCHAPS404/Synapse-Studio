@@ -31,20 +31,6 @@ def _encode(value: Value) -> str:
     return str(value)
 
 
-def _decode(raw: str) -> Value:
-    text = raw.strip()
-    if text in ("1", "0") and len(text) == 1:
-        return text == "1"
-    try:
-        return int(text)
-    except ValueError:
-        pass
-    try:
-        return float(text)
-    except ValueError:
-        return text
-
-
 class SerialDriver(Driver):
     """A framed-ASCII serial driver. Opens the URL in `cfg.params['url']`."""
 
