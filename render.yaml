@@ -6,20 +6,27 @@
 services:
   - type: web
     name: synapse-core
-    runtime: python
+    # Docker image (E2.10): a Rust stage builds the `neuron` CLI so the API can run real
+    # check/build/emit jobs, plus the Python service. The image sets SYNAPSE_NEURON_BIN and
+    # SYNAPSE_DEVICES_DIR. The build is slower than the old python runtime (the Rust stage);
+    # if it ever times out on Render, the fallback is a check/emit-only image without the
+    # Rust stage (the compile runner degrades safely when `neuron` is absent).
+    runtime: docker
+    dockerfilePath: services/core/Dockerfile
+    dockerContext: .
     plan: starter
     # TODO(region): the service runs in Oregon (Render default) while Neon is in AWS US East 2
     # (Ohio). Render cannot change the region of an existing service. To fix: add
     # `region: ohio` here, delete and recreate the service, then set SYNAPSE_DATABASE_URL and
     # update the Vercel API URL. Cost today: about 50-70 ms per database round trip.
-    rootDir: services/core
-    buildCommand: pip install uv && uv sync --locked --no-dev
+    # No rootDir under Docker runtime: the Dockerfile's build context is the repo root
+    # (it needs crates/ for the Rust stage and devices/, targets/, lib/, spec/ for data).
     # Runs once before each deploy goes live, after the build and with the env vars below.
     # Brings the database schema to the latest Alembic revision; a failed migration blocks
     # the deploy, so the new code never starts against an old schema. Idempotent: on an
     # already-migrated database `alembic upgrade head` is a no-op.
     preDeployCommand: uv run --no-dev alembic upgrade head
-    startCommand: uv run --no-dev uvicorn synapse_core.main:app --host 0.0.0.0 --port $PORT
+    # The server command is the Dockerfile CMD (uvicorn on $PORT).
     healthCheckPath: /health
     autoDeploy: true
     envVars:

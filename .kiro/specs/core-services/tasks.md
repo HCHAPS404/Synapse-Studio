@@ -14,7 +14,7 @@ tested against simulated peers.
 | E2.7 | Token bucket limiter, per-client buckets, `Retry-After`, `NE1103`; property test of the rate bound | E-R4 | no | done |
 | E2.8 | Guest mode: sandboxes, guest token, quotas, expiry cleanup, `NE1104`; a guest builds a corpus example | E-R3 | no | done |
 | E2.9 | OpenAPI export, generated `packages/sdk-ts`, CI drift check | E-R5 | no | done |
-| E2.10 | Docker image (Rust stage plus Python), `render.yaml` to `runtime: docker`, local `docker compose` for the API and Postgres | E-R2, E-R18 | no | open |
+| E2.10 | Docker image (Rust stage plus Python), `render.yaml` to `runtime: docker`, local `docker compose` for the API and Postgres | E-R2, E-R18 | no | done |
 | E3.1 | Users, argon2 hashes, login, JWT access tokens, first-engineer CLI, `NE1105` | E-R6 | no | done |
 | E3.2 | Permission matrix, route dependencies, role checks, `NE1106`; monotonicity and guest-isolation properties | E-R7, E-R3 | no | done |
 | E3.3 | Service tokens (hashed, revocable) and their issue route | E-R6, E-R10 | no | done |
@@ -1056,3 +1056,24 @@ outage pages someone even though the HTTP status is 200; the config is a documen
 applied automatically, because the provider and account are the human's. Verified: the JSON stub
 parses. No code or error-code change. This completes the E7 deployment row for the software-and-
 docs scope (E7.1–E7.5); E7-H (spending caps, the external uptime account) stays a human action.
+
+## Results of E2.10
+
+The Core API now ships as a multi-stage Docker image (`services/core/Dockerfile`, build
+context the repo root). Stage 1 (`rust:1.82-slim`) builds `neuron-cli --release` with
+cargo cache mounts and copies the `neuron` binary out. Stage 2 (`python:3.12-slim`)
+installs the service with `uv --locked --no-dev`, adds `util-linux` (so the compile
+sandbox can drop the network with `unshare`; without it the self-test reports
+`unverified` and the job still opens no sockets), copies the `neuron` binary and the
+read-only data the API serves (`devices/`, `targets/`, `lib/`, `spec/schemas/`), and sets
+`SYNAPSE_NEURON_BIN` and `SYNAPSE_DEVICES_DIR`. `render.yaml` moved to `runtime: docker`
+with `dockerfilePath` and `dockerContext: .`; `preDeployCommand` (Alembic), the health
+check and the `sync: false` secrets are unchanged, and the server command is the
+Dockerfile CMD (uvicorn on `$PORT`). A `.dockerignore` keeps the context small, and
+`docker-compose.yml` runs the API plus Postgres locally with throwaway secrets.
+
+Not verified locally: Docker is not installed on the build machine, so the image first
+builds on Render. The design's fallback stands if the Rust stage is too slow or large: a
+check/emit-only image without stage 1, since the compile runner degrades safely when
+`neuron` is absent. The YAML of `render.yaml` and `docker-compose.yml` parses. The env
+var names bind to the settings (`env_prefix="SYNAPSE_"`). E2 is now complete.

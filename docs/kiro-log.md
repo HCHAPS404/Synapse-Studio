@@ -1310,3 +1310,15 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   functional smoke (E7.3) — keep alerting honest without an external account for the functional
   part; documenting the rollback's downgrade step is only safe because E7.1 proves migrations
   reversible in CI.
+
+## 2026-11-23 · Task E2.10 (Docker image and render.yaml) — Phase E E2 complete
+- **Kiro features:** spec-driven development (E-R2, E-R18, design decision 1 and the
+  deployment section), steering (secrets only from the environment, never in the image).
+- **Produced:** `services/core/Dockerfile` (Rust stage builds `neuron-cli`, Python stage
+  runs the API with the binary and the read-only data), `.dockerignore`,
+  `docker-compose.yml`, and `render.yaml` switched to `runtime: docker`.
+- **Results:** the image sets `SYNAPSE_NEURON_BIN` and `SYNAPSE_DEVICES_DIR`, both bound
+  to settings; YAML parses; the runner and the device catalog read those settings.
+- **Lessons:** Docker is not installed here, so the image first builds on Render. The
+  change is reversible to the previous `runtime: python` if the Rust build times out; the
+  compile runner already works without the binary, so a fallback image is safe.

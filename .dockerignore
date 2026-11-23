@@ -1,0 +1,23 @@
+# Keep the build context small and deterministic. The Dockerfile copies only the paths
+# it names, but excluding these speeds the upload and avoids leaking local state.
+.git
+target
+**/target
+**/node_modules
+**/.venv
+**/__pycache__
+**/.pytest_cache
+**/.ruff_cache
+**/.mypy_cache
+out
+build
+apps
+packages
+editors
+scenes
+docs
+ltm
+**/.env
+**/.env.*
+**/*.db
+*.log
