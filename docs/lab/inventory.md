@@ -16,6 +16,8 @@ Status legend: ✅ done · ⏳ pending (this session) · ⚠️ blocked, see not
 
 | Arduino Nano 33 IoT | COM8 (USB, Arduino VID 2341 / PID 8057; direct, not a bridge) | `nano_33_iot` / SAMD21G18A | ✅ | ✅ `app.elf`+`app.bin`, 1592 B, reset vector 0x00002429 (above the SAM-BA bootloader at 0x2000), stack 0x20008000 — the SAMD21 Cortex-M0+ port compiles and boots cleanly | ⏳ | Flash with bossac (`NEURON_BOSSAC`, offset 0x2000) over COM8; bossac not installed yet. Works: GPIO + 1 ms tick. UART TX and edge interrupts are LEFT OUT in this version (SERCOM/EIC need GCLK). LED PA17 to confirm. Runs at 8 MHz (48 MHz DFLL later). |
 
+| Arduino Nano 33 BLE Sense Rev2 | COM10 (USB, Arduino VID 2341 / PID 805A; direct) | `nano_33_ble_sense` / nRF52840 | ✅ | ✅ `app.elf`+`app.bin`+**`app.uf2`**, 2024 B, reset vector 0x000264b9 (above the UF2 bootloader at 0x26000), stack 0x20040000, UF2 family 0xADA52840 — the nRF52840 Cortex-M4F port compiles and boots cleanly | ⏳ | **Easiest of the three new boards to flash: no tool needed.** Double-tap RESET → the NANO33BLE drive appears → copy `app.uf2`. Works: GPIO, 1 ms tick, UARTE0 TX, GPIOTE edge. LED P0.13. Serial1 pins P1.03/P1.10 to confirm. |
+
 ## Pending test batch (end of session)
 
 - Install a flasher: `probe-rs` (`cargo install probe-rs-tools`) and/or st-flash/OpenOCD.
