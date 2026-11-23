@@ -135,6 +135,44 @@ jobs:
         # --check fails on any difference, so a model change without regeneration breaks CI.
         run: uv run python ../../tools/export-openapi.py --check
 
+  migrations:
+    name: Alembic migration round trip (E7.1)
+    # Proves every migration is reversible by running upgrade -> downgrade -> upgrade against a
+    # throwaway Postgres service container (never the production Neon database). This is what
+    # Render's preDeployCommand (`alembic upgrade head`) runs on each deploy, checked both
+    # forwards and backwards so a rollback is always possible.
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/core
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: synapse
+          POSTGRES_PASSWORD: ci-only-not-a-secret
+          POSTGRES_DB: synapse_migrate
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U synapse -d synapse_migrate"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # Throwaway database of the service container; never the production Neon database.
+      SYNAPSE_DATABASE_URL: postgresql://synapse:ci-only-not-a-secret@localhost:5432/synapse_migrate
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --locked
+      - name: Upgrade to head
+        run: uv run alembic upgrade head
+      - name: Downgrade to base
+        run: uv run alembic downgrade base
+      - name: Upgrade to head again
+        run: uv run alembic upgrade head
+
   edge-daemon:
     name: Edge Daemon (Python)
     # Drivers are tested against simulated peers only: loopback serial, a pymodbus server,

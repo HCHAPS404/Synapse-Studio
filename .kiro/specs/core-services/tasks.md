@@ -42,7 +42,7 @@ tested against simulated peers.
 | E6.2 | Upload route and table, retry on restart, conversion to the replay format | E-R16 | no | done |
 | E6.3 | Calibration pipeline and profile TOML; `neuron cell check --profile`; a synthetic profile changes an `NE0701` result; `NE1112` | E-R17 | no (generic and synthetic numbers) | done |
 | E6-HW | Measure the lab devices (I1), commit measured profiles, mark manifests `measured`, rerun the D3 budgets | E-R17 | **yes** | pending (I1) |
-| E7.1 | Alembic on deploy (`preDeployCommand`), migration round-trip CI job, secrets list in `render.yaml` | E-R18 | no | open |
+| E7.1 | Alembic on deploy (`preDeployCommand`), migration round-trip CI job, secrets list in `render.yaml` | E-R18 | no | done |
 | E7.2 | Neon `dev` branch for CI and local use; per-environment settings; `docs/deploy.md` | E-R18 | no (needs Hell for the branch if MCP is revoked) | open |
 | E7.3 | `tools/live-smoke.py` and scheduled GitHub Action; production check of guest, build and relay | E-R18, E-R3 | no | open |
 | E7.4 | Judge path: public URL configuration in the web app, CORS, guest flow end to end (depends on G6) | E-R3, E-R18 | no | open |
@@ -925,3 +925,27 @@ Tests: 9 in `crates/neuron-cell/tests/e6_profile.rs`, 3 CLI tests in
 TOML table, whole-unit formatting, empty and negative errors). `cargo fmt`/`clippy -D warnings`
 clean on `neuron-cell` and `neuron-cli`; both crates' suites green; daemon suite 113 pass, 1 skip,
 ruff clean. This completes the E6 software row (E6.1–E6.3); E6-HW stays pending for session I1.
+
+## Results of E7.1
+Alembic runs on every Render deploy and the migrations are proven reversible in CI.
+`render.yaml`: a `preDeployCommand: uv run --no-dev alembic upgrade head` runs once after the
+build and before the new instance goes live, with the service's env vars; a failed migration
+blocks the deploy, so the new code never starts against an old schema, and `upgrade head` is a
+no-op on an already-migrated database. The required secrets are listed as `sync: false` env vars
+with comments and no values: `SYNAPSE_DATABASE_URL` (was already there), `SYNAPSE_JWT_SECRET`
+(guest tokens + user JWTs, required in production), `SYNAPSE_SIGNING_KEY` (Ed25519 seed for signed
+packages, E5.2) and `SYNAPSE_GUEST_IP_SALT` (one-way guest-IP hash, E2.8). The list came from
+grepping `settings.py` for `SecretStr` fields; `SYNAPSE_ENVIRONMENT` and `SYNAPSE_CORS_ORIGINS`
+are not secrets and stay inline. CI: a new `migrations` job (`.github/workflows/ci.yml`) brings up
+a throwaway Postgres 16 service container (never Neon), `uv sync --locked`, then runs
+`alembic upgrade head` then `downgrade base` then `upgrade head`, so both directions are exercised
+each build and a Render rollback stays safe.
+Choices: the round trip runs as its own job rather than inside the existing `core` job so a
+reversibility failure is reported distinctly from a unit-test failure, and it uses a separate
+database name (`synapse_migrate`) so it never shares state with the `core` job's `synapse_test`.
+The `0007` audit-log grant steps are dialect-guarded (REVOKE/GRANT only on Postgres) and the
+`downgrade` drops the table (the one grant the design does not re-reverse), so the full round trip
+succeeds on both Postgres and SQLite. Verified: the upgrade/downgrade/upgrade round trip passes
+locally on a throwaway SQLite file (via alembic's command API); the Postgres run is in CI.
+Open: nothing new in E7.1; the actual production secret values are set by Hell in the Render
+dashboard (human step, see E7-H). No source or test code changed; no new error code.

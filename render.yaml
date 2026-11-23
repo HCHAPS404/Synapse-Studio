@@ -14,13 +14,33 @@ services:
     # update the Vercel API URL. Cost today: about 50-70 ms per database round trip.
     rootDir: services/core
     buildCommand: pip install uv && uv sync --locked --no-dev
+    # Runs once before each deploy goes live, after the build and with the env vars below.
+    # Brings the database schema to the latest Alembic revision; a failed migration blocks
+    # the deploy, so the new code never starts against an old schema. Idempotent: on an
+    # already-migrated database `alembic upgrade head` is a no-op.
+    preDeployCommand: uv run --no-dev alembic upgrade head
     startCommand: uv run --no-dev uvicorn synapse_core.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
     autoDeploy: true
     envVars:
       - key: SYNAPSE_ENVIRONMENT
         value: production
+      # Secrets: set each value in the Render dashboard (Environment), never here.
+      # SYNAPSE_DATABASE_URL  Neon Postgres URL. Use the *pooled* host for the running
+      #   service; migrations run fine over it too (single connection, no transaction
+      #   pooling concern for DDL). See docs/deploy.md for the pooled-vs-direct note.
       - key: SYNAPSE_DATABASE_URL
+        sync: false
+      # SYNAPSE_JWT_SECRET  >= 32-byte HMAC key for guest tokens (E2.8) and user JWTs (E3).
+      #   Required in production (settings.token_secret raises without it).
+      - key: SYNAPSE_JWT_SECRET
+        sync: false
+      # SYNAPSE_SIGNING_KEY  base64 Ed25519 32-byte seed for signing deployment packages (E5.2).
+      - key: SYNAPSE_SIGNING_KEY
+        sync: false
+      # SYNAPSE_GUEST_IP_SALT  salt for the one-way hash of a guest's IP (E2.8). Optional, but
+      #   set a stable value in production so guest IP hashes are consistent across restarts.
+      - key: SYNAPSE_GUEST_IP_SALT
         sync: false
       - key: SYNAPSE_CORS_ORIGINS
         # Production web on Vercel: synapsest.vercel.app (the old -eight URL redirects to it).

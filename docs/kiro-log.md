@@ -1243,3 +1243,16 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   the manifest keeps the no-profile path byte-identical (a test asserts it), so the feature adds no
   risk to existing budgets; a profile only measures the device's timing, so the link's overall
   trust honestly stays `generic` until the medium is measured too — not forced to `measured`.
+## 2026-11-23 · Task E7.1 (Alembic on deploy, migration round-trip CI job, secrets list)
+- **Kiro features:** spec-driven task from `.kiro/specs/core-services/` (design `E7 Deployment`),
+  requirement E-R18.
+- **Produced:** `render.yaml` `preDeployCommand: uv run --no-dev alembic upgrade head` and the
+  secret env vars `SYNAPSE_JWT_SECRET`, `SYNAPSE_SIGNING_KEY`, `SYNAPSE_GUEST_IP_SALT` (all
+  `sync: false`, commented, no values); a new CI job `migrations` that runs
+  upgrade→downgrade→upgrade against a throwaway Postgres 16 service container.
+- **Results:** the three required secrets came from grepping `settings.py` for `SecretStr` fields;
+  the round trip passes on SQLite locally (the Postgres-only grant steps in `0007` are dialect-
+  guarded) and runs on real Postgres in CI. No source or test code changed; core suite unchanged.
+- **Lessons:** Render's `preDeployCommand` runs after the build with the service env vars and
+  blocks the deploy on failure, so a schema migration lands before the new code starts; proving the
+  downgrade path in CI keeps a Render rollback safe (an old image can downgrade to its schema).
