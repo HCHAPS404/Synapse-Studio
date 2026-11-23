@@ -620,14 +620,14 @@ of truth for status; Martin's working guide is [`docs/martin.md`](docs/martin.md
 | B | Direct programming of devices | Hell | 9 | 9 | ✅ (B4–B9 ✅🔌) | 16–20 nov |
 | C | Translation between languages | Hell | 7 | 7 | ✅ (C2, C3, C6 ✅🔌) | 19–20 nov |
 | D | Cell compiler (multi-device) | Hell | 5 | 5 | ✅ (hardware pending: D-HW, I1 and I4–I7) | 22–23 nov |
-| E | Services: Core API, relay, Edge Daemon | Hell | 7 | 1 | 🚧 (E1 ✅, E4 contract ✅, E7 started) | 20–29 nov |
+| E | Services: Core API, relay, Edge Daemon | Hell | 7 | 7 | ✅ software (E5 drivers against simulators; E5-HW, E6-HW pending I1/I4–I7) | 20–23 nov |
 | F | Synapse Engine and digital twin | Martin | 9 | 0 | 📋 | 15–29 nov |
 | G | Client apps: web, desktop, Android | Martin (G7 with Hell) | 8 | 0 | 📋 | 15–30 nov |
 | H | AI, optional | Hell | 4 | 0 | 📋 | 25–30 nov |
 | I | Hardware lab sessions | Hell + You | 8 | 0 | 📋 | 17 nov–1 dec |
 | J | Integration and polish | Hell + Martin | 5 | 0 | 📋 | 29 nov–1 dec |
 | K | Submission and Kiro evidence | Hell + Martin + You | 8 | K1 ongoing | 🚧 | continuous, 1–3 dec |
-| **Total** | | | **90** | **42** | **47 %** | deadline 4 dec 17:00 COT |
+| **Total** | | | **90** | **48** | **53 %** | deadline 4 dec 17:00 COT |
 
 **Who does what.** **Hell** owns the language, compiler, backends, standard library,
 verification, services, Edge Daemon, hardware and AI. **Martin** owns the engine, the
