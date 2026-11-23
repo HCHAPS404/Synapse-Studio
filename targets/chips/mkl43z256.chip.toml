@@ -1,0 +1,35 @@
+schema = 1
+name = "mkl43z256"
+source = "Own description. Register, memory and pin facts from the public KL43 Sub-Family Reference Manual (KL43P64M48SF6RM) and the FRDM-KL43Z user guide (subset)."
+trust = "community"
+arch = "thumbv6m"
+mcu = "mkl43z256vlh4"
+flash_bytes = 262144
+ram_bytes = 32768
+voltage_mv = 3300
+
+peripherals = [
+  { name = "lpuart0", kind = "uart", aliases = ["uart0", "serial"], index = 0, pins = { tx = "PTA2", rx = "PTA1" } },
+]
+
+# Kinetis KL43 has five GPIO ports (A..E), 32 pins each. The runtime keeps `port*32 + bit`
+# in `mask` (PTE31 = 4*32+31 = 159, fits in uint8_t). A subset of the package: the FRDM
+# RGB LED (red PTE31, green PTD5), the two touch/buttons (SW1 PTC3, SW3 PTA4 — PTA4 is also
+# NMI, avoid), and the OpenSDA virtual-COM LPUART0 pins (PTA1 RX, PTA2 TX, both ALT2).
+pins = [
+  { name = "PTA1", port = "A", bit = 1, functions = ["gpio", "lpuart0.rx"] },
+  { name = "PTA2", port = "A", bit = 2, functions = ["gpio", "lpuart0.tx"] },
+  { name = "PTA4", port = "A", bit = 4, functions = ["gpio"] },
+  { name = "PTC3", port = "C", bit = 3, functions = ["gpio"] },
+  { name = "PTD5", port = "D", bit = 5, functions = ["gpio"] },
+  { name = "PTE31", port = "E", bit = 31, functions = ["gpio"] },
+]
+
+[clock]
+# Honest port runs on the 4 MHz reset clock (MCG-Lite FEI / FIRC), no PLL/FLL set-up.
+# 48 MHz is a later improvement; 4 MHz keeps the 1 ms SysTick correct with no clock-tree work.
+max_hz = 48000000
+post_dividers = [1]
+sources = [
+  { name = "firc4m", min_hz = 4000000, max_hz = 4000000 },
+]

@@ -1416,3 +1416,34 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
 - **Lessons:** the connected clone uses a CH340 (VID 1A86 / PID 7523) and showed no COM
   port until its driver is installed — a hardware prerequisite, not a tool gap. The
   native backend gated on the board name, not the chip; fixed to gate on the chip.
+
+## 2026-11-23 · New board: FRDM-KL43Z (Kinetis KL43, Cortex-M0+ runtime port)
+- **Kiro features:** the target model (new chip + runtime + board TOMLs), a bare-metal
+  runtime port copied from the SAMD21/STM32U5 Cortex-M0+ templates, steering (honest
+  subset notes, no invented registers — only the public KL43 reference manual data from
+  the spec file), the C code generator and the arm-none-eabi-gcc toolchain driver.
+- **Produced:** `targets/chips/mkl43z256.chip.toml`, `targets/runtimes/baremetal-kl43.runtime.toml`,
+  `targets/boards/frdm_kl43z.board.toml`; the port `runtime/neuron-rt/port/kl43/`
+  (`nrt_port_kl43.{h,c}`, `mkl43z256.ld`); wired into `nrt.h` (`NRT_PORT_KL43`),
+  `neuron-codegen-c` (`Port::Kl43`, `define`, `for_target("kl43", chip "mkl43*")`,
+  `include_str!`, `runtime_files`/`ui_files`, `arm_profile`: `-mcpu=cortex-m0plus -mthumb`,
+  `mkl43z256.ld`, load 0x00000000, no UF2; new `flash_msd` that copies `app.bin` to a
+  `--drive`), the registry (3 TOMLs), the runtime-tier list in `b1_targets.rs`, and the
+  CLI flash dispatch (`("msd", Built::Arm(b))`). Board `[programmer] tool = "msd"`.
+- **Kinetis specifics (not simplified away):** GPIO gates the PORT clock in SIM_SCGC5
+  first, sets the PCR mux/pull in a separate PORT block, then drives the GPIO block
+  (PDDR/PSOR/PCOR/PTOR/PDIR), with non-linear base tables for both; mask = port*32 + bit.
+  The mandatory 16-byte flash-configuration field is a `const` array in a `.flash_config`
+  section the linker pins at flash offset 0x400 between the vectors and .text, unsecured
+  (0x40E=0xFF FOPT, 0x40F=0xFE FSEC) so the part cannot lock. RAM straddles 0x20000000:
+  linker RAM ORIGIN 0x1FFFE000 LENGTH 0x8000, stack top 0x20006000. Runs at 4 MHz FIRC.
+- **Results:** `neuron targets frdm_kl43z` lists it; `emit-c --board frdm_kl43z` writes the
+  kl43 port; a real build with arm-none-eabi-gcc compiles clean — `app.bin` 2536 B, first
+  8 bytes = stack top 0x20006000 and reset vector 0x00000789 (flash, Thumb bit set), and
+  the flash-config field lands at 0x400 (0x40E=0xFF, 0x40F=0xFE, rest 0xFF). `neuron-target`
+  and `neuron-codegen-c` tests pass (16 + 15/8/… green); fmt and clippy (`-D warnings`) clean.
+- **Honest subset:** GPIO in/out + input pull-up + 1 ms SysTick tick work. LPUART0 TX and
+  PORT edge interrupts are left out (the LPUART clock-source select and the per-port NVIC
+  wiring — PORTB/PORTE lack a dedicated vector on some KL parts — are risky without the
+  board), so the build refuses `on interrupt`; ADC/PWM left out. LED = PTE31. Not run on
+  hardware yet; flashing (copy app.bin to the OpenSDA drive) is a lab-session step.

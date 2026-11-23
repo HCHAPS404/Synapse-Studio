@@ -7,8 +7,9 @@
  *
  * Ports: NRT_PORT_AVR (ATmega328P, ATmega2560), NRT_PORT_RP2040 / NRT_PORT_RP2350,
  * NRT_PORT_STM32F4, NRT_PORT_STM32U5, NRT_PORT_NRF52, NRT_PORT_SAMD21,
- * NRT_PORT_TM4C (TM4C123GH6PM), NRT_PORT_ESP_IDF (ESP32-S3), or NRT_HOST (simulated time
- * and a scenario, used by the differential tests).
+ * NRT_PORT_KL43 (Kinetis MKL43Z256), NRT_PORT_TM4C (TM4C123GH6PM),
+ * NRT_PORT_ESP_IDF (ESP32-S3), or NRT_HOST (simulated time and a scenario, used by the
+ * differential tests).
  */
 #ifndef NRT_H
 #define NRT_H
@@ -29,6 +30,8 @@
 #include "nrt_port_nrf52.h"
 #elif defined(NRT_PORT_SAMD21)
 #include "nrt_port_samd21.h"
+#elif defined(NRT_PORT_KL43)
+#include "nrt_port_kl43.h"
 #elif defined(NRT_PORT_TM4C)
 #include "nrt_port_tm4c.h"
 #elif defined(NRT_PORT_ESP_IDF)
@@ -36,7 +39,7 @@
 #elif defined(NRT_HOST)
 #include "nrt_port_host.h"
 #else
-#error "define one of NRT_PORT_AVR, NRT_PORT_RP2040, NRT_PORT_RP2350, NRT_PORT_STM32F4, NRT_PORT_STM32U5, NRT_PORT_NRF52, NRT_PORT_SAMD21, NRT_PORT_TM4C, NRT_PORT_ESP_IDF or NRT_HOST"
+#error "define one of NRT_PORT_AVR, NRT_PORT_RP2040, NRT_PORT_RP2350, NRT_PORT_STM32F4, NRT_PORT_STM32U5, NRT_PORT_NRF52, NRT_PORT_SAMD21, NRT_PORT_KL43, NRT_PORT_TM4C, NRT_PORT_ESP_IDF or NRT_HOST"
 #endif
 
 /* ---- faults -------------------------------------------------------------------- */

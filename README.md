@@ -453,7 +453,7 @@ The framework is **universal by design**. A new device is a JSON manifest plus a
 | PLC + pneumatics | Yaskawa PLC with Festo-class valves and cylinders | Structured Text (IEC 61131-3) | Modbus TCP / industrial I/O |
 | Industrial robot | 6-axis and SCARA arms (e.g. Epson-class) | Robot program (SPEL+ and others) | TCP/IP socket |
 | FPGA | Xilinx Artix-7 / Spartan class | Synthesizable Verilog + XDC/PCF | UART / GPIO (ns · 3.3 V) |
-| MCU (bare metal) | STMicroelectronics STM32 (incl. STM32U585 on the Arduino UNO Q), Texas Instruments MSP430/MSPM0/Tiva, Arduino AVR and Cortex-M (Nano 33 BLE Sense / nRF52840, Nano 33 IoT / SAMD21), Raspberry Pi Pico (RP2040/RP2350), ESP32 | Native ELF/BIN/HEX, C, LLVM IR | UART, MQTT, CAN (µs/ms · 3.3 V) |
+| MCU (bare metal) | STMicroelectronics STM32 (incl. STM32U585 on the Arduino UNO Q), Texas Instruments MSP430/MSPM0/Tiva, NXP/Freescale Kinetis (FRDM-KL43Z / KL43, Cortex-M0+), Arduino AVR and Cortex-M (Nano 33 BLE Sense / nRF52840, Nano 33 IoT / SAMD21), Raspberry Pi Pico (RP2040/RP2350), ESP32 | Native ELF/BIN/HEX, C, LLVM IR | UART, MQTT, CAN (µs/ms · 3.3 V) |
 | Edge SoC | Raspberry Pi, NVIDIA Jetson | Python / ROS 2 nodes | Ethernet, WebSockets, ROS 2 |
 
 Manifests are generated from **machine-readable sources** whenever possible (CMSIS-SVD,

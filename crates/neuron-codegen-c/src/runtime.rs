@@ -28,6 +28,8 @@ pub enum Port {
     Nrf52,
     /// SAMD21 (Cortex-M0+), bare metal, image in flash above the SAM-BA bootloader.
     Samd21,
+    /// Kinetis MKL43Z256 (Cortex-M0+), bare metal, image in flash at 0x00000000.
+    Kl43,
     /// TM4C123GH6PM (Cortex-M4F), bare metal, image in flash at 0x00000000.
     Tm4c,
     /// ESP32-S3 on ESP-IDF.
@@ -45,6 +47,7 @@ impl Port {
             ("stm32u5", _) => Some(Port::Stm32u5),
             ("nrf52", _) => Some(Port::Nrf52),
             ("samd21", _) => Some(Port::Samd21),
+            ("kl43", c) if c.starts_with("mkl43") => Some(Port::Kl43),
             ("tm4c", c) if c.starts_with("tm4c123") => Some(Port::Tm4c),
             ("esp-idf", _) => Some(Port::EspIdf),
             _ => None,
@@ -62,6 +65,7 @@ impl Port {
             Port::Stm32u5 => "NRT_PORT_STM32U5",
             Port::Nrf52 => "NRT_PORT_NRF52",
             Port::Samd21 => "NRT_PORT_SAMD21",
+            Port::Kl43 => "NRT_PORT_KL43",
             Port::Tm4c => "NRT_PORT_TM4C",
             Port::EspIdf => "NRT_PORT_ESP_IDF",
         }
@@ -89,6 +93,9 @@ const NRF_LD: &str = include_str!("../../../runtime/neuron-rt/port/nrf52/nrf5284
 const SAMD_H: &str = include_str!("../../../runtime/neuron-rt/port/samd21/nrt_port_samd21.h");
 const SAMD_C: &str = include_str!("../../../runtime/neuron-rt/port/samd21/nrt_port_samd21.c");
 const SAMD_LD: &str = include_str!("../../../runtime/neuron-rt/port/samd21/samd21g18.ld");
+const KL43_H: &str = include_str!("../../../runtime/neuron-rt/port/kl43/nrt_port_kl43.h");
+const KL43_C: &str = include_str!("../../../runtime/neuron-rt/port/kl43/nrt_port_kl43.c");
+const KL43_LD: &str = include_str!("../../../runtime/neuron-rt/port/kl43/mkl43z256.ld");
 const TM4C_H: &str = include_str!("../../../runtime/neuron-rt/port/tm4c/nrt_port_tm4c.h");
 const TM4C_C: &str = include_str!("../../../runtime/neuron-rt/port/tm4c/nrt_port_tm4c.c");
 const TM4C_LD: &str = include_str!("../../../runtime/neuron-rt/port/tm4c/tm4c123gh6pm.ld");
@@ -114,6 +121,7 @@ pub fn ui_files(port: Port) -> Option<Vec<RuntimeFile>> {
         | Port::Stm32u5
         | Port::Nrf52
         | Port::Samd21
+        | Port::Kl43
         | Port::Tm4c => return None,
     };
     Some(vec![f("nrt_ui.h", UI_H), f("nrt_ui.c", UI_C), bus])
@@ -150,6 +158,11 @@ pub fn runtime_files(port: Port) -> Vec<RuntimeFile> {
             f("nrt_port_samd21.h", SAMD_H),
             f("nrt_port_samd21.c", SAMD_C),
             f("samd21g18.ld", SAMD_LD),
+        ]),
+        Port::Kl43 => v.extend([
+            f("nrt_port_kl43.h", KL43_H),
+            f("nrt_port_kl43.c", KL43_C),
+            f("mkl43z256.ld", KL43_LD),
         ]),
         Port::Tm4c => v.extend([
             f("nrt_port_tm4c.h", TM4C_H),

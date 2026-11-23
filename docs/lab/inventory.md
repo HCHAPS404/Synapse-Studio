@@ -22,6 +22,8 @@ Status legend: ✅ done · ⏳ pending (this session) · ⚠️ blocked, see not
 
 | Arduino Nano (classic, CH340 clone) | USB CH340 (VID 1A86 / PID 7523), no COM yet (driver missing) | `arduino_nano` / ATmega328P (new board, same chip as the UNO R3) | ✅ (model) | ✅ C backend with avr-gcc 7.3: `app.hex` 2952 B (9% flash); native backend: 642 B — the native backend now accepts any ATmega328P board, not only the UNO R3 | ⏳ | **Install the CH340 driver first** so a COM port appears; then flash with avrdude at **57600 baud** (the old Nano bootloader, set in the board file). A6/A7 are analog-only. This is the easiest board to flash once the driver is in (avrdude already installed). |
 
+| NXP/Freescale FRDM-KL43Z | USB OpenSDA (P&E Micro, VID 1357 / PID 0089; mounts an MSD mass-storage drive) | `frdm_kl43z` / MKL43Z256VLH4 (Kinetis KL43, Cortex-M0+) | ✅ | ✅ `app.elf`+`app.bin`, 2536 B, reset vector 0x00000789 (flash at 0x00000000, Thumb bit set), stack 0x20006000, flash-config field at 0x400 unsecured (0x40E=0xFF FOPT, 0x40F=0xFE FSEC) — the Kinetis KL43 Cortex-M0+ port compiles and boots cleanly with arm-none-eabi-gcc | ⏳ | **No tool needed:** copy `app.bin` to the OpenSDA MSD drive (tool `msd`; `--drive`) and the bootloader programs it. Works: GPIO + input pull-up + 1 ms SysTick tick. LPUART0 TX and PORT edge interrupts LEFT OUT (LPUART clock-source and per-port NVIC wiring need the board); ADC/PWM left out. LED PTE31 (red). RAM straddles 0x20000000 (region at 0x1FFFE000). Runs at 4 MHz FIRC (48 MHz later). |
+
 ## Pending test batch (end of session)
 
 - Install a flasher: `probe-rs` (`cargo install probe-rs-tools`) and/or st-flash/OpenOCD.

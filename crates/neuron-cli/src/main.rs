@@ -1026,6 +1026,15 @@ fn cmd_flash(args: &[String]) -> ExitCode {
             neuron_codegen_c::flash_stm32(&b.elf, &b.bin, &p.target.chip.name)
         }
         ("bossac", Built::Arm(b)) => neuron_codegen_c::flash_bossac(&b.bin),
+        ("msd", Built::Arm(b)) => {
+            let drive = h.drive.clone().map(PathBuf::from).or_else(find_uf2_drive);
+            match drive {
+                Some(d) => neuron_codegen_c::flash_msd(&b.bin, &d),
+                None => Err(neuron_codegen_c::BuildError::Io(
+                    "no mass-storage drive found: plug the board's OpenSDA USB in, or pass `--drive`".into(),
+                )),
+            }
+        }
         ("lmflash", Built::Arm(b)) => neuron_codegen_c::flash_lm4flash(&b.bin),
         ("esptool", Built::Idf(dir)) => {
             neuron_codegen_c::flash_esptool(dir, &h.port.clone().unwrap_or_default())

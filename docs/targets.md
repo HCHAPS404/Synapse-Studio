@@ -43,6 +43,7 @@ have not been checked on the device by the maintainers yet.
 | `nano_33_iot` | SAMD21G18A, 8 MHz OSC8M | runtime | `app.elf`, `app.bin` (flash image above the SAM-BA bootloader) | bossac | model loads; C not compiled here. GPIO + tick only; UART TX and EIC edge interrupts left out (SERCOM/EIC need GCLK, deferred); ADC/PWM left out. LED (PA17) and TX (PA22) pins to confirm |
 | `uno_q` | STM32U585 (MCU side), 16 MHz HSI | runtime | `app.elf`, `app.bin` (flash image) | probe-rs, OpenOCD or st-flash (SWD) | model loads; C not compiled here. GPIO + tick + USART1 TX + EXTI edge interrupts; ADC/PWM left out. Linux side out of scope. User LED pin is a placeholder (PA5), to confirm on the board |
 | `ek_tm4c123gxl` | TM4C123GH6PM (Tiva C), 16 MHz PIOSC | runtime | `app.elf`, `app.bin` (flash image at 0x00000000) | lm4flash (on-board ICDI) | C **compiled clean** with arm-none-eabi-gcc (app.bin 2168 B, stack top 0x20008000, reset vector in flash with the Thumb bit). GPIO + tick only; UART0 TX and per-port edge interrupts left out on purpose, ADC/PWM left out. LED is PF1 (red). Not run on hardware |
+| `frdm_kl43z` | MKL43Z256VLH4 (Kinetis KL43), 4 MHz FIRC | runtime | `app.elf`, `app.bin` (flash image at 0x00000000, with the 16-byte flash-config field at 0x400) | `msd` (copy `app.bin` to the OpenSDA drive) | C **compiled clean** with arm-none-eabi-gcc (app.bin 2536 B, stack top 0x20006000, reset vector in flash with the Thumb bit, flash-config 0x40E=0xFF/0x40F=0xFE). GPIO + tick only; LPUART0 TX and PORT edge interrupts left out, ADC/PWM left out. LED is PTE31 (red). Not run on hardware |
 | `esp32_s3_devkit` | ESP32-S3 | sdk | an `idf.py` project, built when ESP-IDF is installed | esptool | project generation |
 | `xiao_esp32s3` | ESP32-S3 | sdk | an `idf.py` project | esptool | project generation |
 | `nucleo_n657x0_q` | STM32N657 | described | — | — | pins and clocks only (placeholder) |
@@ -81,6 +82,22 @@ are left out on purpose until the board session (the GPIO interrupt is per-port,
 like STM32 EXTI, and is risky to wire blind); a program that only uses GPIO and the tick runs,
 one that needs UART output or an edge interrupt builds but those do nothing.
 
+The Kinetis KL43 port (`frdm_kl43z`, MKL43Z256VLH4) was written against the public KL43
+Sub-Family Reference Manual (KL43P64M48SF6RM) and its C **was** compiled with
+`arm-none-eabi-gcc` on the machine that added it: `app.bin` is 2536 bytes, the vector table
+carries the stack top 0x20006000 and the reset vector in flash with the Thumb bit, and the
+mandatory 16-byte Kinetis flash-configuration field lands at flash offset 0x400 with the
+unsecured value (0x40E = 0xFF FOPT, 0x40F = 0xFE FSEC) so the part cannot lock on reset. The
+RAM straddles the 0x20000000 boundary (SRAM_L below, SRAM_U above), so the linker RAM region
+starts at 0x1FFFE000. The port runs on the 4 MHz reset clock (MCG-Lite FIRC, no PLL). Kinetis
+GPIO needs three steps (gate the PORT clock in SIM_SCGC5, set the PCR mux/pull in the PORT
+block, then drive the separate GPIO block), with non-linear base tables for both. Only GPIO
+in/out, input pull-up and the 1 ms SysTick tick are implemented. LPUART0 TX is left out (the
+LPUART clock-source select is risky without the board) and PORT edge interrupts are left out
+(per-port NVIC wiring is uncertain on KL43; PORTB/PORTE have no dedicated vector on some
+parts), so a program that only uses GPIO and the tick runs, one that needs UART output or an
+edge interrupt builds but those do nothing. It has not run on hardware yet.
+
 ## Runtime ports (`runtime/neuron-rt/port/`)
 
 | Port | GPIO | Edge interrupts | Tick | UART TX | PWM / ADC | Display bus |
@@ -91,6 +108,7 @@ one that needs UART output or an edge interrupt builds but those do nothing.
 | `stm32u5` (STM32U585) | ✔ | EXTI | SysTick | USART1 on PA9 | not yet (`NE0610`) | not yet |
 | `nrf52` (nRF52840) | ✔ (P0, P1) | GPIOTE | SysTick | UARTE0 (EasyDMA, 1 byte) | not yet (`NE0610`) | not yet |
 | `samd21` (SAMD21G18A) | ✔ (PA, PB) | not yet (deferred) | SysTick | not yet (deferred) | not yet (`NE0610`) | not yet |
+| `kl43` (MKL43Z256) | ✔ (A–E, SIM_SCGC5 gate + PORT PCR + GPIO block, base tables) | not yet (deferred) | SysTick | not yet (deferred) | not yet (`NE0610`) | not yet |
 | `tm4c` (TM4C123GH6PM) | ✔ (A–F, RCGCGPIO + base table, masked writes) | not yet (deferred) | SysTick | not yet (deferred) | not yet (`NE0610`) | not yet |
 | `esp_idf` | gpio driver | GPIO ISR service | esp_timer | uart driver | not yet | I2C, SPI drivers |
 | `host` | simulated | from the scenario | simulated time | traced | traced | traced (`BUS` lines) |

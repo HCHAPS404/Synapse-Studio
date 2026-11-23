@@ -1,0 +1,9 @@
+schema = 1
+name = "baremetal-kl43"
+source = "runtime/neuron-rt/port/kl43: bare-metal port for the Kinetis KL43 (Cortex-M0+). Registers from the public KL43 Sub-Family Reference Manual (KL43P64M48SF6RM)."
+trust = "community"
+kind = "baremetal"
+port = "kl43"
+tick_hz = 1000
+reserves = ["systick"]
+cflags = ["-Os", "-ffunction-sections", "-fdata-sections"]

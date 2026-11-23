@@ -256,6 +256,12 @@ fn arm_profile(port: Port) -> Option<(&'static [&'static str], &'static str, u32
             0x0000_2000,
             None,
         )),
+        Port::Kl43 => Some((
+            &["-mcpu=cortex-m0plus", "-mthumb"],
+            "mkl43z256.ld",
+            0x0000_0000,
+            None,
+        )),
         Port::Tm4c => Some((
             &["-mcpu=cortex-m4", "-mthumb", "-mfloat-abi=soft"],
             "tm4c123gh6pm.ld",
@@ -356,6 +362,21 @@ pub fn flash_uf2(uf2: &Path, drive: &Path) -> Result<String, BuildError> {
     let dest = drive.join("app.uf2");
     std::fs::copy(uf2, &dest).map_err(io_err)?;
     Ok(format!("copied {} to {}", uf2.display(), dest.display()))
+}
+
+/// Copies a raw binary to the OpenSDA mass-storage drive of a Kinetis board (FRDM-KL43Z). The
+/// board mounts as a drive; the OpenSDA bootloader programs the `.bin` dropped onto it. `drive`
+/// is the mount point or drive letter (`E:`, `/media/user/FRDM-KL43Z`).
+pub fn flash_msd(bin: &Path, drive: &Path) -> Result<String, BuildError> {
+    if !drive.is_dir() {
+        return Err(BuildError::Io(format!(
+            "{} is not a mounted drive; plug the board's OpenSDA USB in and pass its drive with --drive",
+            drive.display()
+        )));
+    }
+    let dest = drive.join("app.bin");
+    std::fs::copy(bin, &dest).map_err(io_err)?;
+    Ok(format!("copied {} to {}", bin.display(), dest.display()))
 }
 
 /// Writes a flash image to an STM32 board with the first tool found: `probe-rs`, `openocd`

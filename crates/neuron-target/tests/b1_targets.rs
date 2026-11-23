@@ -70,6 +70,7 @@ fn every_board_has_its_support_tier() {
             "arduino_nano",
             "arduino_uno_r3",
             "ek_tm4c123gxl",
+            "frdm_kl43z",
             "nano_33_ble_sense",
             "nano_33_iot",
             "nucleo_f446re",

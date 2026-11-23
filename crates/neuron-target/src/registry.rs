@@ -103,6 +103,10 @@ const BUILTIN: &[(&str, &str)] = &[
         include_str!("../../../targets/chips/nrf52840.chip.toml"),
     ),
     (
+        "mkl43z256.chip.toml",
+        include_str!("../../../targets/chips/mkl43z256.chip.toml"),
+    ),
+    (
         "samd21g18.chip.toml",
         include_str!("../../../targets/chips/samd21g18.chip.toml"),
     ),
@@ -167,6 +171,10 @@ const BUILTIN: &[(&str, &str)] = &[
         include_str!("../../../targets/boards/ek_tm4c123gxl.board.toml"),
     ),
     (
+        "frdm_kl43z.board.toml",
+        include_str!("../../../targets/boards/frdm_kl43z.board.toml"),
+    ),
+    (
         "baremetal-avr.runtime.toml",
         include_str!("../../../targets/runtimes/baremetal-avr.runtime.toml"),
     ),
@@ -181,6 +189,10 @@ const BUILTIN: &[(&str, &str)] = &[
     (
         "baremetal-nrf52.runtime.toml",
         include_str!("../../../targets/runtimes/baremetal-nrf52.runtime.toml"),
+    ),
+    (
+        "baremetal-kl43.runtime.toml",
+        include_str!("../../../targets/runtimes/baremetal-kl43.runtime.toml"),
     ),
     (
         "baremetal-samd21.runtime.toml",

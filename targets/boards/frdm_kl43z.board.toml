@@ -1,0 +1,28 @@
+schema = 1
+name = "frdm_kl43z"
+source = "Own description. Pin names are the labels in the FRDM-KL43Z user guide; the mapping is public board documentation."
+trust = "community"
+tier = "runtime"
+chip = "mkl43z256"
+runtime = "baremetal-kl43"
+crystal_hz = 4000000
+sysclk_hz = 4000000
+voltage_mv = 3300
+note = "Freescale/NXP FRDM-KL43Z (Kinetis MKL43Z256VLH4, Cortex-M0+). Bare-metal port on the 4 MHz reset clock (MCG-Lite FIRC, no PLL); image runs from flash at 0x00000000, with the mandatory 16-byte Kinetis flash-configuration field at 0x400 emitted unsecured (FSEC=0xFE, FOPT=0xFF) so the part cannot lock. Flash by copying app.bin to the OpenSDA mass-storage drive (tool `msd`). Works: GPIO in/out, input pull-up, 1 ms SysTick tick. Left out in this version: LPUART0 TX and PORT edge interrupts (the LPUART clock source and the per-port NVIC wiring need the board, deferred to the lab session); ADC and PWM (as the other Arm ports). LED = PTE31 (board red LED). Built, not yet run on hardware; validate in the lab session."
+
+[pins]
+D13 = "PTE31"
+TX = "PTA2"
+RX = "PTA1"
+SW1 = "PTC3"
+
+[leds]
+LED = "PTE31"
+RED = "PTE31"
+GREEN = "PTD5"
+
+[buttons]
+SW1 = "PTC3"
+
+[programmer]
+tool = "msd"
