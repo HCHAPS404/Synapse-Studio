@@ -14,6 +14,8 @@ Status legend: ✅ done · ⏳ pending (this session) · ⚠️ blocked, see not
 
 | Digilent Nexys A7-100T | USB (Digilent FTDI FT2232: JTAG + UART; driver showed "Error" — Adept/Vivado not installed) | `nexys_a7_100t` / xc7a100tcsg324-1 | ✅ added the board to the model (new `.fpga.toml`, registered in `neuron-codegen-hdl`) | ✅ Verilog + XDC generated for a 1 Hz blink: clock E3 (100 MHz, 10 ns), LED0 H17, LVCMOS33 (`out/nexys/top.v`, `top.xdc`) | ⏳ | The existing `artix7_35t_board` did NOT fit: it is a 35T in the CPG236 package, this is a 100T in CSG324 (different pinout). No FPGA tools installed (iverilog, yosys, Vivado, openFPGALoader), so synthesis and the bitstream are pending. Example `examples/nexys_a7_blink.neuron`. Pins from the public Digilent pinout; confirm against the board's reference XDC before flashing. |
 
+| Arduino Nano 33 IoT | COM8 (USB, Arduino VID 2341 / PID 8057; direct, not a bridge) | `nano_33_iot` / SAMD21G18A | ✅ | ✅ `app.elf`+`app.bin`, 1592 B, reset vector 0x00002429 (above the SAM-BA bootloader at 0x2000), stack 0x20008000 — the SAMD21 Cortex-M0+ port compiles and boots cleanly | ⏳ | Flash with bossac (`NEURON_BOSSAC`, offset 0x2000) over COM8; bossac not installed yet. Works: GPIO + 1 ms tick. UART TX and edge interrupts are LEFT OUT in this version (SERCOM/EIC need GCLK). LED PA17 to confirm. Runs at 8 MHz (48 MHz DFLL later). |
+
 ## Pending test batch (end of session)
 
 - Install a flasher: `probe-rs` (`cargo install probe-rs-tools`) and/or st-flash/OpenOCD.
