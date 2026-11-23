@@ -1447,3 +1447,20 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   wiring — PORTB/PORTE lack a dedicated vector on some KL parts — are risky without the
   board), so the build refuses `on interrupt`; ADC/PWM left out. LED = PTE31. Not run on
   hardware yet; flashing (copy app.bin to the OpenSDA drive) is a lab-session step.
+
+## 2026-11-23 · Lab session summary and promotion to main
+- **Kiro features:** the target model and HDL/FPGA board registry, steering (`docs/lab/`),
+  honest diagnostics catching mistakes before any hardware.
+- **Produced:** seven devices verified in software in one session — Arduino UNO Q
+  (STM32U585), Nexys A7-100T (Artix-7, blink + VGA), Nano 33 IoT (SAMD21), Nano 33 BLE
+  Sense (nRF52840), EK-TM4C123GXL (Tiva C), classic Arduino Nano (ATmega328P) and
+  FRDM-KL43Z (Kinetis KL43). Four new runtime ports (STM32U5, SAMD21, nRF52, TM4C, KL43),
+  two new FPGA/board models, the Nano board, and the native AVR backend widened to any 328P.
+- **Results:** every new MCU port compiles real firmware with valid vectors; the KL43
+  flash-config field is unsecured; the Nexys emits a complete VGA package; CI green.
+- **Lessons:** adding the Nexys hdl examples broke a fixed expectation in the Phase D
+  partition test (it assumed pwm8 was the only hdl module); made the assertion robust.
+  Hardware flashing (drivers, bossac, lm4flash, FPGA toolchain) is the next batch.
+- **Pending hardware (future sessions):** Festo PLCs (I5), the Epson arm (I6), and a
+  Pixhawk-4 hexacopter (I9, not yet acquired, needs its own spec) — recorded in
+  `docs/lab/inventory.md` and the Phase I roadmap.

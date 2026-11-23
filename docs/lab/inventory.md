@@ -38,3 +38,32 @@ Status legend: ✅ done · ⏳ pending (this session) · ⚠️ blocked, see not
 PLC input filter and scan, robot command latency, valve switching time, real link
 transport and jitter per medium. Then write a timing profile TOML and run
 `neuron cell check --profile <file>` (E6.3) and move manifests from `generic` to `measured`.
+
+## Session summary (2026-11-23)
+
+Seven devices verified in software this session; none flashed yet (the flash batch waits
+for its tools). Six distinct MCU families plus an FPGA were validated by compiling real
+firmware with arm-none-eabi-gcc / avr-gcc, or (FPGA) by emitting Verilog + XDC.
+
+| Device | Model | Status |
+|---|---|---|
+| Arduino UNO Q | STM32U585 (Cortex-M33) | verified + firmware; flash via the board's Linux side (SWD), to resolve |
+| Nexys A7-100T | Artix-7 xc7a100t | board added; blink + VGA Verilog/XDC; bitstream needs an FPGA toolchain |
+| Arduino Nano 33 IoT | SAMD21 (Cortex-M0+) | verified + firmware; flash with bossac |
+| Arduino Nano 33 BLE Sense Rev2 | nRF52840 (Cortex-M4F) | verified + firmware + UF2; flash by copying the UF2 |
+| EK-TM4C123GXL (Tiva C) | TM4C123 (Cortex-M4F) | board added + firmware; flash with lm4flash (ICDI) |
+| Arduino Nano (classic) | ATmega328P (AVR) | board added + firmware; needs the CH340 driver, then avrdude 57600 |
+| FRDM-KL43Z | Kinetis KL43 (Cortex-M0+) | board added + firmware (flash-config unsecured); flash by copying app.bin to the OpenSDA drive |
+
+## Still to acquire / schedule (hardware, future sessions)
+
+- **Festo lab / PLCs (session I5):** ST/SCL import into the vendor tools, Micro-Kernel,
+  Modbus/S7 links. The software path (Phase C emitters, D cell links) is done.
+- **Epson robot arm (session I6):** the SPEL+ emitter and slave interpreter, workspace and
+  zone checks at reduced speed. Software done; the vendor dialect is to confirm on the arm.
+- **Hexacopter with a Pixhawk 4 (session I9):** not yet acquired. Inventory and bench only
+  (propellers off). No MAVLink adapter, drone manifest or spec exists yet — it needs its
+  own spec first (link, manifest, safety: arming, geofence, failsafe). Do not claim flight.
+- **More boards:** UNO R3, Mega 2560, Pico, Pico 2 W, ESP32-S3 are already supported and
+  only need connecting and verifying. Nucleo N6 (STM32N657) is `described` only (no runtime
+  port yet). A Spartan FPGA would need its own `.fpga.toml` (give the exact part).
