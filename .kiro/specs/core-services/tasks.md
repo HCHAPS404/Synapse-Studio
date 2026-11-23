@@ -25,7 +25,7 @@ tested against simulated peers.
 | E4.4 | Telemetry ingest from relay frames, tables, indexes, storage cap | E-R11 | no | done |
 | E4.5 | Retention and 1-minute roll-up task with advisory lock; `GET /v1/telemetry`; property test of retention | E-R11 | no | done |
 | E4.6 | Advisory E-STOP path and sim control routing (twin only, simulated devices only), audit entries | E-R9, E-R15, E-R8 | no | done |
-| E5.1 | Daemon package: config, `Driver` protocol, simulated driver, relay client with reconnect, local LAN mode, pairing client | E-R12, E-R10 | no | open |
+| E5.1 | Daemon package: config, `Driver` protocol, simulated driver, relay client with reconnect, local LAN mode, pairing client | E-R12, E-R10 | no | done |
 | E5.2 | Signed packages: manifest, Ed25519 sign (API side) and verify (daemon), quarantine, `NE1108` | E-R13 | no | open |
 | E5.3 | Command allowlist with per-command Pydantic arguments, `NE1109`, `NE1111` for offline devices | E-R13 | no | open |
 | E5.4 | Deployment state machine in the API and the daemon, `NE1110`, property test over event sequences | E-R14 | no | open |
@@ -633,3 +633,29 @@ twin. Full suite 230 pass, 4 skipped locally (DB tests on SQLite with `--with ai
 Postgres in CI); ruff clean; OpenAPI/SDK drift green (no new REST route). This completes the
 E4 relay row (E4.1â€“E4.6).
 
+
+## Results of E5.1
+New package `services/edge-daemon` (own `pyproject.toml`, `uv`, `src/synapse_daemon`, `tests`;
+mirrors `services/core` style). `config.py` (`DaemonSettings`, env prefix `SYNAPSE_DAEMON_`,
+`SecretStr` service token, `is_local_mode()` true when no relay URL+token so the daemon runs
+LAN-only with no cloud). `errors.py` (`DaemonError` + the `NE1108..NE1111` subset of the shared
+catalogue). `drivers/base.py`: the `Driver` Protocol (`open`/`read`/`write`/`close`), `Sample`
+(with `Sample.bad` for a failed read — never a guessed value), `Quality` (good/stale/bad),
+`Value` (bool|int|float|str) and `DriverConfig` (`params`, `tag_map`, `writable`, timeout/
+retries/backoff). `drivers/simulated.py` (`SimulatedDriver`, dict-backed, the peer the other
+drivers test against). `relay/frames.py` builds the frames the daemon sends (`hello` as client
+`daemon`, `ping`/`pong`, `telemetry`, `trace`, `deployment_status`, `estop_state`) matching
+`spec/protocols/examples/`. `relay/client.py` (`RelayClient`, transport-agnostic through a
+`Connection` protocol so tests use an in-memory fake: `hello`->`welcome` handshake, answers
+server `ping` with `pong`, exponential-backoff reconnect between `reconnect_min_s` and
+`reconnect_max_s`, `send` is a no-op when disconnected since telemetry is a view). `pairing.py`
+(`claim_pairing` reuses the E4.3 public `POST /v1/pairing/claim`, receives the E3.3 `daemon`
+service token once, never logs it; a bad/expired code surfaces `NE1111`). `lan.py` (`run_mode`
+decides local vs cloud; the LAN PWA server is E5.11). `cli.py` (`synapse-daemon run` reports
+the mode). Choices: the client is injected its transport so CI needs no network; the real
+`websockets` transport is `websocket_connect`, excluded from coverage. CI: new `edge-daemon`
+job runs `uv sync --locked`, `ruff check`, `ruff format --check`, `pytest` (hardware-free,
+network-free). Open: everything in E5.2..E5.11; the runtime loop that wires drivers to the
+relay lands with E5.10/E5.11. Tests: 13 in `tests/test_e5_1_daemon.py` (mode, simulated driver
+read/write/bad/non-writable, frame shapes, handshake+send, ping->pong, reconnect after a drop,
+pairing success and `NE1111`). No new error code (NE1108..NE1111 already documented in E2.1).

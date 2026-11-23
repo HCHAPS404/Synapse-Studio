@@ -134,3 +134,20 @@ jobs:
         # Regenerate spec/api/openapi.json and packages/sdk-ts/src/schema.ts from the app;
         # --check fails on any difference, so a model change without regeneration breaks CI.
         run: uv run python ../../tools/export-openapi.py --check
+
+  edge-daemon:
+    name: Edge Daemon (Python)
+    # Drivers are tested against simulated peers only: loopback serial, a pymodbus server,
+    # a snap7/mock S7, a local echo socket, an in-process MQTT broker and a virtual CAN bus.
+    # No hardware and no network are required.
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/edge-daemon
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --locked
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run pytest -q

@@ -1,4 +1,4 @@
-# Kiro usage log
+﻿# Kiro usage log
 
 Evidence of how Kiro was used to build SYNAPSE Studio. One entry per notable step.
 This file feeds the "How we used Kiro" write-up required by Kiroween 2026.
@@ -7,7 +7,7 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
 
 ---
 
-## 2026-11-13 · Planning (before Task 1)
+## 2026-11-13 Â· Planning (before Task 1)
 - **Kiro features:** Kiro IDE chat (vibe session) with the context-gatherer sub-agent
   (extracted the full text of the 9-page concept PDF, which the file reader could not
   decode), web fetch (official hackathon page, Neon pricing, Render free-tier docs).
@@ -19,7 +19,7 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   became from-scratch Rust; virtual devices running generated code were added so the
   twin is not just an animation.
 
-## 2026-11-13 · Tasks 2-4 (foundation)
+## 2026-11-13 Â· Tasks 2-4 (foundation)
 - **Kiro features:** steering (always-on `product`, `tech`, `structure`,
   `conventions`; file-match `rust-style`, `python-style`, `typescript-web-style`,
   `codegen-safety-rules`), agent hooks (secret guard before writes, cargo check on
@@ -32,9 +32,9 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
 - **Lessons:** the `.kiro`-not-ignored rule is a disqualification risk, so it is
   enforced three times (hook, local script, CI job).
 
-## 2026-11-14 · Task 5 (Neuron language specification v0.1)
+## 2026-11-14 Â· Task 5 (Neuron language specification v0.1)
 - **Kiro features:** spec-driven development (`.kiro/specs/neuron-language`
-  requirements R1–R15 with correctness properties), steering (product non-goals and
+  requirements R1â€“R15 with correctness properties), steering (product non-goals and
   code-generation safety rules shaped the safety and dialect chapters).
 - **Produced:** the language specification in `spec/language/` (10 chapters:
   overview, lexical structure, types and units, declarations and statements, memory,
@@ -48,7 +48,7 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   as binary noise in the first commit; it was rewritten and a reusable integrity
   check (`tools/integrity-check.ps1`) was added.
 
-## 2026-11-14 · Task 11 (lexer and parser)
+## 2026-11-14 Â· Task 11 (lexer and parser)
 - **Kiro features:** spec-driven implementation from `spec/language` and the EBNF;
   file-match steering (`rust-style`) enforced no `unwrap` and clippy-clean code;
   property-based testing with proptest.
@@ -66,7 +66,7 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   drive E: were found damaged; git was rebuilt from GitHub (backup kept) and the
   virtual environment recreated.
 
-## 2026-11-14 · Task A1-A3 review fixes and chapters 11-14 (spec v0.2)
+## 2026-11-14 Â· Task A1-A3 review fixes and chapters 11-14 (spec v0.2)
 - **Kiro features:** spec-driven development (spec first, then lexer, parser and
   tests), a structured review of the v0.1 spec before freezing it, golden-file tests
   generated from the parser, and a test that parses every `neuron` code block in the
@@ -84,7 +84,7 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   the freeze. Windows App Control intermittently blocks freshly built test
   executables (os error 4551); `tools/test-retry.ps1` rebuilds and retries.
 
-## 2026-11-14 · Tasks A4 to A8 (semantic analysis)
+## 2026-11-14 Â· Tasks A4 to A8 (semantic analysis)
 - **Kiro features:** spec-driven development (new spec `.kiro/specs/neuron-sema` and
   chapter 15 of the language specification written before the code), steering
   (`rust-style`: typed `NE####` diagnostics, deterministic output, no `unwrap`),
@@ -104,7 +104,7 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   comparing file hashes with git (`tools/verify-worktree.ps1`) and repaired from git;
   the damaged directory was kept as `services/core-broken-20261114`.
 
-## 2026-11-14 · Housekeeping before A9
+## 2026-11-14 Â· Housekeeping before A9
 - **Kiro features:** agent-run diagnosis (read-only health checks written as scripts),
   a clean clone on another drive as the reference for byte-by-byte comparison.
 - **Produced:** drive E: repaired with `Repair-Volume` (spot fix, then offline scan and
@@ -119,9 +119,9 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   compiler. Comparing content with a clean clone, instead of trusting timestamps, was the
   only reliable way to find damaged files.
 
-## 2026-11-15 · Task A9 (NIR)
+## 2026-11-15 Â· Task A9 (NIR)
 - **Kiro features:** spec-driven development (new spec `.kiro/specs/neuron-nir`,
-  chapter 16 of the language specification, chapter 11 §11.1 rewritten as a summary),
+  chapter 16 of the language specification, chapter 11 Â§11.1 rewritten as a summary),
   steering (`rust-style`: deterministic output, no `unwrap`, documented public items),
   property-based testing (`proptest`) for P-RT over mutated examples.
 - **Produced:** the `neuron-nir` crate (data model, canonical JSON, reader with version
@@ -140,7 +140,7 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   two code samples copied from `examples/` (checked in CI) instead of an older draft
   syntax.
 
-## 2026-11-16 · Task A10 (reference interpreter)
+## 2026-11-16 Â· Task A10 (reference interpreter)
 - **Kiro features:** spec-driven development (new spec `.kiro/specs/neuron-interp`,
   chapter 17 of the language specification), steering (`rust-style`: no `unwrap`, bounded
   loops, deterministic order), property-based testing (`proptest`) for SAFE-1 and for
@@ -160,7 +160,7 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   commit-everything script, after a damaged drive made a commit that deleted half of the
   repository (reverted without rewriting history).
 
-## 2026-11-16 · Task A11 (formatter, explain, LSP)
+## 2026-11-16 Â· Task A11 (formatter, explain, LSP)
 - **Kiro features:** spec-driven development (new spec `.kiro/specs/neuron-tooling`),
   steering (`rust-style`), property-based testing (`proptest`) for formatter
   idempotence, token preservation and totality, agent-run builds through logged scripts.
@@ -175,7 +175,7 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   the generator, not the formatter, was wrong. Line breaking at 88 columns is not
   implemented and is documented as such.
 
-## 2026-11-16 · Task A12 (standard library, base layer)
+## 2026-11-16 Â· Task A12 (standard library, base layer)
 - **Kiro features:** spec-driven development (new spec `.kiro/specs/neuron-stdlib`),
   steering (`rust-style`), property-based testing (`proptest`) for the differential
   tests, agent-run builds through logged scripts.
@@ -191,7 +191,7 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   now accepts reserved words as later path segments. Native debounce reads the clock, so
   the test advances simulated time between steps.
 
-## 2026-11-16 · Task A13 (validation corpus and freeze)
+## 2026-11-16 Â· Task A13 (validation corpus and freeze)
 - **Kiro features:** spec-driven development (`.kiro/specs/neuron-corpus`), agent-run
   checks through `tools/corpus-check.ps1`, steering (`conventions`: English, spec first).
 - **Produced:** 50 programs in `examples/corpus/` across the eight dialects, each with
@@ -203,14 +203,14 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   inputs in `drive`). They are listed with their decisions. The final freeze needs a
   reviewer who did not write the specification.
 
-## 2026-11-16 · Task B1 (target model)
+## 2026-11-16 Â· Task B1 (target model)
 - **Kiro features:** spec-driven development (`.kiro/specs/neuron-targets`), steering
   (`conventions`: derive register facts with attribution, no vendor manuals copied),
   agent-run tests through logged scripts.
 - **Produced:** crate `neuron-target` (TOML model, registry with the files embedded,
   validation, pin and peripheral binding, clock-tree, UART, timer and PWM solvers),
   `targets/` with 5 architectures, 7 chips, 8 boards and 4 runtimes
-  (`tools/gen-targets.ps1` generates the regular ones), `NE0601`–`NE0608` with
+  (`tools/gen-targets.ps1` generates the regular ones), `NE0601`â€“`NE0608` with
   `docs/errors/targets.md`, and `neuron check` now runs the hardware checks.
   Tests: TGT-1, HW-1 and CLK-1 (property tests) and one test per code.
 - **Lessons:** the UART default tolerance of 2 % in spec 07 would reject 115200 Bd on a
@@ -218,7 +218,7 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   Owning `timer0` for the runtime tick makes PWM on D5/D6 an `NE0601`, which is the
   honest answer.
 
-## 2026-11-16 · Tasks B2 and B3 (MIR, C backend, runtime)
+## 2026-11-16 Â· Tasks B2 and B3 (MIR, C backend, runtime)
 - **Kiro features:** specs (`.kiro/specs/neuron-codegen-c`), differential testing against
   the reference interpreter, golden files.
 - **Produced:** crate `neuron-mir` (typed structured IR, lowering from NIR with
@@ -233,7 +233,7 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   must be dropped, and a fault must abort the running activity. The oldest avr-gcc in the Arduino index (4.8.1) fails to
   link on Windows, so the installer pins 7.3.0.
 
-## 2026-11-16 · Tasks B4 and B5 (build, flash, more boards)
+## 2026-11-16 Â· Tasks B4 and B5 (build, flash, more boards)
 - **Kiro features:** spec task lists updated with what is done and what is not.
 - **Produced:** `neuron targets [board]`, `neuron emit-c`, `neuron build` (UNO, Mega,
   `--board`, `--host`) and `neuron flash` (avrdude, programmer from the board file),
@@ -244,7 +244,7 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   port yet, and the tool says so instead of failing late. The UNO flash (gate G2) needs
   the board on USB.
 
-## 2026-11-16 · Task B6 (instruction-set simulators)
+## 2026-11-16 Â· Task B6 (instruction-set simulators)
 - **Kiro features:** spec written for the task after the AVR work
   (`.kiro/specs/neuron-isa-simulators`), property tests.
 - **Produced:** crate `neuron-sim-avr` (ATmega328P, cycle counted, the peripherals the
@@ -256,7 +256,7 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   checks the AVR port, the compiler flags and the tick timer together without a board.
   The Thumb simulator cannot run Neuron firmware until the RP2040 runtime port exists.
 
-## 2026-11-17 · Tasks B5 (ports), B6 (completion), B7, B8 and B9 (Phase B closed)
+## 2026-11-17 Â· Tasks B5 (ports), B6 (completion), B7, B8 and B9 (Phase B closed)
 - **Kiro features:** spec-driven development (new specs `.kiro/specs/neuron-ports`,
   `neuron-hdl`, `neuron-native`, `neuron-ui`, written before each crate), steering
   (`rust-style`, `codegen-safety-rules`, `conventions`), property-based testing,
@@ -284,10 +284,10 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   fixed with an `act_` prefix. A job runner that redirected only the last command of an
   `a && b` chain lost clippy output; the command is now grouped before redirection.
 
-## 2026-11-19 · Workspace check, drive repair and the test scope fix (A10.12)
+## 2026-11-19 Â· Workspace check, drive repair and the test scope fix (A10.12)
 - **Kiro features:** agent-run readiness check (git, `fsck`, content comparison of every
   tracked file, toolchains, every test), spec-first fix (`spec/language/17-interpreter.md`
-  §17.8, `.kiro/specs/neuron-interp` requirement I11 and task A10.12), a regression test.
+  Â§17.8, `.kiro/specs/neuron-interp` requirement I11 and task A10.12), a regression test.
 - **Produced:** a loose USB cable had damaged one git object and one spec file on drive E:;
   both were restored from GitHub through a reference clone on C:, with a backup of the
   damaged copies, and `git fsck` and the 410-file comparison came back clean. `neuron test
@@ -298,7 +298,7 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   fault stops the whole program. Testing each folder alone had hidden the cause instead of
   fixing it; the specification did not say which modules a test runs.
 
-## 2026-11-19 · Tasks C1 and C2 (emitter framework, IEC 61131-3 emitters)
+## 2026-11-19 Â· Tasks C1 and C2 (emitter framework, IEC 61131-3 emitters)
 - **Kiro features:** spec-driven development (new spec `.kiro/specs/neuron-translate`
   written before any code, covering C1 to C6), steering (a new always-on
   `current-work.md` that hands the session state to the next chat), differential testing
@@ -318,7 +318,7 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   timer outputs on); the fidelity report now says so. The project moved from the USB
   drive E: to C: after `chkdsk` removed 65 files; all were restored from git first.
 
-## 2026-11-19 · Task C3, stage 1 (robot semantics in the reference interpreter)
+## 2026-11-19 Â· Task C3, stage 1 (robot semantics in the reference interpreter)
 - **Kiro features:** sub-agents in a clean context (one read the robot path and found the
   gaps, a second fixed them), steering (`current-work.md` records the gaps and how to run
   jobs from the agent shell), a read-only `tools/diagnose.ps1` health check.
@@ -334,7 +334,7 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   `Start-Process` from the agent shell silently never ran them; long foreground waits
   froze the shell twice.
 
-## 2026-11-19 · Task C3, stage 2 (robot manifests, SPEL+-style emitter, virtual controller)
+## 2026-11-19 Â· Task C3, stage 2 (robot manifests, SPEL+-style emitter, virtual controller)
 - **Kiro features:** spec-driven development (the C3 mapping table of
   `.kiro/specs/neuron-translate/design.md` drove the emitter), a sub-agent in a clean
   context, differential testing against the reference interpreter.
@@ -352,7 +352,7 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   coordinates, `Motor On`) are marked "to confirm in session I6"; the slave program is
   only checked as text until then.
 
-## 2026-11-19 · Task C4 (Python emitter for host modules)
+## 2026-11-19 Â· Task C4 (Python emitter for host modules)
 - **Kiro features:** spec-driven development (T5 of `neuron-translate`), a sub-agent in a
   clean context, differential testing against the reference interpreter.
 - **Produced:** the `python` emitter: one standard-library-only file per `host` module
@@ -367,7 +367,7 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   asyncio loop would have added its own ordering. `--ros2` is refused for now; timers,
   counters, `pid`, `fsm`, `sequence`, `struct` and `match` in host modules are `NE0610`.
 
-## 2026-11-19 · Tasks C5.1 and C5.2 (ST, SCL, PLCopen XML and SPEL+ importers)
+## 2026-11-19 Â· Tasks C5.1 and C5.2 (ST, SCL, PLCopen XML and SPEL+ importers)
 - **Kiro features:** spec-driven development (T6), sub-agents in a clean context (one for
   the importers, one for the two defects they exposed), round-trip testing by traces.
 - **Produced:** crate `neuron-import` (`st`, `scl`, `plcopen`, `spel`): each writes
@@ -384,7 +384,7 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   handle, not read; only a bare `until x` worked. Inputs are now read wherever a value is
   needed. A module called like a keyword (`cell`) is renamed and reported.
 
-## 2026-11-20 · Task C5.3 (C subset and Verilog subset importers)
+## 2026-11-20 Â· Task C5.3 (C subset and Verilog subset importers)
 - **Kiro features:** spec-driven development (T6 and its out-of-scope list), a sub-agent
   in a clean context with strict editing rules, differential testing against the host
   compiler.
@@ -400,7 +400,7 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   become bounded `while` loops; ports named `rst` that are not a plain synchronous reset
   are renamed, because the backend adds its own reset.
 
-## 2026-11-20 · Task C6 (micro-kernel: state tables and the ST, C99 and SPEL+ kernels)
+## 2026-11-20 Â· Task C6 (micro-kernel: state tables and the ST, C99 and SPEL+ kernels)
 - **Kiro features:** spec-driven development (T7), a sub-agent in a clean context,
   differential testing across four executors.
 - **Produced:** `kernel` emitter: `fsm` and `sequence` compile to a state table
@@ -417,7 +417,7 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   reals and edge reads stay outside it and are `NE0610`. The SPEL+ kernel is checked on
   boolean ports only, because the controller's numbers are floating point.
 
-## 2026-11-22 · Fix: ST lexer panic found by CI, and the promotion of `main`
+## 2026-11-22 Â· Fix: ST lexer panic found by CI, and the promotion of `main`
 - **Kiro features:** property-based testing (the E1 proptest found it on GitHub CI with a
   seed the local run never drew), steering (`current-work.md` now requires reading the CI
   result after every push), a release script.
@@ -429,7 +429,7 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   `main` is promoted only after the CI of the `develop` tip passes. Two test runs at the
   same time collide on `out/c6/driver.exe`; run one at a time.
 
-## 2026-11-21 · Task E1 (compiler bindings: WebAssembly and Python)
+## 2026-11-21 Â· Task E1 (compiler bindings: WebAssembly and Python)
 - **Kiro features:** a sub-agent in a clean context, property-based testing of every entry
   point with random and mutated input.
 - **Produced:** crate `neuron-wasm`: a plain-Rust JSON API (`check`, `format`, `hover`,
@@ -444,7 +444,7 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   wasm-bindgen and PyO3 generate unsafe glue; those two use `deny` and allow it only in
   the generated module. The browser glue and the Python wheel are not run yet.
 
-## 2026-11-21 · Task E4 contract (relay and twin gateway protocol)
+## 2026-11-21 Â· Task E4 contract (relay and twin gateway protocol)
 - **Kiro features:** spec-driven development (the contract is written before the relay
   server), a sub-agent in a clean context, property-based testing, single source of
   truth (Rust types generate the JSON Schemas; a test fails on drift).
@@ -462,7 +462,7 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   1455); `tools/job.ps1` now limits cargo to two jobs. `tools/setup-kiro.ps1` sets the
   Kiro permissions and Autopilot, which the agent cannot edit itself.
 
-## 2026-11-20 · SPEL+ kernel on integer ports, and the Phase D spec
+## 2026-11-20 Â· SPEL+ kernel on integer ports, and the Phase D spec
 - **Kiro features:** spec-driven development (new spec `.kiro/specs/neuron-cell` written
   before any Phase D code), a sub-agent in a clean context, steering (the decisions
   waiting for review are in `current-work.md`).
@@ -477,7 +477,7 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   is the compiler that checks them. `NE0701`, `NE0703`, `NE0801` and `NE0805` were
   catalogued in chapter 10 but no code emits them yet.
 
-## 2026-11-20 · C99 emitter for `core` modules
+## 2026-11-20 Â· C99 emitter for `core` modules
 - **Kiro features:** a sub-agent resumed the half-written code of an aborted one in a
   clean context, differential testing against the host compiler and the interpreter.
 - **Produced:** `neuron emit c`: `core` functions become portable C99 (`<module>.c`,
@@ -490,7 +490,7 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   with `n = 32` faulted in C and not in the interpreter until the context type stopped
   leaking into the operation.
 
-## 2026-11-20 · Python emitter, second pass (blocks, fsm, sequence, types, ROS 2)
+## 2026-11-20 Â· Python emitter, second pass (blocks, fsm, sequence, types, ROS 2)
 - **Kiro features:** a sub-agent in a clean context with strict file-editing rules,
   differential testing against the reference interpreter, steering (the hardware plan
   and the rule "work that needs no device is done in the repo" are in `current-work.md`).
@@ -506,7 +506,7 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   `equivalent` fidelity entry and as an open item for session I4 on the Raspberry Pi 5.
   Still `NE0610`: `mut` parameters, string interpolation, bit vectors, lambdas, classes.
 
-## 2026-11-20 · Task C7 (command line, user guide, CI) and close of Phase C
+## 2026-11-20 Â· Task C7 (command line, user guide, CI) and close of Phase C
 - **Kiro features:** spec-driven development (T8 and T9), steering (`current-work.md`
   hands over the closed phase and the next steps), a sub-agent in a clean context.
 - **Produced:** `neuron emit <st|scl|plcopen|spel|python|kernel>` and `neuron import
@@ -576,7 +576,7 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
 - **Lessons:** `*.vercel.app` names are shared by every Vercel user: `synapsestudio` was
   taken by a stranger's site. Check a name with a request before choosing it.
 
-## 2026-11-22 · Task D1.1 (device and medium manifests)
+## 2026-11-22 Â· Task D1.1 (device and medium manifests)
 - **Kiro features:** spec-driven development (`.kiro/specs/neuron-cell/`, D-R1 and D-R11),
   a sub-agent in a clean context for the first draft, steering (Rust style, codegen
   safety rules: generic manifests, no vendor data).
@@ -590,7 +590,7 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   different error. A manifest that refuses unknown fields has to be tested one error
   at a time.
 
-## 2026-11-22 · Task D1.2 (manifests for every cell device)
+## 2026-11-22 Â· Task D1.2 (manifests for every cell device)
 - **Kiro features:** spec-driven development (D-R1), steering (no vendor data, generic
   numbers with the session that measures them).
 - **Produced:** manifests `generic_s7_1200` (SCL), `generic_iec_plc` (ST, `yaskawa`
@@ -603,7 +603,7 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   (it places `thermostat` and `conveyor` from other files), so cell tests load packages,
   not single files.
 
-## 2026-11-22 · Task D2.1 (partitioner)
+## 2026-11-22 Â· Task D2.1 (partitioner)
 - **Kiro features:** spec-driven development (D-R2; the rules the design left open are
   recorded in "Results of D2.1"), steering (deterministic output, typed `NE####` codes).
 - **Produced:** `neuron-cell::partition` with `CellPlan`, `DevicePlan`, `Placed`;
@@ -618,7 +618,7 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   (the examples package also holds an UNO blink and an ESP32 panel); the board named
   after `on` is what keeps them out.
 
-## 2026-11-22 · Task D2.2 (build per device)
+## 2026-11-22 Â· Task D2.2 (build per device)
 - **Kiro features:** spec-driven development (D-R2), steering (deterministic output,
   generic manifests).
 - **Produced:** `neuron-cell::build` (`CellBuild`, `DeviceBuild`, `device_package`)
@@ -631,7 +631,7 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   README does not compile to C, and the example's pick program is six-axis while the
   cell's arm is a SCARA. They are reported per device and kept as open items.
 
-## 2026-11-22 · Task D3.2 (link budgets and NE0701)
+## 2026-11-22 Â· Task D3.2 (link budgets and NE0701)
 - **Kiro features:** spec-driven development (D-R4, spec 14.8), steering (every number
   traceable to a manifest, trust level shown).
 - **Produced:** `neuron-cell::link_table` (`LinkReport`, `Latency`, `Alternative`),
@@ -643,7 +643,7 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   its 25 ms budget by 1 ms. Placeholder numbers decide whether an example compiles, so
   they are labeled `generic` in every message until session I1 measures them.
 
-## 2026-11-22 · Task D4.2 (electrical compatibility, NE0801)
+## 2026-11-22 Â· Task D4.2 (electrical compatibility, NE0801)
 - **Kiro features:** spec-driven development (D-R7), steering (codegen safety rules:
   never wire 3.3 V logic to 24 V I/O; the tool is a design aid).
 - **Produced:** `neuron-cell::check_electrical`; `NE0801` implemented
@@ -654,7 +654,7 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
 - **Lessons:** a test that asked for a 1 ms link into an UNO got an honest `NE0701`
   first: the budgets of D3.2 now catch mistakes in the tests of later tasks.
 
-## 2026-11-23 · Task D3.1 (link endpoints, register maps, Neuron Wire)
+## 2026-11-23 Â· Task D3.1 (link endpoints, register maps, Neuron Wire)
 - **Kiro features:** spec-driven development (D-R3, design decision 1), steering
   (codegen safety rules: latch + ACK across clock domains, no unbounded waits), property
   tests for the Wire properties of spec 11.3.
@@ -672,7 +672,7 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   build. A PowerShell session keeps its variables between calls: a stale `$t` was
   written over a new file once, so file edits stay with the file tools.
 
-## 2026-11-23 · Task D3.3 (cell watchdog and safe state on loss)
+## 2026-11-23 Â· Task D3.3 (cell watchdog and safe state on loss)
 - **Kiro features:** spec-driven development (D-R5, MOC-C2), steering (codegen safety
   rules: safe state on fault, no unbounded waits), property test of the bound.
 - **Produced:** `neuron-cell::watchdog` (`WatchdogPlan`, `DeviceWatchdog`,
@@ -690,7 +690,7 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   from the analysis, not from a build. Reading and rewriting a UTF-8 file from PowerShell
   without an encoding mangled it; docs go through the file tools too.
 
-## 2026-11-23 · Task D3.4 (tags across devices, NE0703, single writer)
+## 2026-11-23 Â· Task D3.4 (tags across devices, NE0703, single writer)
 - **Kiro features:** spec-driven development (D-R6, spec 11.2), the error catalogue
   tests, property tests for the address rule and the writer rule.
 - **Produced:** `neuron-cell::{check_tags, parse_direct_address, address_fits,
@@ -703,7 +703,7 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   the cell check, so `NE0607` stays as a guard. Statement walking through the
   serialized NIR (`"s": "assign"`) is enough for "is this name assigned" and avoids a
   dependency on the analyzer's private fact base.
-## 2026-11-23 · Task D4.1 (zones, mutexes, robot targets in zones, NE0805)
+## 2026-11-23 Â· Task D4.1 (zones, mutexes, robot targets in zones, NE0805)
 - **Kiro features:** spec-driven development (D-R7, design D4), the error catalogue tests,
   property tests for the arbiter, a sub-task split that put the robot target machinery
   in `neuron-emit` and the cell rules in `neuron-cell`.
@@ -725,8 +725,8 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   text in source files through PowerShell string methods silently did nothing twice
   (no match), so every edit was re-read. The new example also changed the NIR and parser
   golden files, which the first commit missed and the amend fixed.
-## 2026-11-23 · Task D4.3 (cell verify over the composed machines, shortest counterexample)
-- **Kiro features:** spec-driven development (D-R7, spec 08 §8.3 and 15 §15.6), property
+## 2026-11-23 Â· Task D4.3 (cell verify over the composed machines, shortest counterexample)
+- **Kiro features:** spec-driven development (D-R7, spec 08 Â§8.3 and 15 Â§15.6), property
   tests (CEX-1 minimality against a closed-form chain, MUTEX-1 over lock delays), the
   existing A8 model checker reused instead of a second one.
 - **Produced:** `neuron_sema::{verify_cell, CellModel, CellMember, CellChannel, ChannelEnd,
@@ -744,7 +744,7 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   search explode, so delays are now rounded up to a tick chosen from the scan periods.
   Properties of a cell cannot be checked by `analyze` alone, so it now defers them.
 
-## 2026-11-23 · Task D6.1 (co-simulation on the cell clock, link models, cuts, partition equivalence)
+## 2026-11-23 Â· Task D6.1 (co-simulation on the cell clock, link models, cuts, partition equivalence)
 
 - **Kiro features:** spec-driven development (D-R8, MOC-C1, MOC-C2, partition
   equivalence, design decision 2), property-based tests with proptest, steering
@@ -763,7 +763,7 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   by the co-simulation and not by rewriting generated modules. A robot receiver has no
   watchdog logic, and the run reports that instead of passing.
 
-## 2026-11-23 · Task D6.2 (replay format and JSON Schema for the twin)
+## 2026-11-23 Â· Task D6.2 (replay format and JSON Schema for the twin)
 
 - **Kiro features:** spec-driven development (D-R8), schema generation from Rust types
   (schemars, as for NIR), property-based tests with proptest, steering (rust-style).
@@ -779,7 +779,7 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   which makes "validates" a real test. A counterexample is a model trace, so its replay
   proves the violation in the model and not in the device programs.
 
-## 2026-11-23 · Task D5.1 (technical dossier)
+## 2026-11-23 Â· Task D5.1 (technical dossier)
 - **Kiro features:** spec-driven development (D-R9, design decision 3), property-based
   tests with proptest, steering (rust-style, conventions), a sub-agent with strict
   shell rules (file tools for edits, foreground cargo).
@@ -798,7 +798,7 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   hiding it. The default co-simulation has no stimuli, so the test report needs drives
   to show a delivery.
 
-## 2026-11-23 · Task D7 (cell command line, guide, CI) and close of Phase D
+## 2026-11-23 Â· Task D7 (cell command line, guide, CI) and close of Phase D
 - **Kiro features:** spec-driven development (D-R10, `.kiro/specs/neuron-cell/`), steering
   (rust-style, conventions, current-work), strict shell rules for this machine (file tools
   for every edit, one foreground cargo at a time).
@@ -817,7 +817,7 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   `neuron cell check` reports them. The stale NIR golden (press_plc reformatted) showed up
   only when the wider suites were run, so run the golden tests after any change to `examples/`.
 
-## 2026-11-23 · Task E2.1 (service layout, errors, logging, database baseline)
+## 2026-11-23 Â· Task E2.1 (service layout, errors, logging, database baseline)
 - **Kiro features:** spec-driven task from `.kiro/specs/core-services/`, workspace rules,
   steering for Python style.
 - **Produced:** `services/core` modules `errors.py`, `logging_config.py`, `middleware.py`,
@@ -829,7 +829,7 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   was a substring of "postgresql"; generated secrets need a prefix that cannot occur in
   the surrounding text. Writing source from the shell added a byte-order mark: use the file tools.
 
-## 2026-11-23 · Task E2.2 (`--format json` for check, build and emit)
+## 2026-11-23 Â· Task E2.2 (`--format json` for check, build and emit)
 - **Kiro features:** spec-driven task from `.kiro/specs/core-services/`, workspace rules.
 - **Produced:** `crates/neuron-cli/src/report.rs`, `tests/e2_json.rs`, `docs/cli-json.md`,
   `--format` in the usage text of `check`, `build` and `emit`.
@@ -839,7 +839,7 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   touching about sixty print sites. The price is that the JSON diagnostics come from parsing
   the rendered text, which a test pins against the human mode.
 
-## 2026-11-23 · Task E2.3 (compile runner)
+## 2026-11-23 Â· Task E2.3 (compile runner)
 - **Kiro features:** spec-driven task from `.kiro/specs/core-services/`, workspace rules.
 - **Produced:** `services/core/src/synapse_core/compile/` (models, paths, sandbox, runner),
   `/health` field `sandbox.network`, settings for the compiler, fake `neuron` and `unshare`
@@ -851,7 +851,7 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   (`ASYNC240`), so directory preparation, cleanup and artifact reading moved to
   `asyncio.to_thread`. A fake `unshare` that marks the environment lets the self-test
   logic run without privileges.
-## 2026-11-23 · Task E2.4 (projects, immutable versions and files)
+## 2026-11-23 Â· Task E2.4 (projects, immutable versions and files)
 - **Kiro features:** spec-driven task from `.kiro/specs/core-services/`, workspace rules.
 - **Produced:** migration `0002_projects`, ORM models, `services/projects.py`, `api/projects.py`,
   `schemas/projects.py`, `tests/conftest.py`, `tests/test_projects.py`, `NE1107` text.
@@ -860,7 +860,7 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
 - **Lessons:** with no Postgres at hand, `JSON`-free portable column types let the same models
   run on SQLite for a quick check, but that proves the logic only, not the migration on
   Postgres.
-## 2026-11-23 · Task E2.5 (builds API on the runner)
+## 2026-11-23 Â· Task E2.5 (builds API on the runner)
 - **Kiro features:** spec-driven task from `.kiro/specs/core-services/`, workspace rules.
 - **Produced:** migration `0003_builds`, `services/builds.py` (`BuildManager`),
   `services/capabilities.py`, `api/builds.py`, `api/deps.py`, `schemas/builds.py`,
@@ -870,7 +870,7 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
 - **Lessons:** a gated fake runner (an injected subclass holding a `peak` counter) proves
   the semaphore bound without timing. Storing artifact bytes in a table keeps one Render
   instance simple; the input and output caps already bound the size.
-## 2026-11-23 · Task E2.6 (device catalog from the manifests)
+## 2026-11-23 Â· Task E2.6 (device catalog from the manifests)
 - **Kiro features:** spec-driven task from `.kiro/specs/core-services/`, workspace rules.
 - **Produced:** `synapse_core/devices/` (`models.py`, `catalog.py`), `api/devices.py`,
   `devices_dir` setting, `tests/test_devices.py`.
@@ -880,7 +880,7 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   the Rust side owns the authoritative numeric parsing; duplicating it would risk drift.
   `devices/` is outside the Render `rootDir`, so a package-relative default locates it and
   the E2.10 image must copy it in.
-## 2026-11-23 · Task E2.7 (token bucket rate limiter)
+## 2026-11-23 Â· Task E2.7 (token bucket rate limiter)
 - **Kiro features:** spec-driven task from `.kiro/specs/core-services/`, workspace rules.
 - **Produced:** `synapse_core/limits.py` (token bucket, scopes, `scope_for`, `client_key`),
   `ratelimit.py` (`RateLimitMiddleware`), six `ratelimit_*` settings and a `limiter`
@@ -893,7 +893,7 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   startup path; `create_app()` builds its limiter from `get_settings()`, which the
   dependency override does not reach, hence the state hook. Keeping `limits.py` free of
   FastAPI makes the pure token-bucket property test trivial to drive with a fake clock.
-## 2026-11-23 · Task E2.8 (guest mode)
+## 2026-11-23 Â· Task E2.8 (guest mode)
 - **Kiro features:** spec-driven task from `.kiro/specs/core-services/`, workspace rules.
 - **Produced:** `GuestSandbox` model + migration `0004_guests`, `auth/tokens.py` (HMAC
   guest token), `services/guests.py` (sandboxes, quotas, cleanup), `schemas/guests.py`,
@@ -909,7 +909,7 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   quota check in the same transaction as the build row without the manager importing the
   guest service. No JWT library yet: a tiny HMAC token keeps E2.8 dependency-free and E3
   reuses the same secret.
-## 2026-11-23 · Task E2.9 (OpenAPI export and generated SDK)
+## 2026-11-23 Â· Task E2.9 (OpenAPI export and generated SDK)
 - **Kiro features:** spec-driven task from `.kiro/specs/core-services/`, workspace rules.
 - **Produced:** `tools/export-openapi.py` (export + pure-Python TS generator),
   `spec/api/openapi.json`, `packages/sdk-ts` (`package.json`, `tsconfig.json`, `README.md`,
@@ -924,7 +924,7 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   "generated, CI fails on drift"; pinning `info.version` stops the document churning with
   the package version.
 
-## 2026-11-23 · Task E3.1 (Users, argon2 hashes, login, JWT access tokens, bootstrap CLI)
+## 2026-11-23 Â· Task E3.1 (Users, argon2 hashes, login, JWT access tokens, bootstrap CLI)
 - **Kiro features:** spec-driven task from `.kiro/specs/core-services/`, workspace rules
   (python-style, conventions), E2 "Results of" paragraphs for layout and the token secret.
 - **Produced:** `auth/passwords.py` (argon2id), JWT helpers in `auth/tokens.py`,
@@ -941,7 +941,7 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   Reusing E2.8's `token_secret()` for JWTs keeps one secret; argon2 cost in settings lets
   tests pick the cheapest parameters while production keeps real cost.
 
-## 2026-11-23 · Task E3.2 (Permission matrix, RBAC route dependencies, guest isolation)
+## 2026-11-23 Â· Task E3.2 (Permission matrix, RBAC route dependencies, guest isolation)
 - **Kiro features:** spec-driven task from `.kiro/specs/core-services/`, workspace rules,
   E3.1 "Results of" for the principal/token surface.
 - **Produced:** `auth/permissions.py` (matrix, `DEVICE_PERMISSIONS`, `has_permission`),
@@ -955,13 +955,13 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   is scoped to its own sandbox (others' projects are 404, not 403); device list/read need
   `device.read`, the catalog stays public; a role read from the DB row means a disable takes
   effect on the next request.
-- **Lessons:** the loose "engineer ⊇ ... ⊇ guest" phrasing does not hold and should not —
+- **Lessons:** the loose "engineer âŠ‡ ... âŠ‡ guest" phrasing does not hold and should not â€”
   the guest is a separate, sandbox-scoped role; the property tests assert the spec's actual
   criteria (user-chain monotonicity + guest device-isolation). Resolving the principal
   without a DB session when there is no token keeps public routes working with no database
   and avoids a 503 masking a 403.
 
-## 2026-11-23 · Task E3.3 (Service tokens: hashed at rest, revocable, engineer-only issue)
+## 2026-11-23 Â· Task E3.3 (Service tokens: hashed at rest, revocable, engineer-only issue)
 - **Kiro features:** spec-driven task from `.kiro/specs/core-services/`, workspace rules,
   E3.1/E3.2 "Results of" for the principal resolver.
 - **Produced:** model `ServiceToken`, migration `0006_service_tokens`,
@@ -976,9 +976,9 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   the "shown once" guarantee honest; the issue route being `user.manage` stops a service
   principal from minting more tokens.
 
-## 2026-11-23 · Task E3.4 (Append-only audit log and the engineer read route)
+## 2026-11-23 Â· Task E3.4 (Append-only audit log and the engineer read route)
 - **Kiro features:** spec-driven task from `.kiro/specs/core-services/`, workspace rules,
-  the E3.1–E3.3 "Results of" for the principal and session surfaces.
+  the E3.1â€“E3.3 "Results of" for the principal and session surfaces.
 - **Produced:** model `AuditLog`, migration `0007_audit_log` (Postgres INSERT/SELECT grant),
   `services/audit.py`, `schemas/audit.py`, `api/audit.py` (`GET /v1/audit`, engineer-only),
   audit writes on login/token issue+revoke/project+version+build create, `SessionMakerDep`
@@ -991,18 +991,18 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   so the append-only grant is honest only with a non-owner app role (noted for E7); the
   code-level guarantee (no UPDATE/DELETE path) is what holds today.
 
-## 2026-11-23 · Task E4.1 (Relay core: WebSocket endpoint, lifecycle, validation, roles)
+## 2026-11-23 Â· Task E4.1 (Relay core: WebSocket endpoint, lifecycle, validation, roles)
 - **Kiro features:** spec-driven task from `.kiro/specs/core-services/`, the EXISTING relay
   contract (`spec/protocols/relay.md`, schemas in `spec/schemas/relay/`, examples in
   `spec/protocols/examples/`), workspace rules, and the E2/E3 "Results of" paragraphs for the
   principal, token and session surfaces that E4.1 reuses.
 - **Produced:** package `synapse_core/relay/` (`validate.py` schema validation with
   `jsonschema`; `roles.py` `ROLE_MESSAGES` from `relay.md`; `protocol.py` server-frame
-  builders and `RelayCode`; `auth.py` token→roles reusing E3; `hub.py` session registry;
+  builders and `RelayCode`; `auth.py` tokenâ†’roles reusing E3; `hub.py` session registry;
   `session.py` `RelaySession` lifecycle; `starlette.py` transport adapter), route
   `api/relay.py` (`WS /v1/relay`), registered in `main.py`; `jsonschema` dependency.
 - **Results:** 15 new tests; full suite 195 pass, 4 skipped locally; ruff clean; OpenAPI/SDK
-  drift green. Handshake (`hello`→`welcome`), schema validation of every frame, the role table
+  drift green. Handshake (`hello`â†’`welcome`), schema validation of every frame, the role table
   checked against `relay.md`, fatal vs non-fatal error codes, ping/`pong` and idle-ping/silent
   close all covered. No new `NE` code (relay uses its own protocol error codes).
 - **Lessons:** a WebSocket endpoint must inject settings via `Depends(get_settings)`, not call
@@ -1012,7 +1012,7 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   wait. `BaseHTTPMiddleware` skips WebSocket scopes, so the relay's control-message rate limit
   belongs inside the session (E4.2), not in the HTTP limiter.
 
-## 2026-11-23 · Task E4.2 (Relay subscriptions, snapshot cache, fan-out, control rate limit)
+## 2026-11-23 Â· Task E4.2 (Relay subscriptions, snapshot cache, fan-out, control rate limit)
 - **Kiro features:** spec-driven task from `.kiro/specs/core-services/`, the relay contract and
   its example messages (`spec/protocols/examples/`), the E2.7 token-bucket limiter, and the
   E4.1 "Results of" for the hub and session surfaces this builds on.
@@ -1029,7 +1029,7 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   queue is not a hard cap for those; only `telemetry`/`trace` are ever dropped. Making the
   control rate injectable let the limit be hit deterministically in a test without real time.
 
-## 2026-11-23 · Task E4.3 (Daemon pairing, daemons/devices tables, heartbeat timeout)
+## 2026-11-23 Â· Task E4.3 (Daemon pairing, daemons/devices tables, heartbeat timeout)
 - **Kiro features:** spec-driven task from `.kiro/specs/core-services/`, the relay contract
   (`deployment_status`), the E3.3 service-token primitive reused for the daemon token, and the
   E4.1/E4.2 "Results of" for the hub and session surfaces.
@@ -1044,9 +1044,9 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   the peer disconnects. An offline SQLite migration/model column check catches drift that the
   local `create_all` schema would otherwise hide until the Postgres CI round trip.
 
-## 2026-11-23 · Task E4.4 (Telemetry ingest into plain Postgres with a storage cap)
+## 2026-11-23 Â· Task E4.4 (Telemetry ingest into plain Postgres with a storage cap)
 - **Kiro features:** spec-driven task from `.kiro/specs/core-services/`, the relay `telemetry`
-  frame shape, and the E4.1–E4.3 relay/session surfaces (the publisher-frame path and hooks).
+  frame shape, and the E4.1â€“E4.3 relay/session surfaces (the publisher-frame path and hooks).
 - **Produced:** models `TelemetrySample`/`Telemetry1m` + migration `0009`, `telemetry/ingest.py`
   (`_rows_from_frame`, `ingest_telemetry` with the `SYNAPSE_TELEMETRY_MAX_ROWS` cap), a relay
   `on_telemetry` hook that persists frames with `simulated` set from the publisher role, and the
@@ -1058,7 +1058,7 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   keeps `BIGINT`. An out-of-enum quality cannot reach ingest (the JSON Schema rejects it at the
   socket), so the normalisation is a defensive fallback, not a path a wire frame can take.
 
-## 2026-11-23 · Task E4.5 (Telemetry retention, 1-minute roll-up, GET /v1/telemetry)
+## 2026-11-23 Â· Task E4.5 (Telemetry retention, 1-minute roll-up, GET /v1/telemetry)
 - **Kiro features:** spec-driven task from `.kiro/specs/core-services/`, the E4.4 telemetry
   tables/settings, and the E3.2 permission matrix for the guest-virtual-only read rule.
 - **Produced:** `telemetry/retention.py` (`run_retention` under a `pg_try_advisory_lock`, chunked
@@ -1067,13 +1067,13 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
 - **Results:** 9 new tests (4 query, 1 Hypothesis retention property over 25 examples); full
   suite 224 pass, 4 skipped; ruff clean; drift green.
 - **Lessons:** rolling up only the rows about to be deleted makes the roll-up idempotent without
-  tracking a "last processed minute" — each raw sample is aggregated exactly once. Guarding the
+  tracking a "last processed minute" â€” each raw sample is aggregated exactly once. Guarding the
   task with an advisory lock keeps it correct even if the single-instance assumption ever breaks,
   and the lock is a clean no-op on the SQLite used for local tests.
 
-## 2026-11-23 · Task E4.6 (Advisory E-STOP and sim-control routing, twin/simulated only)
+## 2026-11-23 Â· Task E4.6 (Advisory E-STOP and sim-control routing, twin/simulated only)
 - **Kiro features:** spec-driven task from `.kiro/specs/core-services/`, the relay safety rule in
-  `spec/protocols/relay.md`, the E3.4 audit writer reused for the E-STOP entry, and the E4.1–E4.5
+  `spec/protocols/relay.md`, the E3.4 audit writer reused for the E-STOP entry, and the E4.1â€“E4.5
   relay/hub surfaces.
 - **Produced:** hub twin/daemon-per-cell tracking and `simulated_devices`/`real_devices` from the
   cached snapshot; session `_on_sim_control` (twin-only, `not_ready`/`unknown_target`) and
@@ -1084,4 +1084,16 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
 - **Lessons:** keeping the twin as the only recipient of `sim_*` makes "never reach a real
   device" structural rather than a check that could be forgotten; the real-device refusal is an
   extra guard driven by the cached snapshot. The advisory answer must stay `unknown` with no
-  daemon — synthesising `released`/`tripped` would violate the contract's safety rule.
+  daemon â€” synthesising `released`/`tripped` would violate the contract's safety rule.
+## 2026-11-23 Â· Task E5.1 (Edge Daemon package: config, Driver, simulated driver, relay client, pairing)
+- **Kiro features:** spec-driven task from `.kiro/specs/core-services/` (design "E5 Edge Daemon"),
+  the relay contract `spec/protocols/relay.md` + `spec/protocols/examples/`, and the E4.3 pairing /
+  E3.3 service-token flows reused from the Core API side.
+- **Produced:** new package `services/edge-daemon` (`synapse_daemon`): config (local vs cloud
+  mode), errors (NE1108..NE1111 subset), the `Driver` protocol + `Sample`/`Quality`/`DriverConfig`,
+  a dict-backed `SimulatedDriver`, relay frame builders, a transport-agnostic `RelayClient` with a
+  hello/welcome handshake, ping->pong and backoff reconnect, a `claim_pairing` client, `lan.py`
+  run-mode, and `synapse-daemon run`. A new hardware-free, network-free `edge-daemon` CI job.
+- **Results:** 13 tests pass; ruff check and format clean. No new error code (already documented).
+- **Lessons:** injecting the WebSocket transport behind a `Connection` protocol lets every relay
+  test drive an in-memory fake, so reconnect and ping/pong are covered with no server and no network.
