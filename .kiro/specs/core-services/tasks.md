@@ -21,7 +21,7 @@ tested against simulated peers.
 | E3.4 | Audit log table with `INSERT`/`SELECT` grants, audit writes on every sensitive action, read route for engineers | E-R8 | no | done |
 | E4.1 | Relay core: `WS /v1/relay`, lifecycle (`hello`, `welcome`, ping, timeouts), schema validation, role table checked against `relay.md`, error codes | E-R9, E-R7 | no | done |
 | E4.2 | Subscriptions, `cell_snapshot` cache, fan-out with bounded queues and drop policy, control rate limit; round-trip property over all examples | E-R9 | no | done |
-| E4.3 | Daemon pairing (code, claim, token, unpair), `daemons` and `devices` tables, `deployment_status` and heartbeat timeout | E-R10 | no | open |
+| E4.3 | Daemon pairing (code, claim, token, unpair), `daemons` and `devices` tables, `deployment_status` and heartbeat timeout | E-R10 | no | done |
 | E4.4 | Telemetry ingest from relay frames, tables, indexes, storage cap | E-R11 | no | open |
 | E4.5 | Retention and 1-minute roll-up task with advisory lock; `GET /v1/telemetry`; property test of retention | E-R11 | no | open |
 | E4.6 | Advisory E-STOP path and sim control routing (twin only, simulated devices only), audit entries | E-R9, E-R15, E-R8 | no | open |
@@ -507,4 +507,41 @@ re-serialises identically, and a publisher example routes to a matching subscrib
 a cached `cell_snapshot` is delivered after a later `subscribe`, and the control-message rate
 limit refuses a burst with `rate_limited`). Full suite 207 pass, 4 skipped locally (relay DB
 tests on SQLite with `--with aiosqlite`, Postgres in CI); ruff clean; OpenAPI/SDK drift green.
+
+## Results of E4.3
+Daemon pairing, the `daemons`/`devices` tables and the heartbeat timeout. Models (`db/models.py`):
+`PairingCode` (code stored only as a SHA-256 hash, `cell_id`, `expires_at`, `claimed_at`,
+`daemon_id`), `Daemon` (name, cell, `service_token_id`, `version`, `last_heartbeat`,
+`revoked_at`), `Device` (`(daemon_id, name)` PK, kind, `simulated` default false, cascade from
+the daemon). Migration `0008_pairing_daemons_devices` (reversible; an offline test applies it to
+a throwaway SQLite file and asserts the three tables' columns equal the models, so drift is
+caught locally; the full upgrade/downgrade round trip runs on Postgres in CI). Service
+`services/pairing.py`: `issue_pairing_code` (8 base32 chars, 10-minute TTL, hashed),
+`claim_pairing` (locks the code row, rejects an unknown/expired/claimed code with `NE1111`,
+issues a `daemon` service token through E3.3 `issue_service_token` bound to the cell, writes the
+daemon and device rows, marks the code claimed), `unpair_daemon` (revokes the token, marks the
+daemon revoked, returns the token id so the route closes its sockets — idempotent, `None` the
+second time), `record_heartbeat` (updates `last_heartbeat` for the daemon of a service token),
+`is_online`/`list_daemons` (online = unrevoked and heard from within the 15 s timeout).
+Routes (`api/pairing.py`): `POST /v1/pairing` (engineer, `pairing.issue`), `POST
+/v1/pairing/claim` (public — the daemon has no token yet), `GET /v1/daemons` (`device.read`,
+the `deployment_status` view), `DELETE /v1/daemons/{id}` (engineer; revokes and calls
+`hub.close_by_key` to drop the daemon's relay sockets). Audit actions `pairing.issue`,
+`pairing.claim`, `daemon.unpair` added. Relay wiring: a `daemon` session that sends
+`deployment_status` records a heartbeat through an `on_heartbeat` hook the endpoint supplies
+(it parses the `service:<token_id>` key); the hub gained `close_by_key` and each `Session` a
+`stop` event the reader loop honours so an unpair closes the socket. Choices: the heartbeat is
+driven by `deployment_status` frames (the design's daemon heartbeat), recorded best-effort off
+the critical path; the claim is public by necessity and audited as the daemon; `NE1111` (device
+offline or not paired) is reused for a bad claim — no new code. Honesty: `issue_service_token`
+commits inside the claim before the daemon row is written, so a failure between the two leaves
+an orphan (revocable) token; acceptable and noted. The unpair closes the outbox/stops the
+reader, which ends the session cleanly rather than force-aborting an in-flight receive.
+Tests: 8 new — `tests/test_relay_pairing.py` (7, needs a DB: issue is engineer-only `NE1106`;
+full pair→claim→token-authenticates with the device listed and offline until a heartbeat; a
+code cannot be reused `NE1111`; an unknown code `NE1111`; a heartbeat marks online and an old
+one is offline; unpair revokes the token `NE1105` and is a 404 the second time; a daemon's
+`deployment_status` over the relay records its heartbeat) and `tests/test_migration_0008.py`
+(1, offline migration/model column check). Full suite 215 pass, 4 skipped locally; ruff clean;
+OpenAPI/SDK regenerated for the four REST routes, drift green.
 

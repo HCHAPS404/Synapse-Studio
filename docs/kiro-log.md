@@ -1028,3 +1028,18 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   The drop policy must keep control/snapshot/replay frames even past the soft bound, so the
   queue is not a hard cap for those; only `telemetry`/`trace` are ever dropped. Making the
   control rate injectable let the limit be hit deterministically in a test without real time.
+
+## 2026-11-23 · Task E4.3 (Daemon pairing, daemons/devices tables, heartbeat timeout)
+- **Kiro features:** spec-driven task from `.kiro/specs/core-services/`, the relay contract
+  (`deployment_status`), the E3.3 service-token primitive reused for the daemon token, and the
+  E4.1/E4.2 "Results of" for the hub and session surfaces.
+- **Produced:** models `PairingCode`/`Daemon`/`Device` + migration `0008`, `services/pairing.py`
+  (issue/claim/unpair/heartbeat/status), routes `api/pairing.py` (`POST /v1/pairing`, public
+  `POST /v1/pairing/claim`, `GET /v1/daemons`, `DELETE /v1/daemons/{id}`), relay `on_heartbeat`
+  hook, hub `close_by_key` and session `stop` event, three new audit actions.
+- **Results:** 8 new tests (7 DB pairing flow, 1 offline migration/model check); full suite 215
+  pass, 4 skipped; ruff clean; drift green. `NE1111` reused for a bad claim; no new code.
+- **Lessons:** closing a relay session from outside needs both the outbox closed (stops the
+  writer) and a `stop` event the reader races against its receive, or the socket lingers until
+  the peer disconnects. An offline SQLite migration/model column check catches drift that the
+  local `create_all` schema would otherwise hide until the Postgres CI round trip.

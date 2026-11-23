@@ -41,6 +41,9 @@ class AuditAction(StrEnum):
     BUILD_CREATE = "build.create"
     USER_CREATE = "user.create"
     ROLE_CHANGE = "user.role_change"
+    PAIRING_ISSUE = "pairing.issue"
+    PAIRING_CLAIM = "pairing.claim"
+    DAEMON_UNPAIR = "daemon.unpair"
 
 
 @dataclass(frozen=True)

@@ -95,9 +95,41 @@ export interface ComponentStatus {
   "detail"?: string | null;
 }
 
+export interface DaemonClaimed {
+  "daemon_id": string;
+  "cell_id": string;
+  "token": string;
+}
+
+export interface DaemonInfo {
+  "id": string;
+  "name": string;
+  "cell_id": string;
+  "version": string | null;
+  "last_heartbeat": string | null;
+  "online": boolean;
+  "revoked": boolean;
+  "devices": Array<DeviceInfo>;
+}
+
+export interface DaemonList {
+  "items": Array<DaemonInfo>;
+}
+
 export interface DeviceCatalog {
   "devices": Array<DeviceManifest>;
   "media": Array<MediumManifest>;
+}
+
+export interface DeviceClaim {
+  "name": string;
+  "kind"?: string;
+}
+
+export interface DeviceInfo {
+  "name": string;
+  "kind": string;
+  "simulated": boolean;
 }
 
 export interface DeviceList {
@@ -212,6 +244,24 @@ export interface MediumTiming {
 export interface NeuronCapability {
   "available": boolean;
   "version": string | null;
+}
+
+export interface PairingClaim {
+  "code": string;
+  "daemon_name": string;
+  "version"?: string | null;
+  "devices"?: Array<DeviceClaim>;
+}
+
+export interface PairingCreate {
+  "cell_id": string;
+}
+
+export interface PairingIssued {
+  "id": string;
+  "cell_id": string;
+  "code": string;
+  "expires_at": string;
 }
 
 export interface ProjectCreate {
@@ -340,10 +390,14 @@ export interface ApiPaths {
   "/v1/builds/{build_id}": "GET";
   "/v1/builds/{build_id}/artifacts/{name}": "GET";
   "/v1/capabilities": "GET";
+  "/v1/daemons": "GET";
+  "/v1/daemons/{daemon_id}": "DELETE";
   "/v1/devices": "GET";
   "/v1/devices/catalog": "GET";
   "/v1/devices/{name}": "GET";
   "/v1/guest": "POST";
+  "/v1/pairing": "POST";
+  "/v1/pairing/claim": "POST";
   "/v1/projects": "GET" | "POST";
   "/v1/projects/{project_id}": "GET" | "PUT";
   "/v1/projects/{project_id}/versions": "GET" | "POST";

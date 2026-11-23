@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any, Protocol
 
@@ -50,6 +51,11 @@ VALID_CHANNELS: frozenset[str] = frozenset(
 
 # Control-message rate limit (relay.md: fewer than 20 control messages per second).
 _CONTROL_SCOPE = "control"
+
+
+# A hook the endpoint supplies to record a daemon heartbeat when it sends deployment_status;
+# it receives the session principal key (e.g. `service:<token_id>`).
+HeartbeatHook = Callable[[str], Awaitable[None]]
 
 
 class Transport(Protocol):
@@ -121,12 +127,14 @@ class RelaySession:
         *,
         timeouts: SessionTimeouts | None = None,
         control_rate: float = 20.0,
+        on_heartbeat: HeartbeatHook | None = None,
     ) -> None:
         self._t = transport
         self._hub = hub
         self._settings = settings
         self._sessions = sessions
         self._timeouts = timeouts or SessionTimeouts()
+        self._on_heartbeat = on_heartbeat
         self._session: Session | None = None
         self._writer: asyncio.Task[None] | None = None
         # One token bucket per session: capacity = burst = the per-second limit, refilled at
@@ -238,14 +246,15 @@ class RelaySession:
     # -- message loop --------------------------------------------------------------
 
     async def _loop(self) -> None:
-        """Receives frames until the peer closes or stays silent past the limit."""
+        """Receives frames until the peer closes, stays silent too long, or is unpaired."""
         assert self._session is not None
         pinged = False
         while True:
+            if self._session.stop.is_set():  # unpaired: close the socket
+                await self._t.close(code=1000)
+                return
             try:
-                text = await asyncio.wait_for(
-                    self._t.receive_text(), timeout=self._timeouts.idle_ping_s
-                )
+                text = await self._receive(wait_s=self._timeouts.idle_ping_s)
             except TimeoutError:
                 if pinged:
                     await self._t.close(code=1000)
@@ -253,15 +262,36 @@ class RelaySession:
                 self._enqueue(self._server_ping())
                 pinged = True
                 try:
-                    text = await asyncio.wait_for(
-                        self._t.receive_text(),
-                        timeout=self._timeouts.silence_close_s - self._timeouts.idle_ping_s,
+                    text = await self._receive(
+                        wait_s=self._timeouts.silence_close_s - self._timeouts.idle_ping_s
                     )
                 except TimeoutError:
                     await self._t.close(code=1000)
                     return
+            if text is None:  # stop was signalled while waiting
+                await self._t.close(code=1000)
+                return
             pinged = False
             await self._handle(text)
+
+    async def _receive(self, *, wait_s: float) -> str | None:
+        """Awaits a frame or the stop signal; returns `None` when stop wins.
+
+        Raises `TimeoutError` when neither happens within `wait_s`.
+        """
+        assert self._session is not None
+        recv = asyncio.ensure_future(self._t.receive_text())
+        stop = asyncio.ensure_future(self._session.stop.wait())
+        done, _ = await asyncio.wait(
+            {recv, stop}, timeout=wait_s, return_when=asyncio.FIRST_COMPLETED
+        )
+        if recv in done:
+            stop.cancel()
+            return recv.result()
+        recv.cancel()
+        if stop in done:
+            return None
+        raise TimeoutError
 
     async def _handle(self, text: str) -> None:
         """Validates and dispatches one inbound frame after `welcome`."""
@@ -320,6 +350,8 @@ class RelaySession:
                 self._enqueue(proto.ack(request_id, mtype))
             return
         if mtype in _PUBLISHER:
+            if mtype == "deployment_status" and self._on_heartbeat is not None:
+                await self._on_heartbeat(self._session.key)
             self._fan_out(frame)
             return
 

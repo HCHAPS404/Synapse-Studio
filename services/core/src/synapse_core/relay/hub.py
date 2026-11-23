@@ -119,6 +119,8 @@ class Session:
     cell_id: str | None = None
     capabilities: list[str] = field(default_factory=list)
     subscriptions: dict[tuple[str, str | None], Subscription] = field(default_factory=dict)
+    # Set by the session to signal its reader loop to stop (unpair closes the socket).
+    stop: asyncio.Event = field(default_factory=asyncio.Event)
 
     def enqueue(self, frame: dict[str, Any]) -> None:
         """Puts a frame on the outbox (subject to the drop policy)."""
@@ -156,6 +158,20 @@ class Hub:
 
     def count(self) -> int:
         return len(self._sessions)
+
+    def close_by_key(self, key: str) -> int:
+        """Closes the outbox of every session with this principal key (unpair, E4.3).
+
+        Closing the outbox ends the writer task, which lets the session clean up; returns how
+        many sessions were signalled.
+        """
+        closed = 0
+        for session in list(self._sessions.values()):
+            if session.key == key:
+                session.stop.set()
+                session.outbox.close()
+                closed += 1
+        return closed
 
     # -- subscriptions -------------------------------------------------------------
 

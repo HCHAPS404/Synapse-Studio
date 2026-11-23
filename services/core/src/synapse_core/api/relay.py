@@ -7,6 +7,7 @@ table. Authentication reuses the E3 token resolution through a session maker.
 
 from __future__ import annotations
 
+import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, WebSocket
@@ -16,6 +17,7 @@ from synapse_core.db.session import get_engine
 from synapse_core.relay.hub import Hub
 from synapse_core.relay.session import RelaySession, SessionTimeouts
 from synapse_core.relay.starlette import StarletteTransport
+from synapse_core.services.pairing import record_heartbeat
 from synapse_core.settings import Settings, get_settings
 
 router = APIRouter()
@@ -40,6 +42,18 @@ async def relay(
     sessions = async_sessionmaker(engine, expire_on_commit=False) if engine is not None else None
     timeouts: SessionTimeouts | None = getattr(websocket.app.state, "relay_timeouts", None)
     control_rate: float = getattr(websocket.app.state, "relay_control_rate", 20.0)
+
+    async def heartbeat(principal_key: str) -> None:
+        """Records a daemon heartbeat from its `deployment_status` frame (best effort)."""
+        if sessions is None or not principal_key.startswith("service:"):
+            return
+        try:
+            token_id = uuid.UUID(principal_key.split(":", 1)[1])
+        except ValueError:
+            return
+        async with sessions() as db:
+            await record_heartbeat(db, token_id)
+
     session = RelaySession(
         StarletteTransport(websocket),
         get_hub(websocket),
@@ -47,5 +61,6 @@ async def relay(
         sessions,
         timeouts=timeouts,
         control_rate=control_rate,
+        on_heartbeat=heartbeat,
     )
     await session.run()

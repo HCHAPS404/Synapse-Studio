@@ -190,6 +190,64 @@ class AuditLog(Base):
     detail: Mapped[dict[str, Any]] = mapped_column(Json, nullable=False, default=dict)
 
 
+class PairingCode(Base):
+    """A one-time code that pairs a daemon to a cell (E4.3).
+
+    An engineer issues a code for a cell; it is short-lived (10 minutes) and stored only as a
+    SHA-256 hash, so a database read cannot replay it. A successful claim sets `claimed_at`,
+    so the same code cannot be used twice. `service_token_id` links to the token the claim
+    issued (for audit and unpair).
+    """
+
+    __tablename__ = "pairing_codes"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    code_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    cell_id: Mapped[str] = mapped_column(String(120), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_now
+    )
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    claimed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    daemon_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True)
+
+
+class Daemon(Base):
+    """An Edge Daemon paired to a cell (E4.3).
+
+    `last_heartbeat` is updated from the daemon's `deployment_status` frames; the API treats
+    the daemon as offline when it has not been heard from within the heartbeat timeout. A
+    revoked daemon (`revoked_at`) is unpaired: its service token is revoked and its relay
+    sockets are closed.
+    """
+
+    __tablename__ = "daemons"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    cell_id: Mapped[str] = mapped_column(String(120), nullable=False, index=True)
+    service_token_id: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False)
+    version: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    last_heartbeat: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_now
+    )
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class Device(Base):
+    """A device a daemon manages (E4.3). Real devices only (`simulated` defaults to false)."""
+
+    __tablename__ = "devices"
+
+    daemon_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("daemons.id", ondelete="CASCADE"), primary_key=True
+    )
+    name: Mapped[str] = mapped_column(String(120), primary_key=True)
+    kind: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+    simulated: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+
 class ServiceToken(Base):
     """A long-lived token for a service principal (`daemon` or `twin`), E3.3.
 

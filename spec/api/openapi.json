@@ -579,6 +579,116 @@
         "title": "ComponentStatus",
         "type": "object"
       },
+      "DaemonClaimed": {
+        "description": "The result of a claim: the daemon id and the service token (shown once).",
+        "properties": {
+          "cell_id": {
+            "title": "Cell Id",
+            "type": "string"
+          },
+          "daemon_id": {
+            "format": "uuid",
+            "title": "Daemon Id",
+            "type": "string"
+          },
+          "token": {
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "daemon_id",
+          "cell_id",
+          "token"
+        ],
+        "title": "DaemonClaimed",
+        "type": "object"
+      },
+      "DaemonInfo": {
+        "description": "A daemon's status (`deployment_status` view) and the devices it manages.",
+        "properties": {
+          "cell_id": {
+            "title": "Cell Id",
+            "type": "string"
+          },
+          "devices": {
+            "items": {
+              "$ref": "#/components/schemas/DeviceInfo"
+            },
+            "title": "Devices",
+            "type": "array"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "last_heartbeat": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Heartbeat"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "online": {
+            "title": "Online",
+            "type": "boolean"
+          },
+          "revoked": {
+            "title": "Revoked",
+            "type": "boolean"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "cell_id",
+          "version",
+          "last_heartbeat",
+          "online",
+          "revoked",
+          "devices"
+        ],
+        "title": "DaemonInfo",
+        "type": "object"
+      },
+      "DaemonList": {
+        "description": "A list of daemons.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DaemonInfo"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "DaemonList",
+        "type": "object"
+      },
       "DeviceCatalog": {
         "description": "Response of `GET /v1/devices/catalog`.",
         "properties": {
@@ -602,6 +712,53 @@
           "media"
         ],
         "title": "DeviceCatalog",
+        "type": "object"
+      },
+      "DeviceClaim": {
+        "additionalProperties": false,
+        "description": "One device a claiming daemon declares.",
+        "properties": {
+          "kind": {
+            "default": "",
+            "maxLength": 64,
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "DeviceClaim",
+        "type": "object"
+      },
+      "DeviceInfo": {
+        "description": "A device managed by a daemon.",
+        "properties": {
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "simulated": {
+            "title": "Simulated",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "kind",
+          "simulated"
+        ],
+        "title": "DeviceInfo",
         "type": "object"
       },
       "DeviceList": {
@@ -1212,6 +1369,98 @@
           "version"
         ],
         "title": "NeuronCapability",
+        "type": "object"
+      },
+      "PairingClaim": {
+        "additionalProperties": false,
+        "description": "A daemon claims a code with its name, version and the devices it manages.",
+        "properties": {
+          "code": {
+            "maxLength": 32,
+            "minLength": 1,
+            "title": "Code",
+            "type": "string"
+          },
+          "daemon_name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Daemon Name",
+            "type": "string"
+          },
+          "devices": {
+            "items": {
+              "$ref": "#/components/schemas/DeviceClaim"
+            },
+            "maxItems": 200,
+            "title": "Devices",
+            "type": "array"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          }
+        },
+        "required": [
+          "code",
+          "daemon_name"
+        ],
+        "title": "PairingClaim",
+        "type": "object"
+      },
+      "PairingCreate": {
+        "additionalProperties": false,
+        "description": "Engineer asks for a pairing code bound to a cell.",
+        "properties": {
+          "cell_id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Cell Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "cell_id"
+        ],
+        "title": "PairingCreate",
+        "type": "object"
+      },
+      "PairingIssued": {
+        "description": "The issued pairing code; the plaintext is shown once.",
+        "properties": {
+          "cell_id": {
+            "title": "Cell Id",
+            "type": "string"
+          },
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "cell_id",
+          "code",
+          "expires_at"
+        ],
+        "title": "PairingIssued",
         "type": "object"
       },
       "ProjectCreate": {
@@ -2088,6 +2337,94 @@
         ]
       }
     },
+    "/v1/daemons": {
+      "get": {
+        "description": "Daemons and their deployment status (online/offline by the heartbeat timeout).",
+        "operationId": "list_daemons_v1_daemons_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "cell_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 120,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cell Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DaemonList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Daemons",
+        "tags": [
+          "pairing"
+        ]
+      }
+    },
+    "/v1/daemons/{daemon_id}": {
+      "delete": {
+        "description": "Unpairs a daemon: revokes its token and closes its relay sockets (engineer only).",
+        "operationId": "unpair_daemon_v1_daemons__daemon_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "daemon_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Daemon Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Unpair Daemon",
+        "tags": [
+          "pairing"
+        ]
+      }
+    },
     "/v1/devices": {
       "get": {
         "description": "Device summaries only. Needs `device.read` (a guest is `NE1106`).",
@@ -2194,6 +2531,90 @@
         "summary": "Create Guest",
         "tags": [
           "guest"
+        ]
+      }
+    },
+    "/v1/pairing": {
+      "post": {
+        "description": "Issues a one-time pairing code for a cell (engineer only).",
+        "operationId": "issue_pairing_v1_pairing_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PairingCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PairingIssued"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Issue Pairing",
+        "tags": [
+          "pairing"
+        ]
+      }
+    },
+    "/v1/pairing/claim": {
+      "post": {
+        "description": "Claims a code and returns a daemon service token (public; the daemon has no token yet).",
+        "operationId": "claim_pairing_v1_pairing_claim_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PairingClaim"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DaemonClaimed"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Claim Pairing",
+        "tags": [
+          "pairing"
         ]
       }
     },

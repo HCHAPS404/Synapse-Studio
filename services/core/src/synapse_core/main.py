@@ -18,6 +18,7 @@ from synapse_core.api.auth import router as auth_router
 from synapse_core.api.builds import router as builds_router
 from synapse_core.api.devices import router as devices_router
 from synapse_core.api.guests import router as guests_router
+from synapse_core.api.pairing import router as pairing_router
 from synapse_core.api.projects import router as projects_router
 from synapse_core.api.relay import router as relay_router
 from synapse_core.api.service_tokens import router as service_tokens_router
@@ -168,6 +169,7 @@ def create_app() -> FastAPI:
     app.include_router(guests_router)
     app.include_router(service_tokens_router)
     app.include_router(audit_router)
+    app.include_router(pairing_router)
     app.include_router(relay_router)
 
     @app.get("/health", response_model=HealthResponse)
