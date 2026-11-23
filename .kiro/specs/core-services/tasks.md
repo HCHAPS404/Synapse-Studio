@@ -46,7 +46,7 @@ tested against simulated peers.
 | E7.2 | Neon `dev` branch for CI and local use; per-environment settings; `docs/deploy.md` | E-R18 | no (needs Hell for the branch if MCP is revoked) | done |
 | E7.3 | `tools/live-smoke.py` and scheduled GitHub Action; production check of guest, build and relay | E-R18, E-R3 | no | done |
 | E7.4 | Judge path: public URL configuration in the web app, CORS, guest flow end to end (depends on G6) | E-R3, E-R18 | no | done |
-| E7.5 | Monitoring and runbook until 2027-01-29: uptime monitor, alerts, `docs/runbook.md`, shutdown plan | E-R18 | no | open |
+| E7.5 | Monitoring and runbook until 2027-01-29: uptime monitor, alerts, `docs/runbook.md`, shutdown plan | E-R18 | no | done |
 | E7-H | Spending caps and alerts on Render and Neon; external uptime monitor account | E-R18 | human action (Hell) | pending |
 Ordering note. E2.1 to E2.3 unblock everything else; E2.2 touches `neuron-cli` (Rust) and
 runs before the runner. E2.10 comes before the first production deploy of E2.5, so Render
@@ -1032,3 +1032,27 @@ dependent on G6.
 Verified: `pnpm install`, `pnpm lint`, `pnpm typecheck` and `pnpm build` all green in `apps/web`
 (route `/` stays dynamic; the API calls are request-time and never fail the build). No API code
 or error code changed.
+
+## Results of E7.5
+Monitoring and a runbook for the judging window (until 2027-01-29). `docs/runbook.md` covers:
+the URLs/dashboards; what to watch (`/health` status and database latency, the scheduled smoke,
+Neon usage, expected `NE1103`/`NE1104`); where the logs are and that secrets are redacted; how to
+roll back a Render deploy (Events → rollback, with the Alembic downgrade step only when the newer
+deploy had migrated forward, safe because E7.1 proves every migration reversible); how to recover
+the database (read a past state via a Neon branch, restore `production` to a timestamp, or rebuild
+the schema with `alembic upgrade head`), noting the audit log stays append-only; a quick incident
+triage table; and the shutdown plan after judging (disable the scheduled smoke and the external
+monitor, downgrade/suspend Render, delete extra Neon branches, optionally remove Vercel, revoke
+the Neon MCP key and rotate secrets).
+Uptime monitor: `infra/monitoring/uptime-monitor.json` is a provider-neutral config stub
+(monitor `GET /health` every 60 s, expect HTTP 200 **and** the body to contain `"status": "ok"`
+so a `degraded` database also alerts, alert after 3 consecutive failures, no secret in the file),
+with `infra/monitoring/README.md` explaining the two monitoring layers (the shallow external probe
+here plus the deep functional smoke of E7.3) and the exact human steps. Creating the external
+account, the alert channels and the spending caps is E7-H (a human step), cross-referenced from the
+runbook and the monitoring README.
+Choices: the uptime check treats `degraded` as a failure (keyword on `"status": "ok"`) so a DB
+outage pages someone even though the HTTP status is 200; the config is a documented stub, not
+applied automatically, because the provider and account are the human's. Verified: the JSON stub
+parses. No code or error-code change. This completes the E7 deployment row for the software-and-
+docs scope (E7.1–E7.5); E7-H (spending caps, the external uptime account) stays a human action.

@@ -1296,3 +1296,17 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
 - **Lessons:** following the local `health.ts` temporary-type pattern for `guest.ts` keeps the
   self-contained `apps/web` build untouched (no workspace dependency on `packages/sdk-ts`), while a
   comment marks the generated `GuestSessionOut` as the eventual source of truth.
+## 2026-11-23 · Task E7.5 (monitoring and runbook until 2027-01-29)
+- **Kiro features:** spec-driven task from `.kiro/specs/core-services/` (design `E7 Deployment`),
+  requirement E-R18.
+- **Produced:** `docs/runbook.md` (what to watch, logs, Render deploy rollback with the Alembic
+  downgrade step, database recovery via Neon branch/restore/rebuild, incident triage table,
+  shutdown plan after judging); `infra/monitoring/uptime-monitor.json` (provider-neutral stub for
+  a `/health` monitor) and `infra/monitoring/README.md`.
+- **Results:** the uptime check treats `degraded` as a failure so a DB outage alerts; creating the
+  external account + alert channels + spending caps is E7-H (human). JSON stub parses; no code
+  change. Completes the E7 software/docs scope (E7.1–E7.5).
+- **Lessons:** two layers — a shallow external `/health` probe for paging and the deeper in-repo
+  functional smoke (E7.3) — keep alerting honest without an external account for the functional
+  part; documenting the rollback's downgrade step is only safe because E7.1 proves migrations
+  reversible in CI.

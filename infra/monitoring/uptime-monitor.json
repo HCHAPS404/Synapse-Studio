@@ -1,0 +1,44 @@
+{
+  "_comment": [
+    "Provider-neutral uptime-monitor configuration STUB for the SYNAPSE Core API (E7.5).",
+    "This file documents the intended monitor; it is not applied automatically. Creating the",
+    "external account and the alert channels is a human step (E7-H). Map these fields to your",
+    "provider (UptimeRobot, Better Stack / Better Uptime, Checkly, Pingdom, Grafana Cloud, ...).",
+    "No secret belongs in this file."
+  ],
+  "monitor": {
+    "name": "synapse-core health",
+    "type": "https-keyword",
+    "url": "https://synapse-core-jqqk.onrender.com/health",
+    "method": "GET",
+    "interval_seconds": 60,
+    "request_timeout_seconds": 20,
+    "expected_status_code": 200,
+    "keyword": "\"status\": \"ok\"",
+    "keyword_rule": "must_contain",
+    "regions": ["us-east", "us-west"],
+    "follow_redirects": true,
+    "verify_tls": true
+  },
+  "alerting": {
+    "trigger_after_consecutive_failures": 3,
+    "recover_after_consecutive_successes": 2,
+    "_comment_channels": "Create these in the provider; put no real addresses/tokens here.",
+    "channels": [
+      { "type": "email", "target": "<ops-email>" },
+      { "type": "webhook", "target": "<optional-webhook-url>" }
+    ]
+  },
+  "notes": {
+    "degraded_state": [
+      "The API also answers 200 with status 'degraded' when the database is unreachable.",
+      "The keyword '\"status\": \"ok\"' deliberately treats 'degraded' as a failure so a DB",
+      "outage alerts, while a transient non-200 is caught by the status-code check."
+    ],
+    "deeper_check": [
+      "This monitor is a shallow liveness probe. The functional check (guest session, a guest",
+      "build and the relay) is the scheduled GitHub Action tools/live-smoke.py (E7.3)."
+    ],
+    "shutdown": "Pause or delete this monitor after judging (2027-01-29). See docs/runbook.md."
+  }
+}
