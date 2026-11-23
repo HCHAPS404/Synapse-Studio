@@ -19,9 +19,11 @@ from synapse_core.api.projects import router as projects_router
 from synapse_core.compile.sandbox import NetworkSandbox, detect_network_sandbox
 from synapse_core.db.session import dispose_engines, get_engine
 from synapse_core.errors import install_error_handlers
+from synapse_core.limits import RateLimiter
 from synapse_core.logging_config import configure_logging
 from synapse_core.middleware import HEADER as REQUEST_ID_HEADER
 from synapse_core.middleware import RequestIdMiddleware
+from synapse_core.ratelimit import RateLimitMiddleware
 from synapse_core.services.builds import interrupt_unfinished
 from synapse_core.settings import Settings, get_settings
 
@@ -117,6 +119,11 @@ def create_app() -> FastAPI:
     configure_logging(settings.log_level, json_output=settings.log_json)
     app = FastAPI(title="SYNAPSE Core API", version=__version__, lifespan=_lifespan)
     install_error_handlers(app)
+    limiter = RateLimiter(settings.limiter.scopes())
+    app.state.rate_limiter = limiter
+    # Middleware runs in reverse add order: request-id outermost, then the limiter, so a
+    # refused request still carries a request id and is logged, then CORS headers are added.
+    app.add_middleware(RateLimitMiddleware, limiter=limiter)
     app.add_middleware(RequestIdMiddleware)
     app.add_middleware(
         CORSMiddleware,

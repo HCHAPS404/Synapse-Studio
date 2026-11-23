@@ -11,7 +11,7 @@ tested against simulated peers.
 | E2.4 | Projects, immutable versions and files (tables, routes, content hash, `row_version`, `NE1107`) | E-R1 | no | done |
 | E2.5 | Builds API on the runner: queue and semaphore, stored diagnostics and artifacts with SHA-256, `GET /v1/capabilities` | E-R1, E-R2 | no | done |
 | E2.6 | Device catalog from `devices/` manifests (read-only routes) | E-R1 | no | done |
-| E2.7 | Token bucket limiter, per-client buckets, `Retry-After`, `NE1103`; property test of the rate bound | E-R4 | no | open |
+| E2.7 | Token bucket limiter, per-client buckets, `Retry-After`, `NE1103`; property test of the rate bound | E-R4 | no | done |
 | E2.8 | Guest mode: sandboxes, guest token, quotas, expiry cleanup, `NE1104`; a guest builds a corpus example | E-R3 | no | open |
 | E2.9 | OpenAPI export, generated `packages/sdk-ts`, CI drift check | E-R5 | no | open |
 | E2.10 | Docker image (Rust stage plus Python), `render.yaml` to `runtime: docker`, local `docker compose` for the API and Postgres | E-R2, E-R18 | no | open |
@@ -214,3 +214,26 @@ Tests: 20 in `tests/test_devices.py`, including a parametrized case per file und
 every shipped manifest is asserted to load, the catalog count and route tests, a
 `devices_dir` override, and rejection of a missing `[safety]`, a name/stem mismatch and an
 unknown field. These need no database and run everywhere.
+
+## Results of E2.7
+Built `services/core/src/synapse_core/limits.py` (pure token-bucket core, no FastAPI import):
+`BucketConfig` (capacity = burst, rate = refill/s), `_Bucket`, `Decision` (with a
+`retry_after_header` rounded up to at least 1 s), `RateLimiter` keyed by `(scope, client)`
+with an injectable clock and a lock, `LimiterSettings` (three scopes: `api`, `compile`,
+`guest`), `EXEMPT_PATHS`, `client_key(principal, ip)` and `scope_for(method, path)`.
+`ratelimit.py` holds `RateLimitMiddleware` (ASGI middleware, the design allows middleware or
+a dependency; middleware keeps routes clean); it reads the limiter from
+`app.state.rate_limiter` on each request (one instance per process; tests swap it), refuses
+an empty bucket with `NE1103` and a `Retry-After` header, and never reaches the handler.
+`settings.py` gains six scalar `ratelimit_*` fields and a `limiter` property. `main.py`
+builds the limiter and adds the middleware inside the request-id middleware (so a refusal
+still carries a request id) and outside CORS.
+Choices: `/health` and the schema paths (`/openapi.json`, `/docs`, `/redoc`) are exempt;
+`POST /v1/guest` draws from the `guest` scope and `POST .../builds` from `compile`, so a
+flood of cheap reads cannot drain either; everything else is `api`. Keying is by principal
+when E3 sets `request.state.principal_id`, else by client IP. The in-memory build queue of
+E2.5 still raises its own `NE1103` when full; that is orthogonal to the per-client rate.
+Open: the per-session WebSocket control-message rate of E-R4 lands with the relay (E4.2);
+real principals arrive with E3. Tests: 9 in `tests/test_ratelimit.py`, including a
+Hypothesis property that the admitted count over any window never exceeds
+`capacity + rate * elapsed` (full suite: 110 pass, 21 skip; ruff clean).

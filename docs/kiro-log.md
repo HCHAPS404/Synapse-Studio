@@ -880,3 +880,16 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   the Rust side owns the authoritative numeric parsing; duplicating it would risk drift.
   `devices/` is outside the Render `rootDir`, so a package-relative default locates it and
   the E2.10 image must copy it in.
+## 2026-11-23 · Task E2.7 (token bucket rate limiter)
+- **Kiro features:** spec-driven task from `.kiro/specs/core-services/`, workspace rules.
+- **Produced:** `synapse_core/limits.py` (token bucket, scopes, `scope_for`, `client_key`),
+  `ratelimit.py` (`RateLimitMiddleware`), six `ratelimit_*` settings and a `limiter`
+  property, wiring in `main.py`, `tests/test_ratelimit.py`.
+- **Results:** 9 new tests pass, including a Hypothesis property that the admitted count
+  over any window never exceeds `capacity + rate * elapsed`; full suite 110 pass, 21 skip;
+  ruff clean. `/health` and schema paths exempt; `NE1103` with `Retry-After` on refusal.
+- **Lessons:** the limiter reads `app.state.rate_limiter` on each request instead of a
+  captured reference, so tests inject a small-capacity limiter without touching the
+  startup path; `create_app()` builds its limiter from `get_settings()`, which the
+  dependency override does not reach, hence the state hook. Keeping `limits.py` free of
+  FastAPI makes the pure token-bucket property test trivial to drive with a fake clock.

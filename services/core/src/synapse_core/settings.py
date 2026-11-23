@@ -5,6 +5,8 @@ from functools import lru_cache
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from synapse_core.limits import LimiterSettings
+
 
 class Settings(BaseSettings):
     """Core service settings. Values come from env vars prefixed with SYNAPSE_."""
@@ -38,6 +40,26 @@ class Settings(BaseSettings):
     )
     log_level: str = Field(default="INFO", description="DEBUG | INFO | WARNING | ERROR")
     log_json: bool = Field(default=True, description="Structured JSON logs")
+
+    # Token-bucket rate limits (NE1103). capacity = burst, rate = refill per second.
+    ratelimit_api_capacity: float = Field(default=120.0, gt=0)
+    ratelimit_api_rate: float = Field(default=60.0, gt=0)
+    ratelimit_compile_capacity: float = Field(default=20.0, gt=0)
+    ratelimit_compile_rate: float = Field(default=10.0, gt=0)
+    ratelimit_guest_capacity: float = Field(default=5.0, gt=0)
+    ratelimit_guest_rate: float = Field(default=1.0 / 60.0, gt=0)
+
+    @property
+    def limiter(self) -> "LimiterSettings":
+        """The rate-limiter configuration assembled from the scalar settings."""
+        return LimiterSettings(
+            api_capacity=self.ratelimit_api_capacity,
+            api_rate=self.ratelimit_api_rate,
+            compile_capacity=self.ratelimit_compile_capacity,
+            compile_rate=self.ratelimit_compile_rate,
+            guest_capacity=self.ratelimit_guest_capacity,
+            guest_rate=self.ratelimit_guest_rate,
+        )
 
 
 @lru_cache
