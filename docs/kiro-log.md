@@ -1256,3 +1256,17 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
 - **Lessons:** Render's `preDeployCommand` runs after the build with the service env vars and
   blocks the deploy on failure, so a schema migration lands before the new code starts; proving the
   downgrade path in CI keeps a Render rollback safe (an old image can downgrade to its schema).
+## 2026-11-23 · Task E7.2 (Neon dev branch, per-environment settings, docs/deploy.md)
+- **Kiro features:** spec-driven task from `.kiro/specs/core-services/` (design `E7 Deployment`),
+  requirement E-R18.
+- **Produced:** `docs/deploy.md` (environments table, secrets list, migrations on deploy, pooled
+  vs direct URL, CI-uses-a-container note, and the exact `neon` CLI commands for the dev branch
+  marked as Hell's step); `settings.Settings.is_deployed` and `token_secret` now require a real
+  `SYNAPSE_JWT_SECRET` in any deployed environment (`production` or `judging`), not production
+  only; `tests/test_settings.py` (4 tests).
+- **Results:** a `SYNAPSE_DATABASE_URL` pointing at a Neon dev branch already "just works" (the
+  service reads the whole URL), so the wiring is documentation + the deployed-environment guard;
+  settings/auth/guest tests pass (19), ruff clean and formatted.
+- **Lessons:** centralising "is this deployed" in `is_deployed` keeps the secret requirement in one
+  place, so a `judging` deployment inherits it without a second environment-name check; the Neon
+  branch itself is a human/CLI step because the MCP key may be revoked after setup.

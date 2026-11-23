@@ -94,20 +94,31 @@ class Settings(BaseSettings):
     ratelimit_guest_capacity: float = Field(default=5.0, gt=0)
     ratelimit_guest_rate: float = Field(default=1.0 / 60.0, gt=0)
 
+    @property
+    def is_deployed(self) -> bool:
+        """True for an environment that serves real traffic (`production` or `judging`).
+
+        A deployed environment must supply real secrets; `development` (local, CI) may derive a
+        per-process key. Keeping this in one place means a new deployed environment inherits the
+        secret requirement without each check repeating the environment name.
+        """
+        return self.environment in ("production", "judging")
+
     def token_secret(self) -> bytes:
         """The HMAC key for guest tokens.
 
-        In `production` a `SYNAPSE_JWT_SECRET` of at least 32 bytes is required; elsewhere a
-        stable per-process development key is derived so local runs and tests work without a
-        secret. A development token is never valid in another process, which is the point.
+        In a deployed environment (`production`/`judging`) a `SYNAPSE_JWT_SECRET` of at least 32
+        bytes is required; elsewhere a stable per-process development key is derived so local runs
+        and tests work without a secret. A development token is never valid in another process,
+        which is the point.
         """
         if self.jwt_secret is not None:
             key = self.jwt_secret.get_secret_value().encode("utf-8")
-            if self.environment == "production" and len(key) < 32:
-                raise ValueError("SYNAPSE_JWT_SECRET must be at least 32 bytes in production")
+            if self.is_deployed and len(key) < 32:
+                raise ValueError("SYNAPSE_JWT_SECRET must be at least 32 bytes when deployed")
             return key
-        if self.environment == "production":
-            raise ValueError("SYNAPSE_JWT_SECRET is required in production")
+        if self.is_deployed:
+            raise ValueError("SYNAPSE_JWT_SECRET is required in a deployed environment")
         return _DEV_TOKEN_SECRET
 
     def guest_ip_salt_bytes(self) -> bytes:

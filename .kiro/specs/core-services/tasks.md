@@ -43,7 +43,7 @@ tested against simulated peers.
 | E6.3 | Calibration pipeline and profile TOML; `neuron cell check --profile`; a synthetic profile changes an `NE0701` result; `NE1112` | E-R17 | no (generic and synthetic numbers) | done |
 | E6-HW | Measure the lab devices (I1), commit measured profiles, mark manifests `measured`, rerun the D3 budgets | E-R17 | **yes** | pending (I1) |
 | E7.1 | Alembic on deploy (`preDeployCommand`), migration round-trip CI job, secrets list in `render.yaml` | E-R18 | no | done |
-| E7.2 | Neon `dev` branch for CI and local use; per-environment settings; `docs/deploy.md` | E-R18 | no (needs Hell for the branch if MCP is revoked) | open |
+| E7.2 | Neon `dev` branch for CI and local use; per-environment settings; `docs/deploy.md` | E-R18 | no (needs Hell for the branch if MCP is revoked) | done |
 | E7.3 | `tools/live-smoke.py` and scheduled GitHub Action; production check of guest, build and relay | E-R18, E-R3 | no | open |
 | E7.4 | Judge path: public URL configuration in the web app, CORS, guest flow end to end (depends on G6) | E-R3, E-R18 | no | open |
 | E7.5 | Monitoring and runbook until 2027-01-29: uptime monitor, alerts, `docs/runbook.md`, shutdown plan | E-R18 | no | open |
@@ -949,3 +949,35 @@ succeeds on both Postgres and SQLite. Verified: the upgrade/downgrade/upgrade ro
 locally on a throwaway SQLite file (via alembic's command API); the Postgres run is in CI.
 Open: nothing new in E7.1; the actual production secret values are set by Hell in the Render
 dashboard (human step, see E7-H). No source or test code changed; no new error code.
+
+## Results of E7.2
+`docs/deploy.md` documents the three environments (production on Render from `main` against the
+Neon `production` branch; CI on a throwaway Postgres container; local against a Neon `dev` branch,
+local Postgres or none), the secrets each needs, migrations on deploy, and the pooled-vs-direct
+Neon URL question for migrations (either works here because Alembic opens a single `NullPool`
+connection and runs DDL in one transaction; use the direct no-`pooler` host only if a future
+migration needs a feature the pooler rejects). It states plainly that CI never connects to Neon
+(the `core` and `migrations` jobs use a `postgres:16` service container), so CI needs no Neon
+secret and a suspended compute cannot break the build.
+Wiring: because the service reads the whole connection from `SYNAPSE_DATABASE_URL`, pointing it at
+a dev branch needs no code or config change — it just works; the doc shows the `.env.local` line.
+Per-environment settings: `Settings.is_deployed` (true for `production` and `judging`) now gates
+the `SYNAPSE_JWT_SECRET` requirement in `token_secret`, so a deployed `judging` environment also
+refuses to start without a real secret (previously only `production` did); `development` (local,
+CI) still derives a stable per-process key, so nothing local changed. `tests/test_settings.py`
+adds 4 tests (development derives a 32-byte key with no secret; both deployed environments require
+a secret, reject a short one, and accept a 32-byte one).
+Choices: creating the Neon `dev` branch is left to Hell as a CLI step (the exact `neon branches
+create`/`connection-string`/`reset` commands with the project id are in `docs/deploy.md`), because
+the Neon MCP key may be revoked after setup; the dev branch is for local and manual checks only,
+not CI. Verified: settings/auth/guest suites pass (19), ruff clean and formatted. No new error
+code.
+
+### Human / CLI step (Hell) for E7.2
+Create the Neon `dev` branch once and copy its pooled connection string into
+`services/core/.env.local` as `SYNAPSE_DATABASE_URL`:
+```
+neon branches create --project-id muddy-glade-31845276 --name dev --parent production
+neon connection-string dev --project-id muddy-glade-31845276 --pooled
+```
+(Reset later with `neon branches reset dev --project-id muddy-glade-31845276 --parent`.)
