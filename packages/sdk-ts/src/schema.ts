@@ -165,6 +165,11 @@ export interface IoFamily {
 
 export type Kind = "plc" | "mcu" | "fpga" | "robot" | "host";
 
+export interface LoginRequest {
+  "email": string;
+  "password": string;
+}
+
 export interface MediumManifest {
   "name": string;
   "family": Family;
@@ -228,6 +233,13 @@ export interface SandboxStatus {
   "network": "isolated" | "unverified";
 }
 
+export interface TokenOut {
+  "access_token": string;
+  "token_type"?: string;
+  "role": string;
+  "expires_at": string;
+}
+
 export type Trust = "generic" | "measured" | "confirmed";
 
 export interface ValidationError {
@@ -275,6 +287,7 @@ export interface VersionSummary {
 
 export interface ApiPaths {
   "/health": "GET";
+  "/v1/auth/login": "POST";
   "/v1/builds/{build_id}": "GET";
   "/v1/builds/{build_id}/artifacts/{name}": "GET";
   "/v1/capabilities": "GET";

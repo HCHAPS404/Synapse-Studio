@@ -6,6 +6,7 @@ from typing import Any
 
 from sqlalchemy import (
     JSON,
+    Boolean,
     DateTime,
     ForeignKey,
     Integer,
@@ -142,6 +143,26 @@ class GuestSandbox(Base):
     project_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     builds_today: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     build_day: Mapped[str] = mapped_column(String(10), nullable=False, default="")
+
+
+class User(Base):
+    """A registered user with an argon2 password hash and a role (E3.1).
+
+    There is no self-registration: the first engineer is created by a CLI command and later
+    users by an engineer. `role` is one of `viewer`, `operator`, `engineer`. The password
+    hash is an Argon2id PHC string; the plain password is never stored or logged.
+    """
+
+    __tablename__ = "users"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    email: Mapped[str] = mapped_column(String(320), nullable=False, unique=True)
+    password_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    role: Mapped[str] = mapped_column(String(16), nullable=False)
+    disabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_now
+    )
 
 
 class VersionFile(Base):

@@ -923,3 +923,20 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
   generator keeps CI Node-free and offline (the user's constraint) while still satisfying
   "generated, CI fails on drift"; pinning `info.version` stops the document churning with
   the package version.
+
+## 2026-11-23 · Task E3.1 (Users, argon2 hashes, login, JWT access tokens, bootstrap CLI)
+- **Kiro features:** spec-driven task from `.kiro/specs/core-services/`, workspace rules
+  (python-style, conventions), E2 "Results of" paragraphs for layout and the token secret.
+- **Produced:** `auth/passwords.py` (argon2id), JWT helpers in `auth/tokens.py`,
+  `services/users.py`, `schemas/auth.py`, `api/auth.py` (`POST /v1/auth/login`), `cli.py`
+  (console script `synapse-core create-engineer`), model `User`, migration `0005_users`,
+  settings for the token TTL and argon2 cost, `argon2-cffi` and `pyjwt` deps, regenerated
+  `spec/api/openapi.json` and `packages/sdk-ts/src/schema.ts`.
+- **Results:** 16 new tests; full suite 151 pass, 4 skipped locally; ruff clean; OpenAPI
+  drift check green. Login is opaque `NE1105` with a dummy argon2 verify for absent users;
+  JWT is HS256 on `SYNAPSE_JWT_SECRET`, 15-minute TTL; the bootstrap command only ever
+  creates the first engineer. No secret or token reaches the logs (asserted).
+- **Lessons:** calling a command's `asyncio.run` from inside pytest-asyncio deadlocks, so
+  the DB bootstrap test drives the async body on the running loop instead of `cli.main`.
+  Reusing E2.8's `token_secret()` for JWTs keeps one secret; argon2 cost in settings lets
+  tests pick the cheapest parameters while production keeps real cost.

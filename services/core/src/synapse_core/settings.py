@@ -46,6 +46,12 @@ class Settings(BaseSettings):
         default=None,
         description="HMAC secret for guest tokens (E2.8) and JWTs (E3); required in production",
     )
+    access_token_ttl_s: int = Field(
+        default=15 * 60, ge=60, le=3600, description="User JWT access-token lifetime"
+    )
+    argon2_time_cost: int = Field(default=3, ge=1, description="Argon2id iterations")
+    argon2_memory_cost_kib: int = Field(default=65536, ge=8, description="Argon2id memory in KiB")
+    argon2_parallelism: int = Field(default=4, ge=1, description="Argon2id lanes")
     guest_ip_salt: SecretStr | None = Field(
         default=None, description="Salt for the one-way hash of a guest's IP"
     )

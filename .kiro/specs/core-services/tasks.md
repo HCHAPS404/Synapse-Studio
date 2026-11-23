@@ -15,7 +15,7 @@ tested against simulated peers.
 | E2.8 | Guest mode: sandboxes, guest token, quotas, expiry cleanup, `NE1104`; a guest builds a corpus example | E-R3 | no | done |
 | E2.9 | OpenAPI export, generated `packages/sdk-ts`, CI drift check | E-R5 | no | done |
 | E2.10 | Docker image (Rust stage plus Python), `render.yaml` to `runtime: docker`, local `docker compose` for the API and Postgres | E-R2, E-R18 | no | open |
-| E3.1 | Users, argon2 hashes, login, JWT access tokens, first-engineer CLI, `NE1105` | E-R6 | no | open |
+| E3.1 | Users, argon2 hashes, login, JWT access tokens, first-engineer CLI, `NE1105` | E-R6 | no | done |
 | E3.2 | Permission matrix, route dependencies, role checks, `NE1106`; monotonicity and guest-isolation properties | E-R7, E-R3 | no | open |
 | E3.3 | Service tokens (hashed, revocable) and their issue route | E-R6, E-R10 | no | open |
 | E3.4 | Audit log table with `INSERT`/`SELECT` grants, audit writes on every sensitive action, read route for engineers | E-R8 | no | open |
@@ -296,3 +296,37 @@ response typing is left to a later pass. Verified: `--check` passes on the commi
 and fails (exit 1) on a deliberate edit; `tsc --noEmit` compiles `schema.ts` and `index.ts`
 cleanly under strict mode. No new tests (the drift check is the test); core suite unchanged
 (114 pass, 26 skip).
+
+## Results of E3.1
+Authentication, kept own and minimal as decision 2 states. New: `auth/passwords.py`
+(argon2id via `argon2-cffi`; cost from settings), JWT helpers added to `auth/tokens.py`
+(`mint_access_token`/`verify_access_token`, HS256 on `SYNAPSE_JWT_SECRET`, claims `sub`,
+`role`, `exp`, `iat`, `jti`, required on decode), `services/users.py` (`create_user`,
+`authenticate`, `count_users`; `USER_ROLES = {viewer, operator, engineer}`),
+`schemas/auth.py`, `api/auth.py` (`POST /v1/auth/login`), `cli.py` with the console script
+`synapse-core create-engineer --email ...` (password from stdin, never an argument),
+model `User` (unique email, argon2 hash, role, `disabled`) and migration `0005_users`
+(continues the E2 numbering). Deps added to `services/core`: `argon2-cffi`, `pyjwt`.
+Choices: login is opaque (`NE1105` with one message for unknown user, wrong password and
+disabled account) and always runs a dummy argon2 verify when the user is absent, so timing
+does not leak whether an email exists; the access-token TTL is 15 minutes
+(`access_token_ttl_s`, 60..3600); emails are normalised to lower case and compared
+case-insensitively; the bootstrap command refuses once any user exists, so it only ever
+creates the first engineer and is not a back door around the engineer-only creation route
+(E3.2); `EmailStr` is not used (would add `email-validator`), a length-bounded `str` is
+enough. Secrets and tokens are never logged (a test asserts the token and password are
+absent from DEBUG logs). The guest token of E2.8 is unchanged and still signed with the
+same `token_secret()`; E3 does not fold it into a JWT (the compact HMAC form stays, both
+share the secret, which is what the E2.8 note promised).
+Open: route-level role enforcement and the permission matrix are E3.2 (login and the
+bootstrap CLI are the only auth surfaces so far; project/build routes stay open until
+E3.2 binds them); no refresh token by design (the client logs in again); service tokens
+are E3.3; the audit entry for a login is written in E3.4.
+Tests: 16 in `tests/test_auth.py` (argon2 round-trip and garbage-hash rejection; JWT
+mint/verify, wrong key, tamper, expiry, missing-claim rejection; login success, email
+case-insensitivity, wrong password and unknown user both `NE1105`, disabled user `NE1105`,
+duplicate email refused, token/password absent from logs; CLI password-from-pipe and
+subcommand-required; a DB bootstrap that creates the first engineer then refuses a second).
+Full suite 151 pass, 4 skipped locally (the Postgres-only `test_migration_round_trip`
+is deselected locally and runs in CI); OpenAPI/SDK regenerated for the login route and the
+drift check passes; ruff clean. No new error code (`NE1105` already documented in E2.1).

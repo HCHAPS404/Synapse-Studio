@@ -20,7 +20,10 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from hashlib import sha256
 
+import jwt
+
 _ROLE_GUEST = "guest"
+_JWT_ALG = "HS256"
 
 
 class TokenError(Exception):
@@ -96,3 +99,72 @@ def verify_guest_token(token: str, *, secret: bytes, now: datetime | None = None
     if moment >= expires:
         raise TokenError("token expired")
     return GuestClaims(sandbox_id=sandbox_id, issued_at=issued, expires_at=expires, role=role)
+
+
+# ---- user access tokens (JWT, E3.1) -------------------------------------------------
+
+
+@dataclass(frozen=True)
+class AccessClaims:
+    """The verified contents of a user JWT access token."""
+
+    subject: uuid.UUID
+    role: str
+    jti: uuid.UUID
+    issued_at: datetime
+    expires_at: datetime
+
+
+def mint_access_token(
+    subject: uuid.UUID,
+    role: str,
+    *,
+    secret: bytes,
+    ttl: timedelta,
+    now: datetime | None = None,
+) -> tuple[str, AccessClaims]:
+    """Signs a short-lived HS256 JWT with `sub`, `role`, `exp`, `iat`, `jti`.
+
+    Returns the encoded token and the claims it carries. The token is never logged.
+    """
+    issued = now or datetime.now(UTC)
+    expires = issued + ttl
+    jti = uuid.uuid4()
+    payload = {
+        "sub": str(subject),
+        "role": role,
+        "iat": int(issued.timestamp()),
+        "exp": int(expires.timestamp()),
+        "jti": str(jti),
+    }
+    token = jwt.encode(payload, secret, algorithm=_JWT_ALG)
+    claims = AccessClaims(subject=subject, role=role, jti=jti, issued_at=issued, expires_at=expires)
+    return token, claims
+
+
+def verify_access_token(token: str, *, secret: bytes) -> AccessClaims:
+    """Decodes and verifies a user JWT, or raises `TokenError`.
+
+    `pyjwt` checks the HS256 signature and the `exp` claim; a bad signature, an expired
+    token or malformed claims all raise `TokenError`. `jti` and `iat` are required so a
+    token minted without them is rejected.
+    """
+    try:
+        payload = jwt.decode(
+            token,
+            secret,
+            algorithms=[_JWT_ALG],
+            options={"require": ["sub", "role", "exp", "iat", "jti"]},
+        )
+    except jwt.PyJWTError as exc:
+        raise TokenError("invalid access token") from exc
+    try:
+        return AccessClaims(
+            subject=uuid.UUID(str(payload["sub"])),
+            role=str(payload["role"]),
+            jti=uuid.UUID(str(payload["jti"])),
+            issued_at=datetime.fromtimestamp(int(payload["iat"]), UTC),
+            expires_at=datetime.fromtimestamp(int(payload["exp"]), UTC),
+        )
+    except (ValueError, KeyError, TypeError) as exc:
+        raise TokenError("malformed access token") from exc

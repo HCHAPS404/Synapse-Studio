@@ -959,6 +959,29 @@
         "title": "Kind",
         "type": "string"
       },
+      "LoginRequest": {
+        "description": "Credentials for `POST /v1/auth/login`.",
+        "properties": {
+          "email": {
+            "maxLength": 320,
+            "minLength": 3,
+            "title": "Email",
+            "type": "string"
+          },
+          "password": {
+            "maxLength": 1024,
+            "minLength": 1,
+            "title": "Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ],
+        "title": "LoginRequest",
+        "type": "object"
+      },
       "MediumManifest": {
         "additionalProperties": false,
         "description": "A validated medium manifest (`devices/media/*.toml`).",
@@ -1267,6 +1290,36 @@
         "title": "SandboxStatus",
         "type": "object"
       },
+      "TokenOut": {
+        "description": "A short-lived JWT access token. Send it as `Authorization: Bearer <token>`.",
+        "properties": {
+          "access_token": {
+            "title": "Access Token",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          },
+          "token_type": {
+            "default": "bearer",
+            "title": "Token Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "access_token",
+          "role",
+          "expires_at"
+        ],
+        "title": "TokenOut",
+        "type": "object"
+      },
       "Trust": {
         "description": "How far a manifest's numbers can be believed.",
         "enum": [
@@ -1511,6 +1564,48 @@
           }
         },
         "summary": "Health"
+      }
+    },
+    "/v1/auth/login": {
+      "post": {
+        "description": "Verifies credentials and issues a short-lived access token (`NE1105` on failure).\n\nThe audit entry for the login is written by E3.4; the token is never logged.",
+        "operationId": "login_v1_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Login",
+        "tags": [
+          "auth"
+        ]
       }
     },
     "/v1/builds/{build_id}": {
