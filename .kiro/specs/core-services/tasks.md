@@ -34,7 +34,7 @@ tested against simulated peers.
 | E5.7 | S7 driver against the snap7 server or a mock | E-R12 | no | done |
 | E5.8 | TCP socket and MQTT drivers against a local server and an in-process broker | E-R12 | no | done |
 | E5.9 | CAN driver on the python-can virtual bus | E-R12 | no | done |
-| E5.10 | Heartbeat, local E-STOP input (read-only), `estop_state`, advisory request handling, safe state outputs | E-R15 | no (simulated input) | open |
+| E5.10 | Heartbeat, local E-STOP input (read-only), `estop_state`, advisory request handling, safe state outputs | E-R15 | no (simulated input) | done |
 | E5.11 | Serve the PWA on the LAN and offline operation; `docs/daemon.md` with the safety wording | E-R12, E-R20 | no | open |
 | E5.12 | OPC UA driver against an in-process `asyncua` server (stretch, after E5.1 to E5.11) | E-R12 | no | open |
 | E5-HW | Daemon flashes the UNO and talks to a PLC and a robot controller in the lab; Python `host` node on the Pi 5 | E-R12, E-R14 | **yes** | pending (I4 to I7) |
@@ -794,3 +794,22 @@ each on a unique virtual channel): read an int and a bool from a peer-sent frame
 receives with the right id and bytes, a write read back, an unseen tag bad, a non-writable tag
 refused, a read before open bad. No new error code; no hardware, uses only the in-process virtual
 bus.
+## Results of E5.10
+Heartbeat, the read-only E-STOP input, `estop_state`, advisory handling and safe-state outputs
+(`estop.py`). `EstopState` (released/tripped/unknown); `EstopInput` protocol with a
+`SimulatedEstopInput` (settable like the physical circuit, but the daemon only READS it; a faulted
+input reads `unknown`). `SafeOutputs` holds each controlled tag with its declared safe value and
+`drive_safe` writes them all, logging and continuing past any one failing driver. `EstopController`
+reads the input and builds an `estop_state` frame carrying only the read state (never synthesised);
+`handle_advisory_request` drives the safe outputs then replies with the read state (released/tripped/
+unknown) echoing the request id; `apply_safe_state` is called by the runtime on relay loss or a
+`tripped` read. `Heartbeat` sends `deployment_status` for the cell on a fixed interval with the
+current device list. Safety wording is in the module and handler docstrings: ADVISORY ONLY, the
+hardwired E-STOP is the authority, the request neither trips nor releases nor disables any safety
+function, and the daemon never decides a state; nothing claims IEC 61508 or ISO 13849. Tests
+(`tests/test_e5_10_estop_heartbeat.py`, 8): released->tripped read, unreadable input -> unknown, an
+advisory request drives outputs to safe state and reports the READ state (released, not a
+synthesised tripped), an advisory never reports tripped unless the input says so, safe state on loss,
+one failing output does not block the rest, a single heartbeat frame, the heartbeat loop repeats then
+stops. Open: the run loop that wires the controller/heartbeat to the relay client and the driver pool
+is E5.11. No new error code; the input is simulated (E5-HW stays pending for a real input).

@@ -1183,3 +1183,13 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
 - **Lessons:** the virtual bus does not loop a sender's own frames back, so the driver updates its
   per-id cache on write; running the blocking `recv` in a worker thread keeps the async read path
   from stalling the event loop while still returning `bad` promptly when no frame has arrived.
+## 2026-11-23 · Task E5.10 (Heartbeat, read-only E-STOP input, estop_state, advisory handling, safe state)
+- **Kiro features:** spec-driven task from `.kiro/specs/core-services/` (design "Heartbeat and
+  E-STOP"), requirements E-R15/E-R20 and the relay.md safety rule.
+- **Produced:** `synapse_daemon.estop` -- `EstopState`/`EstopInput`/`SimulatedEstopInput`,
+  `SafeOutputs.drive_safe`, `EstopController` (read-only state, advisory handler, `apply_safe_state`)
+  and `Heartbeat` (`deployment_status` on an interval).
+- **Results:** 8 new tests; daemon suite 85 pass / 1 skip; ruff clean.
+- **Lessons:** making the advisory handler reply with `read_state()` and never a synthesised value
+  keeps the contract's "report only what the daemon reads" structural; driving every safe output past a
+  failing one means a single dead driver cannot stop the rest of the cell reaching its safe state.
