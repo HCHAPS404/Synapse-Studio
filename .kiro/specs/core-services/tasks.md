@@ -38,7 +38,7 @@ tested against simulated peers.
 | E5.11 | Serve the PWA on the LAN and offline operation; `docs/daemon.md` with the safety wording | E-R12, E-R20 | no | done |
 | E5.12 | OPC UA driver against an in-process `asyncua` server (stretch, after E5.1 to E5.11) | E-R12 | no | open |
 | E5-HW | Daemon flashes the UNO and talks to a PLC and a robot controller in the lab; Python `host` node on the Pi 5 | E-R12, E-R14 | **yes** | pending (I4 to I7) |
-| E6.1 | Black box: ring buffer, fault window, local SQLite store, record JSON Schema | E-R16 | no | open |
+| E6.1 | Black box: ring buffer, fault window, local SQLite store, record JSON Schema | E-R16 | no | done |
 | E6.2 | Upload route and table, retry on restart, conversion to the replay format | E-R16 | no | open |
 | E6.3 | Calibration pipeline and profile TOML; `neuron cell check --profile`; a synthetic profile changes an `NE0701` result; `NE1112` | E-R17 | no (generic and synthetic numbers) | open |
 | E6-HW | Measure the lab devices (I1), commit measured profiles, mark manifests `measured`, rerun the D3 budgets | E-R17 | **yes** | pending (I1) |
@@ -828,6 +828,34 @@ disables a safety function, and nothing claims IEC 61508 or ISO 13849. Tests
 (`tests/test_e5_11_lan.py`, 8): `safe_join` rejects `..` (stripped before normpath so a leading
 `/` cannot collapse it) and resolves `/` to index; serves index and an asset; SPA fallback; the
 `/health` offline payload; traversal forbidden; POST rejected; health works with no PWA
-directory. This completes the E5 software row (E5.1–E5.11); E5.12 (OPC UA) is a stretch and
-E5-HW stays pending for sessions I4–I7. Daemon suite: 93 pass, 1 skipped (the POSIX pty RTU
+directory. This completes the E5 software row (E5.1ï¿½E5.11); E5.12 (OPC UA) is a stretch and
+E5-HW stays pending for sessions I4ï¿½I7. Daemon suite: 93 pass, 1 skipped (the POSIX pty RTU
 test). No new error code.
+
+## Results of E6.1
+Black box on the daemon: a ring buffer that keeps a window around a fault, a local SQLite store,
+and a record JSON Schema. `synapse_daemon.blackbox`: Pydantic v2 models `BlackBoxSample`
+(tag/value/quality/t_ns, a bad or stale read carries no value), `BlackBoxEvent`
+(`{t_ns, device, kind, name, value}`), `BlackBoxRecord` (header: `record_version`, cell, device,
+`fault_kind`, `fault_code`, `at_ns`, `pre_ns`, `post_ns`, `daemon_version`, `package_hash`; then
+`samples` and `events`), all `extra="forbid"`; `FaultKind` (`fault`, `estop`, `driver_loss`,
+`watchdog`); `RingBuffer` (time-bounded deques pruned to `window_s` behind the newest seen time;
+`freeze(at_ns, pre_s, post_s)` returns only the items within `[at_ns - pre_ns, at_ns + post_ns]`,
+sorted by `t_ns`); `record_schema`/`canonical_schema_text`. `synapse_daemon.blackbox_store`:
+`BlackBoxStore` over `sqlite3` (one connection under a lock so a worker thread may use it),
+table `blackbox_records` with the record JSON and a nullable `uploaded_at`; `store`,
+`mark_uploaded`, `pending` (unuploaded, oldest fault first), `get`, `count`. The schema is
+generated from the model (`tools/gen_blackbox_schema.py`) into `spec/schemas/blackbox.schema.json`
+with sorted keys and two-space indent; a test asserts the committed file equals the model and a
+frozen record validates against it with `jsonschema`. Config gains `blackbox_window_s` (30 s),
+`blackbox_pre_s` (10 s), `blackbox_post_s` (5 s), `blackbox_db` and `blackbox_path()` (default
+`<work>/blackbox.db`). Choices: the store keeps the record even after upload (an `uploaded_at`
+timestamp, not a delete) so a restart can re-read the unuploaded rows and retry (E6.2 wiring);
+writing the window to disk is deliberate: the black box must outlive its process. The module is
+a diagnostic record only and decides no safety state; the hardwired E-STOP stays the authority.
+Open: the upload route, retry wiring and `blackbox_to_replay` are E6.2. Dev dep added:
+`jsonschema>=4.22`. Tests: 8 in `tests/test_e6_1_blackbox.py` (schema matches the model and a
+record validates against it; the ring buffer prunes outside the window; freeze keeps only the
+pre/post window; a synthetic fault yields both windows; store round trip and a restart keeps a
+record pending until `mark_uploaded`; settings defaults; a malformed record is rejected). Daemon
+suite: 101 pass, 1 skipped; ruff clean and formatted. No new error code (NE1112 is E6.3).

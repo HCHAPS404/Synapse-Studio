@@ -1,0 +1,206 @@
+{
+  "$defs": {
+    "BlackBoxEvent": {
+      "additionalProperties": false,
+      "description": "One trace event kept in the ring buffer (`{device, t_ns, kind, name, value}`).",
+      "properties": {
+        "device": {
+          "description": "Device instance the event belongs to",
+          "title": "Device",
+          "type": "string"
+        },
+        "kind": {
+          "description": "Event kind as used on the trace channel (e.g. output, fault)",
+          "title": "Kind",
+          "type": "string"
+        },
+        "name": {
+          "default": "",
+          "description": "Signal, output, fault or machine name",
+          "title": "Name",
+          "type": "string"
+        },
+        "t_ns": {
+          "description": "Cell-epoch time of the event, in nanoseconds",
+          "minimum": 0,
+          "title": "T Ns",
+          "type": "integer"
+        },
+        "value": {
+          "default": "",
+          "description": "Value as text, empty when there is none",
+          "title": "Value",
+          "type": "string"
+        }
+      },
+      "required": [
+        "t_ns",
+        "device",
+        "kind"
+      ],
+      "title": "BlackBoxEvent",
+      "type": "object"
+    },
+    "BlackBoxSample": {
+      "additionalProperties": false,
+      "description": "One tag reading kept in the ring buffer. A `bad`/`stale` read carries no value.",
+      "properties": {
+        "quality": {
+          "$ref": "#/$defs/Quality",
+          "description": "Sample quality: good, stale or bad"
+        },
+        "t_ns": {
+          "description": "Cell-epoch time of the reading, in nanoseconds",
+          "minimum": 0,
+          "title": "T Ns",
+          "type": "integer"
+        },
+        "tag": {
+          "description": "Cell tag name",
+          "title": "Tag",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Value"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Reading, or null for a failed read"
+        }
+      },
+      "required": [
+        "tag",
+        "quality",
+        "t_ns"
+      ],
+      "title": "BlackBoxSample",
+      "type": "object"
+    },
+    "FaultKind": {
+      "description": "What froze the window. Mirrors the fault sources in the design (E6).",
+      "enum": [
+        "fault",
+        "estop",
+        "driver_loss",
+        "watchdog"
+      ],
+      "title": "FaultKind",
+      "type": "string"
+    },
+    "Quality": {
+      "description": "Sample quality (relay.md): a healthy read, a stale read, or a failed read.",
+      "enum": [
+        "good",
+        "stale",
+        "bad"
+      ],
+      "title": "Quality",
+      "type": "string"
+    },
+    "Value": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "integer"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "string"
+        }
+      ]
+    }
+  },
+  "additionalProperties": false,
+  "description": "A frozen window around a fault: a header plus the samples and events of the window.\n\nThe header identifies the cell and the device that faulted, the fault code and instant,\nand the versions and package hash in force so a record can be tied back to what was running.\nThe window is `[at_ns - pre_ns, at_ns + post_ns]`; `samples` and `events` fall inside it,\nordered by `t_ns`.",
+  "properties": {
+    "at_ns": {
+      "description": "Instant of the fault, in nanoseconds",
+      "minimum": 0,
+      "title": "At Ns",
+      "type": "integer"
+    },
+    "cell": {
+      "description": "Cell name",
+      "title": "Cell",
+      "type": "string"
+    },
+    "daemon_version": {
+      "default": "",
+      "description": "Daemon version that wrote the record",
+      "title": "Daemon Version",
+      "type": "string"
+    },
+    "device": {
+      "description": "Device instance that faulted",
+      "title": "Device",
+      "type": "string"
+    },
+    "events": {
+      "items": {
+        "$ref": "#/$defs/BlackBoxEvent"
+      },
+      "title": "Events",
+      "type": "array"
+    },
+    "fault_code": {
+      "default": "",
+      "description": "Fault code or reason text",
+      "title": "Fault Code",
+      "type": "string"
+    },
+    "fault_kind": {
+      "$ref": "#/$defs/FaultKind",
+      "description": "What froze the window"
+    },
+    "package_hash": {
+      "default": "",
+      "description": "Hash of the deployed package, when known",
+      "title": "Package Hash",
+      "type": "string"
+    },
+    "post_ns": {
+      "description": "Window kept after the fault, in nanoseconds",
+      "minimum": 0,
+      "title": "Post Ns",
+      "type": "integer"
+    },
+    "pre_ns": {
+      "description": "Window kept before the fault, in nanoseconds",
+      "minimum": 0,
+      "title": "Pre Ns",
+      "type": "integer"
+    },
+    "record_version": {
+      "description": "Format version, \"1\"",
+      "title": "Record Version",
+      "type": "string"
+    },
+    "samples": {
+      "items": {
+        "$ref": "#/$defs/BlackBoxSample"
+      },
+      "title": "Samples",
+      "type": "array"
+    }
+  },
+  "required": [
+    "record_version",
+    "cell",
+    "device",
+    "fault_kind",
+    "at_ns",
+    "pre_ns",
+    "post_ns"
+  ],
+  "title": "BlackBoxRecord",
+  "type": "object"
+}

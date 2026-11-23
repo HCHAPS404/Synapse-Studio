@@ -64,6 +64,26 @@ class DaemonSettings(BaseSettings):
         default=None, description="Configured digital input the daemon reads the E-STOP from"
     )
 
+    # Black box (E6.1). The ring buffer window and the window frozen around a fault.
+    blackbox_window_s: float = Field(
+        default=30.0, gt=0, description="Seconds of samples/events kept in the ring buffer"
+    )
+    blackbox_pre_s: float = Field(
+        default=10.0, ge=0, description="Seconds before a fault kept in a record"
+    )
+    blackbox_post_s: float = Field(
+        default=5.0, ge=0, description="Seconds after a fault kept in a record"
+    )
+    blackbox_db: str | None = Field(
+        default=None, description="SQLite file for black box records; default: <work>/blackbox.db"
+    )
+
+    def blackbox_path(self) -> Path:
+        """The local SQLite file that holds black box records across restarts."""
+        if self.blackbox_db:
+            return Path(self.blackbox_db)
+        return self.work_path() / "blackbox.db"
+
     def is_local_mode(self) -> bool:
         """True when no cloud relay is configured: the daemon runs on the LAN only."""
         return not (self.relay_url and self.service_token)

@@ -1203,3 +1203,17 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
 - **Lessons:** rejecting `..` segments before `normpath` matters -- `normpath` collapses
   `/../../x` to `/x` and would silently allow traversal; a tiny stdlib asyncio server is enough to
   serve the PWA offline without pulling a web framework into the daemon.
+
+## 2026-11-23 · Task E6.1 (Black box: ring buffer, fault window, local SQLite store, record schema)
+- **Kiro features:** spec-driven task from `.kiro/specs/core-services/` (design `E6 Black box and
+  calibration`), requirement E-R16.
+- **Produced:** `synapse_daemon.blackbox` (Pydantic models `BlackBoxSample`/`BlackBoxEvent`/
+  `BlackBoxRecord`, `FaultKind`, `RingBuffer` with a time-bounded window and `freeze`),
+  `synapse_daemon.blackbox_store.BlackBoxStore` (SQLite with an `uploaded_at` flag),
+  `spec/schemas/blackbox.schema.json` (generated via `tools/gen_blackbox_schema.py`), and the
+  `blackbox_*` daemon settings.
+- **Results:** 8 new tests (synthetic events only); daemon suite 101 pass / 1 skip; ruff clean and
+  formatted. Dev dep `jsonschema` added.
+- **Lessons:** keeping an uploaded record in the store instead of deleting it lets a restart re-read
+  the unuploaded rows and retry, which is exactly what E6.2 needs; generating the schema from the
+  Pydantic model with a drift test keeps the committed JSON Schema from going stale.
