@@ -79,6 +79,10 @@ class Settings(BaseSettings):
     telemetry_rollup_interval_s: float = Field(
         default=60.0, gt=0, description="How often the roll-up and retention task runs"
     )
+    signing_key: SecretStr | None = Field(
+        default=None,
+        description="Base64 Ed25519 32-byte seed for signing deployment packages (E5.2)",
+    )
     log_level: str = Field(default="INFO", description="DEBUG | INFO | WARNING | ERROR")
     log_json: bool = Field(default=True, description="Structured JSON logs")
 

@@ -26,7 +26,7 @@ tested against simulated peers.
 | E4.5 | Retention and 1-minute roll-up task with advisory lock; `GET /v1/telemetry`; property test of retention | E-R11 | no | done |
 | E4.6 | Advisory E-STOP path and sim control routing (twin only, simulated devices only), audit entries | E-R9, E-R15, E-R8 | no | done |
 | E5.1 | Daemon package: config, `Driver` protocol, simulated driver, relay client with reconnect, local LAN mode, pairing client | E-R12, E-R10 | no | done |
-| E5.2 | Signed packages: manifest, Ed25519 sign (API side) and verify (daemon), quarantine, `NE1108` | E-R13 | no | open |
+| E5.2 | Signed packages: manifest, Ed25519 sign (API side) and verify (daemon), quarantine, `NE1108` | E-R13 | no | done |
 | E5.3 | Command allowlist with per-command Pydantic arguments, `NE1109`, `NE1111` for offline devices | E-R13 | no | open |
 | E5.4 | Deployment state machine in the API and the daemon, `NE1110`, property test over event sequences | E-R14 | no | open |
 | E5.5 | Serial driver and `Flasher` (avrdude, UF2) with fake tools and `loop://` | E-R12 | no | open |
@@ -640,7 +640,7 @@ mirrors `services/core` style). `config.py` (`DaemonSettings`, env prefix `SYNAP
 `SecretStr` service token, `is_local_mode()` true when no relay URL+token so the daemon runs
 LAN-only with no cloud). `errors.py` (`DaemonError` + the `NE1108..NE1111` subset of the shared
 catalogue). `drivers/base.py`: the `Driver` Protocol (`open`/`read`/`write`/`close`), `Sample`
-(with `Sample.bad` for a failed read — never a guessed value), `Quality` (good/stale/bad),
+(with `Sample.bad` for a failed read ï¿½ never a guessed value), `Quality` (good/stale/bad),
 `Value` (bool|int|float|str) and `DriverConfig` (`params`, `tag_map`, `writable`, timeout/
 retries/backoff). `drivers/simulated.py` (`SimulatedDriver`, dict-backed, the peer the other
 drivers test against). `relay/frames.py` builds the frames the daemon sends (`hello` as client
@@ -659,3 +659,26 @@ network-free). Open: everything in E5.2..E5.11; the runtime loop that wires driv
 relay lands with E5.10/E5.11. Tests: 13 in `tests/test_e5_1_daemon.py` (mode, simulated driver
 read/write/bad/non-writable, frame shapes, handshake+send, ping->pong, reconnect after a drop,
 pairing success and `NE1111`). No new error code (NE1108..NE1111 already documented in E2.1).
+## Results of E5.2
+Signed deployment packages. API side (`services/core/src/synapse_core/packages.py`):
+`PackageManifest`/`PackageFile` (Pydantic v2, `extra="forbid"`), `canonical_manifest_bytes`
+(JSON with sorted keys, no spaces, `created_at` ISO-8601 — the single definition of "the
+bytes that are signed"), `load_signing_key`/`public_key_b64` (Ed25519 from a base64 32-byte
+seed), `build_manifest` (hashes each artifact), `sign_package` (zips `manifest.json` pretty +
+`manifest.sig` + the files; the signature is over the canonical bytes so pretty spacing cannot
+break it). New setting `SYNAPSE_SIGNING_KEY` (`SecretStr`, never logged) and dep `cryptography`.
+Daemon side (`services/edge-daemon/src/synapse_daemon/packages.py`): `verify_package` checks, in
+order, that the zip has a manifest+signature, the manifest parses, the Ed25519 signature over the
+canonical bytes matches a trusted key, every listed file is present with a matching SHA-256/size,
+there is no unlisted file and no unsafe path; only then are files written to `out_dir` (nothing is
+written on any failure). `quarantine_package` keeps a rejected package in the quarantine folder.
+Any failure is `DaemonError(NE1108)`. Choices: the signature is over the re-serialised canonical
+manifest, not the stored bytes, so the readable pretty manifest and the signature agree; a package
+with an extra file beyond the manifest is rejected (no stowaway). The two sides share one canonical
+byte definition, asserted by an identical fixed vector in both test suites, so a package the API
+signs verifies on the daemon. Open: the deploy route that produces and ships a package, and the
+daemon applying a verified package, land with the deployment state machine (E5.4). Tests: 9 daemon
+(good extract, wrong key with nothing written, tampered file, tampered manifest, unsigned, extra
+file, no trusted keys, the canonical vector, quarantine) + 4 core (key round-trip, manifest hashing,
+sign produces a verifiable zip, the shared canonical vector). No new error code (NE1108 documented
+in E2.1).

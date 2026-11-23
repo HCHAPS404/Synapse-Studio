@@ -1097,3 +1097,17 @@ Format: date, plan task, Kiro features used, what was produced, lessons.
 - **Results:** 13 tests pass; ruff check and format clean. No new error code (already documented).
 - **Lessons:** injecting the WebSocket transport behind a `Connection` protocol lets every relay
   test drive an in-memory fake, so reconnect and ping/pong are covered with no server and no network.
+## 2026-11-23 · Task E5.2 (Signed deployment packages: Ed25519 sign on the API, verify + quarantine on the daemon)
+- **Kiro features:** spec-driven task from `.kiro/specs/core-services/` (design "Signed packages"),
+  requirement E-R13, and the shared `NE1108` entry in `docs/errors/services.md`.
+- **Produced:** `synapse_core.packages` (manifest models, canonical bytes, `load_signing_key`,
+  `build_manifest`, `sign_package`) with `SYNAPSE_SIGNING_KEY` and the `cryptography` dep;
+  `synapse_daemon.packages` (`verify_package` with ordered checks and atomic extract,
+  `quarantine_package`). Both sides share one canonical-byte definition.
+- **Results:** 9 daemon + 4 core tests pass; ruff clean; core suite 158 pass / 81 skip; OpenAPI drift
+  green. A tampered file, tampered manifest, wrong key, unsigned, extra-file and no-keys case are all
+  `NE1108` and write nothing.
+- **Lessons:** signing the canonical re-serialised manifest (not the stored file bytes) lets the zip
+  carry a human-readable pretty manifest while keeping one byte string under the signature; a fixed
+  canonical vector asserted on both sides guarantees cross-package compatibility without importing one
+  package into the other's test.
